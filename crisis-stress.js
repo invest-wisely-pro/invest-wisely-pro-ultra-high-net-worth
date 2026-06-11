@@ -298,7 +298,7 @@ function buildCrisisUI() {
     <div class="sec-label" data-info-id="info-crisis-stress" style="color:var(--red)">🔥 Stress Test Macro Storici — Path Mensile Ricostruito</div>
     <p style="font-size:12.5px;color:var(--text2);line-height:1.6;margin-bottom:14px">
       Simulazione del percorso mensile <strong>preciso</strong> del tuo portafoglio durante le principali crisi storiche,
-      usando i rendimenti mensili reali 1970–2024. Nessuna approssimazione: ogni mese è il dato effettivo.
+      usando la serie mensile 1970–2024: totali annui e mesi-crisi chiave ancorati ai dati storici reali, distribuzione degli altri mesi ricostruita.
       Il capitale di riferimento è quello impostato nel simulatore principale.
     </p>
     <!-- Pills crisi -->

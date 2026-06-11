@@ -106,7 +106,7 @@ async function downloadGuidePDF() {
     li('Blend 55/45: forward live (55%) + baseline (45%) per ridurre la sensibilita al dato puntuale (shrinkage bayesiano).');
     li('Approccio a delta: lo scostamento di valutazione e applicato al baseline calibrato (non lo sostituisce), cosi il confronto storico-vs-CAPE isola il solo effetto delle valutazioni correnti.');
     li('Badge colorato: mostra il delta vs rendimento storico (es. -0.9%/a in rosso se CAPE elevato).');
-    li('CAPE USA: dataset GitHub aggiornato mensilmente. CAPE Europa: stimato da P/E MSCI Europe con correzione ciclica (CAPE_EU = 0.68 x CAPE_USA + 3.8).');
+    li('CAPE USA: dataset Shiller (datahub/GitHub) — ultimo PE10 pubblicato riscalato al prezzo S&P500 corrente con deflatore crescita utili ~6%/a; mostrato come stima. CAPE Europa: stimato via regressione ricalibrata CAPE_EU = 0.55 x CAPE_USA + 2.5, con correzione ciclica.');
     callout('Con CAPE USA ~34 (dato 2024-25), i rendimenti azionari attesi scendono di circa 0.9-1.2%/a vs baseline. Su 30 anni abbassa il valore atteso in modo apprezzabile in scenario base. Utile per pianificazione conservativa con valutazioni elevate.', BLU, 'Impatto CAPE elevato');
     h2('Soglia di Optionality');
     p('Linea tratteggiata orizzontale sul grafico. Imposta il valore patrimoniale a cui inizi ad avere "scelta" (es. 300k EUR = part-time; 600k EUR = 2 anni sabbatici). E distinta dal FIRE (liberta finanziaria totale).');
@@ -163,7 +163,7 @@ async function downloadGuidePDF() {
     callout('Abbassare il tasso di prelievo dal 4% al 3,5% puo ridurre drasticamente la probabilita di esaurire il capitale su 30 anni. Usa il pulsante "Importa dal Simulatore" per collegare le due fasi. Attiva il Rischio di Sequenza per verificare se il piano regge a un crollo nei primi anni di pensione.', BLU, 'Come modifiche incidono');
 
     h1('7 — Scheda Backtest Storico (1970-2024)');
-    p('Il tab Backtest Storico applica il piano configurato nel Simulatore (portafoglio, PAC, orizzonte, TER) ai dati mensili reali 1970-2024, partendo da 10 periodi storici chiave. Risponde alla domanda: come si sarebbe comportato questo esatto piano nel passato reale?');
+    p('Il tab Backtest Storico applica il piano configurato nel Simulatore (portafoglio, PAC, orizzonte, TER) alla serie mensile 1970-2024 (totali annui e mesi-crisi ancorati ai dati reali, distribuzione infra-annuale ricostruita), partendo da 10 periodi storici chiave. Risponde alla domanda: come si sarebbe comportato questo piano nel passato?');
     h2('10 periodi storici preconfigurati');
     li('1973 — Stagflazione OPEC: embargo petrolifero, inflazione 12%, azioni -48% in 2 anni. Il peggior inizio storico per un PAC.');
     li('1980 — Volcker shock: tassi al 20%, azioni -28%, obbligazioni devastate. Poi il piu lungo bull market della storia (1982-2000).');
@@ -208,9 +208,9 @@ async function downloadGuidePDF() {
     li('Carry (FX e obbligazionario): soffrono nelle crisi ("raccogliere monetine davanti a uno schiacciasassi") — downside reale, inferiore all\'azionario puro ma significativo (beta 0.45).');
     callout('Questa modellazione differenziata e importante per valutare correttamente portafogli che includono managed futures, commodities o carry: il loro contributo alla resilienza in crisi e molto diverso. I beta sono stime prudenti basate sull\'evidenza storica, non garanzie.', BLU, 'Beta di crash per categoria');
 
-    h1('7b — Stress Test Macro Storici — Path Mensile Esatto');
-    p('Sezione aggiuntiva del tab Backtesting: simulazione del percorso mensile preciso del portafoglio durante le 10 principali crisi macro della storia moderna (1970-2024), con i rendimenti mensili reali (ogni mese è il dato storico effettivo). Come nel Rischio di Sequenza, puoi scegliere la modalita di versamento (capitale + PAC, solo capitale, solo PAC) e la fase del piano in cui arriva la crisi (inizio, meta, fine): cosi il capitale esposto al crollo riflette quello realmente accumulato a quel punto del piano.');
-    h2('Le 10 crisi simulate con dati mensili reali');
+    h1('7b — Stress Test Macro Storici — Path Mensile Ricostruito');
+    p('Sezione aggiuntiva del tab Backtesting: simulazione del percorso mensile preciso del portafoglio durante le 10 principali crisi macro della storia moderna (1970-2024), con la serie mensile ricostruita: i totali annui e i mesi delle crisi (es. ott 1987, ott 2008, mar 2020) corrispondono ai valori storici reali, la distribuzione degli altri mesi è stimata. Come nel Rischio di Sequenza, puoi scegliere la modalita di versamento (capitale + PAC, solo capitale, solo PAC) e la fase del piano in cui arriva la crisi (inizio, meta, fine): cosi il capitale esposto al crollo riflette quello realmente accumulato a quel punto del piano.');
+    h2('Le 10 crisi simulate — path mensile ricostruito');
     li('1973-74 Stagflazione OPEC — Embargo petrolifero OPEC ottobre 1973. Inflazione USA al 12%, azioni mondiali -48% in 23 mesi. Il peggior drawdown del dopoguerra per i portafogli bilanciati. Finestra 36 mesi. L\'oro sale +162% — unico asset con rendimento reale positivo.');
     li('1980-82 Volcker Shock — Paul Volcker porta i tassi Fed al 20% per spezzare l\'inflazione a doppia cifra. Doppia recessione, azioni -27%, obbligazioni a lunga scadenza devastate. Premessa del piu lungo bull market della storia.');
     li('1990 Recessione del Golfo — L\'invasione del Kuwait (agosto 1990) raddoppia il prezzo del petrolio. Recessione USA, azioni -20%. Crisi breve: recupero entro il 1991.');
@@ -227,7 +227,7 @@ async function downloadGuidePDF() {
     li('Finestra: include alcuni mesi pre-crisi per contesto. Il drawdown e calcolato rispetto al picco della finestra mostrata.');
     li('Recovery: numero di mesi dal bottom per tornare al livello di inizio finestra (non al picco assoluto pre-crisi).');
     h2('Output per ogni crisi');
-    li('Grafico path mensile normalizzato (base 100 = inizio finestra): mostra il percorso esatto del portafoglio, con evidenza del bottom.');
+    li('Grafico path mensile normalizzato (base 100 = inizio finestra): mostra il percorso ricostruito del portafoglio, con evidenza del bottom.');
     li('Grafico drawdown mensile dal picco: barre rosse per drawdown >25%, arancioni per >10%.');
     li('10 mesi peggiori con rendimento portafoglio, breakdown per asset class (azioni/obbligazioni/oro) e drawdown cumulato.');
     li('KPI: Max Drawdown, perdita massima in euro, mese peggiore, recovery stimato, inflazione e tassi del periodo, rendimento S&P500 storico.');

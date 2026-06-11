@@ -2925,7 +2925,7 @@ function runDecHistorical() {
           </table>
         </div>
         <div style="font-size:11.5px;color:var(--text3);margin-top:10px;line-height:1.5">
-          <strong>Note metodologiche:</strong> usa rendimenti mensili reali calibrati e inflazione effettiva di ogni anno. Il portafoglio è ribilanciato implicitamente ai pesi target ogni mese. La strategia di prelievo applicata è quella selezionata sopra. Risultati confrontabili con Trinity Study (Bengen 1994) e successivi aggiornamenti (Pfau, Kitces).
+          <strong>Note metodologiche:</strong> usa la serie mensile storica (totali annui e mesi-crisi ancorati ai dati reali, infra-annuale ricostruito) e l'inflazione effettiva di ogni anno. Il portafoglio è ribilanciato implicitamente ai pesi target ogni mese. La strategia di prelievo applicata è quella selezionata sopra. Risultati confrontabili con Trinity Study (Bengen 1994) e successivi aggiornamenti (Pfau, Kitces).
         </div>`;
       document.getElementById('decHistResults').innerHTML = html;
     } catch (e) {
@@ -4032,7 +4032,7 @@ async function exportExcel() {
       [],
       ['Analisi interattive aggiuntive (nell\'applicazione):'],
       ['Rischio di Sequenza', 'Stessa crisi a inizio/meta/fine piano — la perdita in € cresce col capitale accumulato'],
-      ['Stress Test Macro', 'Percorso mensile esatto durante le 10 crisi storiche principali'],
+      ['Stress Test Macro', 'Percorso mensile ricostruito durante le 10 crisi storiche (totali annui e mesi-crisi ancorati ai dati reali)'],
       ['Modalita versamento', 'Capitale + PAC · Solo capitale · Solo PAC — usano i valori del simulatore'],
       ['Eventi inclusi', 'La tabella sopra riflette aggiunte una tantum (PIC) e prelievi impostati nel simulatore'],
     ], { origin: -1 });
@@ -4485,7 +4485,7 @@ async function generatePDF() {
       '7.  Sequence of Returns Risk',
       '7b. Backtesting Storico — Dati Storici 1970-2024',
       '7c. Sequence Risk Multiplo — Crash Singolo / Doppio / Triplo',
-      '7d. Stress Test Macro Storici — Path Mensile Esatto (6 crisi)',
+      '7d. Stress Test Macro Storici — Path Mensile Ricostruito (6 crisi)',
       '7e. Piano di Decumulo (Strategia Prelievi)',
       '8.  Fiscalita, Costi e Erosione Reale',
       '8b. Analisi Fiscalita IT Comparata (4 Regimi)',
@@ -4859,7 +4859,7 @@ async function generatePDF() {
     );
     narrative(
       'Analisi interattive aggiuntive (disponibili nell\'applicazione): il Rischio di Sequenza confronta la stessa crisi a inizio, meta e fine piano, mostrando come la perdita in euro cresca con il capitale accumulato anche a parita di caduta percentuale. ' +
-      'Lo Stress Test Macro simula il percorso mensile esatto durante le 10 crisi storiche principali. ' +
+      'Lo Stress Test Macro simula il percorso mensile ricostruito durante le 10 crisi storiche principali (totali annui e mesi-crisi ancorati ai dati reali). ' +
       'Entrambe supportano tre modalita di versamento (capitale + PAC, solo capitale, solo PAC) e usano i valori impostati nel simulatore.'
     );
 
@@ -4912,7 +4912,7 @@ async function generatePDF() {
     );
 
     // ─────────── 7d. STRESS TEST MACRO STORICI ───────────
-    sHdr('7d \u2014 Stress Test Macro Storici \u2014 Path Mensile Esatto', [183, 28, 28]);
+    sHdr('7d \u2014 Stress Test Macro Storici \u2014 Path Mensile Ricostruito', [183, 28, 28]);
     narrative(
       'Simulazione del percorso mensile preciso del portafoglio attuale durante le 6 principali crisi macro 1970-2024. ' +
       'A differenza del backtesting PAC (piani con versamenti), questa analisi usa uno snapshot del capitale iniziale senza contributi aggiuntivi. ' +

@@ -14,7 +14,10 @@ let penState = {
   montante:   0,       // montante contributivo già accumulato
   desired:    2000,    // spesa mensile desiderata in pensione (€ oggi)
   infl:       0.02,    // inflazione attesa
-  pil:        0.015,   // rivalutazione montante INPS (PIL reale medio)
+  pil:        0.010,   // rivalutazione montante INPS: PIL reale medio di lungo
+               // periodo (scenario RGS ~1,0%/a). NB: volutamente DISACCOPPIATO
+               // dalla crescita RAL individuale (1,5%): assumere che il montante
+               // si rivaluti quanto i salari gonfia il tasso di sostituzione.
   coeffDecl:  0.003,   // declino annuo del coeff. di trasformazione (revisioni biennali ISTAT)
   fpVers:     100,     // versamento mensile fondo pensione (quota lavoratore)
   fpRet:      0.04,    // rendimento annuo fondo pensione (lordo)
@@ -56,6 +59,48 @@ function getCoeffTrasf(age) {
   const hi = ages.filter(a => a >  age)[0];
   const t  = (age - lo) / (hi - lo);
   return COEFF_TRASF[lo] + t * (COEFF_TRASF[hi] - COEFF_TRASF[lo]);
+}
+
+
+// ── Età di vecchiaia di legge (adeguamenti speranza di vita) ──────────────────
+// Normativa vigente + proiezioni RGS/MEF (rapporto tendenze 2025-26):
+//   2025-26: 67 · 2027: 67a1m · 2028-29: 67a3m (L. Bilancio 2026, gradualità)
+//   poi scatti biennali ISTAT: ~67a6m dal 2029-30, 68a nel 2037,
+//   68a11m nel 2050, 70a nel 2065. Interpolazione lineare tra le ancore,
+//   arrotondata al mese. È una STIMA: i decreti MEF biennali fissano i valori.
+const ETA_VECCHIAIA_ANCHORS = [
+  [2026, 67],        [2027, 67 + 1/12],  [2028, 67.25],
+  [2030, 67.5],      [2037, 68],         [2050, 68 + 11/12],
+  [2065, 70],        [2080, 70.75],
+];
+function getEtaVecchiaiaLegale(year) {
+  const A = ETA_VECCHIAIA_ANCHORS;
+  if (year <= A[0][0]) return A[0][1];
+  if (year >= A[A.length-1][0]) return A[A.length-1][1];
+  for (let i = 1; i < A.length; i++) {
+    if (year <= A[i][0]) {
+      const t = (year - A[i-1][0]) / (A[i][0] - A[i-1][0]);
+      const v = A[i-1][1] + t * (A[i][1] - A[i-1][1]);
+      return Math.round(v * 12) / 12; // arrotonda al mese
+    }
+  }
+  return A[A.length-1][1];
+}
+// Età di vecchiaia che si applicherà all'utente: punto fisso età/anno
+// (il requisito dipende dall'anno in cui lo si raggiunge).
+function getEtaVecchiaiaUtente(currentAge, currentYear) {
+  let eta = 67;
+  for (let i = 0; i < 8; i++) {
+    const yr = currentYear + (eta - currentAge);
+    const req = getEtaVecchiaiaLegale(Math.round(yr));
+    if (Math.abs(req - eta) < 1/24) break;
+    eta = req;
+  }
+  return eta;
+}
+function fmtEta(e) {
+  const a = Math.floor(e), m = Math.round((e - a) * 12);
+  return m === 0 ? `${a} anni` : `${a}a ${m}m`;
 }
 
 // ── Descrizioni regime ────────────────────────────────────────
@@ -383,6 +428,21 @@ function renderPensione() {
     if (tfrLbl) tfrLbl.textContent = penState.tfrSi ? fmt(Math.round(penState.ral / 13.5)) + '/anno' : 'non conferito';
     const mHint = document.getElementById('penMontanteHint');
     if (mHint) {
+      // Hint normativo: età di vecchiaia stimata per l'utente (tabellare RGS)
+      const lawHint = document.getElementById('penAgeLawHint');
+      if (lawHint) {
+        const nowY    = new Date().getFullYear();
+        const etaLeg  = getEtaVecchiaiaUtente(penState.age, nowY);
+        const yrLeg   = Math.round(nowY + (etaLeg - penState.age));
+        const etaCtr  = Math.min(71.25, etaLeg + 4); // canale contributivo: 71 (71a3m dal 2028), adeguato
+        if (penState.retAge < etaLeg - 1/24) {
+          lawHint.innerHTML = `⚠️ Sotto l'<strong>età di vecchiaia stimata per te: ${fmtEta(etaLeg)}</strong> (nel ${yrLeg}, adeguamenti speranza di vita RGS). Uscire prima richiede la <strong>pensione anticipata</strong> (43a 2m di contributi dal 2028, anch'essi in crescita) o canali dedicati (APE, usuranti).`;
+          lawHint.style.color = 'var(--orange)';
+        } else {
+          lawHint.innerHTML = `✓ Compatibile con l'età di vecchiaia stimata per te: <strong>${fmtEta(etaLeg)}</strong> nel ${yrLeg} (tabellare adeguamenti ISTAT/RGS).${penState.retAge >= 71 ? ` A 71+ rientri anche nel canale <strong>vecchiaia contributiva</strong> (71a, 71a3m dal 2028, bastano 5 anni di contributi effettivi).` : ''}`;
+          lawHint.style.color = 'var(--text3)';
+        }
+      }
       if (penState.montante <= 0 && penState.contYears > 0)
         mHint.innerHTML = `Stimato automaticamente da <strong>${penState.contYears} anni</strong> già versati: <strong>${fmt(r.montanteIniziale)}</strong>. Inserisci il valore esatto dal sito INPS per più precisione.`;
       else if (penState.montante <= 0)
@@ -471,7 +531,7 @@ function renderPenKPI(r) {
     <div class="mcard">
       <div class="ml">Tasso di sostituzione</div>
       <div class="mv" style="color:${tsCol}">${(tassoSost*100).toFixed(1)}%</div>
-      <div class="ms">INPS lorda / RAL finale</div>
+      <div class="ms">INPS lorda / RAL finale · ${penState.contYears + yearsToRet} anni di contributi${(penState.contYears + yearsToRet) >= 42 ? ' <span title="Tasso elevato perché assume una carriera lunga e SENZA interruzioni fino a età avanzata (coefficiente alto). Con carriera standard (~38 anni, età di vecchiaia) il tasso scende tipicamente al 60-70% lordo. Interruzioni, part-time o anni non coperti lo riducono.">ⓘ</span>' : ''}</div>
     </div>
     <div class="mcard">
       <div class="ml">Montante INPS al pensionamento</div>
