@@ -259,10 +259,15 @@ function simulateBacktest(portKey, startYear, pacMonthly, w0, skipEvents, useCap
   const btPics = (!skipEvents && Array.isArray(state.pics)) ? state.pics : [];
   const btExps = (!skipEvents && Array.isArray(state.exps)) ? state.exps : [];
   
-  const eqW = getEquityWeight(portKey, state.age);
+  // Pesi: per lifecycle scorrono col glidepath durante la finestra storica
+  // (l'investitore invecchia anche nel backtest); per gli altri sono costanti.
   const goldW = getGoldWeight(portKey);
   const cashW = getCashWeight(portKey);
-  const obW = Math.max(0, 1 - eqW - goldW - cashW);
+  const wAt = (mIdx) => {
+    const e = getEquityWeight(portKey, state.age + mIdx / 12);
+    return { eqW: e, obW: Math.max(0, 1 - e - goldW - cashW) };
+  };
+  const { eqW, obW } = wAt(0); // pesi iniziali (per le sezioni informative)
 
   const terRate = state.ter / 100 / 12; // mensile
 
@@ -323,8 +328,9 @@ function simulateBacktest(portKey, startYear, pacMonthly, w0, skipEvents, useCap
     if (eqCumRet > eqPeak) eqPeak = eqCumRet;
     const currentEqDraw = eqPeak > 0 ? (eqCumRet - eqPeak) / eqPeak : 0;
 
-    // Rendimento portafoglio mensile con pesi
-    let portRet = eqW * eqAdj + obW * obRet + goldW * goldRet + cashW * cashRet;
+    // Rendimento portafoglio mensile con pesi (glidepath per lifecycle)
+    const { eqW: eqW_m, obW: obW_m } = wAt(m);
+    let portRet = eqW_m * eqAdj + obW_m * obRet + goldW * goldRet + cashW * cashRet;
     portRet -= terRate;
 
     // PAC mensile — metodo midpoint (coerente con project() nel simulatore principale)
@@ -434,7 +440,8 @@ function simulateBacktest(portKey, startYear, pacMonthly, w0, skipEvents, useCap
       const idx2 = startIdx + m2;
       if (idx2 >= HIST_MONTHLY.length) break;
       const row2 = calibrateHistRow(HIST_MONTHLY[idx2]);
-      const pr2 = eqW * row2[0] + obW * row2[1] + goldW * row2[2] + cashW * 0.002 - terRate;
+      const { eqW: eqW2, obW: obW2 } = wAt(m2);
+      const pr2 = eqW2 * row2[0] + obW2 * row2[1] + goldW * row2[2] + cashW * 0.002 - terRate;
       twrCum2 *= (1 + pr2);
       nM2++;
     }

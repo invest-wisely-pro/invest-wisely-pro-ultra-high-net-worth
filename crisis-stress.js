@@ -173,9 +173,11 @@ function simulateCrisisPath(crisis, portKey, capitalEur, pacMonthly) {
   const pac = pacMonthly || 0;  // PAC mensile opzionale (0 = snapshot puro)
 
   // Pesi portafoglio (usa funzioni già definite in main.js)
-  const eqW   = typeof getEquityWeight === 'function' ? getEquityWeight(portKey, state?.age || 40) : 0.6;
+  const age0  = state?.age || 40;
   const goldW = typeof getGoldWeight   === 'function' ? getGoldWeight(portKey) : 0;
   const cashW = typeof getCashWeight   === 'function' ? getCashWeight(portKey) : 0;
+  const eqAt  = (mOff) => typeof getEquityWeight === 'function' ? getEquityWeight(portKey, age0 + mOff / 12) : 0.6;
+  const eqW   = eqAt(0);
   const obW   = Math.max(0, 1 - eqW - goldW - cashW);
 
   const terMonthly = ((state?.ter ?? 0.2) / 100) / 12;
@@ -199,7 +201,9 @@ function simulateCrisisPath(crisis, portKey, capitalEur, pacMonthly) {
     const obRet   = row[1];
     const goldRet = row[2];
 
-    const portRet = eqW * eqRet + obW * obRet + goldW * goldRet + cashW * 0.002 - terMonthly;
+    const eqW_m   = eqAt(idx - startIdx);
+    const obW_m   = Math.max(0, 1 - eqW_m - goldW - cashW);
+    const portRet = eqW_m * eqRet + obW_m * obRet + goldW * goldRet + cashW * 0.002 - terMonthly;
 
     // Valore normalizzato (senza PAC, per il grafico % e il drawdown "puro")
     cumValue *= (1 + portRet);

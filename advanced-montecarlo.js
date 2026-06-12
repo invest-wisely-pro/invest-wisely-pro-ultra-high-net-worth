@@ -370,7 +370,7 @@ function runAdvancedMC() {
 
       // Parametri base portafoglio
       const volBase = getPortfolioVol(portfolio, age);
-      const mu_annual = getRate(portfolio,'normal',1,age);
+      const mu_annual = getRate(portfolio,'normal',1,age); // setup (GARCH/regime long-run)
 
       for (let i = 0; i < N; i++) {
         let cW = w;
@@ -390,15 +390,17 @@ function runAdvancedMC() {
           const annPac = getPacForYear(y)*12;
           const pic = pics.filter(p=>+p.year===y).reduce((s,p)=>s+(+p.amount||0),0);
           const exp = exps.filter(e=>+e.year===y).reduce((s,e)=>s+(+e.amount||0),0);
-          // eqW aggiornato ogni anno: per lifecycle scende con l'età, per altri è costante
+          // eqW e μ aggiornati ogni anno: per lifecycle scendono con l'età (glidepath),
+          // per gli altri portafogli sono costanti (getRate/getEquityWeight ignorano l'anno).
           const eqW = getEquityWeight(portfolio, age+y);
+          const muY = getRate(portfolio,'normal',y,age);
           let r;
 
           if (model === 'gaussian') {
             const vol = getPortfolioVol(portfolio, age+y);
             // Correzione log-normale (Itō): μ_arith = μ_geo + σ²/2
             // garantisce che CAGR medio = μ_geo = PORT.normal → P50 ≈ Base deterministico
-            const mu_arith = mu_annual + 0.5 * vol * vol;
+            const mu_arith = muY + 0.5 * vol * vol;
             r = mu_arith + vol * randn_bm();
           } else if (model === 'student') {
             const vol = getPortfolioVol(portfolio, age+y);
@@ -406,22 +408,34 @@ function runAdvancedMC() {
             // mu_arith deve usare la varianza effettiva: 0.5*vol²*(nu/(nu-2))
             // così E[CAGR] = mu_geo = PORT.normal → P50 converge alla linea Base
             const varFactor = nu > 2 ? nu / (nu - 2) : 10;  // nu/(nu-2); fallback per nu≤2
-            const mu_arith = mu_annual + 0.5 * vol * vol * varFactor;
+            const mu_arith = muY + 0.5 * vol * vol * varFactor;
             r = mu_arith + vol * randn_t(nu);
           } else if (model === 'garch') {
             // Simula 12 mesi GARCH e aggrega; usa stati carry-forward tra anni
             const eqP = GARCH_EQ, obP = GARCH_OB;
             let eqSig2 = garchEqSig2, obSig2 = garchObSig2;
+            // Ancoraggio: la struttura a 2 asset eq/(1−eq) non rappresenta
+            // portafogli con oro, leva (90/60) o trend. Gli shock vengono
+            // scalati alla σ target del portafoglio e il drift ri-ancorato
+            // al μ (stesso approccio del Bootstrap), preservando il clustering.
+            const volTgt_m = getPortfolioVol(portfolio, age+y) / Math.sqrt(12);
+            const volStr_m = Math.sqrt(eqW*eqW*garchEqSig2LR + (1-eqW)*(1-eqW)*garchObSig2LR);
+            const kVol = volStr_m > 0 ? volTgt_m / volStr_m : 1;
             let annR = 1;
             for (let m = 0; m < 12; m++) {
               const eqEps = randn_bm()*Math.sqrt(eqSig2);
               const obEps = randn_bm()*Math.sqrt(obSig2);
-              const mR = eqW*(eqP.mu+eqEps)+(1-eqW)*(obP.mu+obEps);
+              const mR = eqW*(eqP.mu+eqEps*kVol)+(1-eqW)*(obP.mu+obEps*kVol);
               annR *= (1+mR);
               eqSig2 = eqP.omega+eqP.alpha*eqEps*eqEps+eqP.beta*eqSig2;
               obSig2 = obP.omega+obP.alpha*obEps*obEps+obP.beta*obSig2;
             }
-            r = annR - 1;
+            const eStr_m = eqW*eqP.mu + (1-eqW)*obP.mu;
+            const eStrAnn = Math.pow(1 + eStr_m, 12) - 1;
+            // Convenzione della suite: PORT.normal è GEOMETRICO → ancora la media
+            // aritmetica a μ + σ²/2 (Itō), così la mediana ≈ Base deterministico.
+            const volTgtAnn = volTgt_m * Math.sqrt(12);
+            r = (annR) * (1 + muY + 0.5*volTgtAnn*volTgtAnn) / (1 + eStrAnn) - 1;
             // Aggiorna lo stato GARCH da portare all'anno successivo
             garchEqSig2 = eqSig2;
             garchObSig2 = obSig2;
@@ -442,7 +456,8 @@ function runAdvancedMC() {
               const mR = eqW*(param.mu+param.sigma*randn_bm())+(1-eqW)*(0.0025+0.015*randn_bm());
               annR *= (1+mR);
             }
-            const portTargetMonthly = Math.pow(1 + mu_annual, 1/12) - 1;
+            const volRS = getPortfolioVol(portfolio, age+y);
+            const portTargetMonthly = Math.pow(1 + muY, 1/12) - 1 + 0.5*volRS*volRS/12; // Itō: P50 ≈ Base
             const pBull = RS.pBearBull / (1 - RS.pBullBull + RS.pBearBull);
             const E_steady_m = pBull*(eqW*RS.bull.mu+(1-eqW)*0.0025) + (1-pBull)*(eqW*RS.bear.mu+(1-eqW)*0.0025);
             const rsShift = portTargetMonthly - E_steady_m;
@@ -466,7 +481,7 @@ function runAdvancedMC() {
             // Calcola CAGR storico del portafoglio mix su tutti i 660 mesi
             const histMean_b = calcHistMean(eqW, goldW_b, obW_b, cashW_b);
             // Scala moltiplicativa: r_adj = annR * (1 + target) / (1 + histMean_b) - 1
-            const scaleFactor = (1 + mu_annual) / (1 + histMean_b);
+            const scaleFactor = (1 + muY) / (1 + histMean_b);
             r = annR * scaleFactor - 1;
           }
           r -= terRate;
@@ -665,7 +680,6 @@ function renderAdvMCComparison() {
   const compRows = [];
 
   for (const model of models) {
-    const mu = getRate(state.portfolio,'normal',1,state.age);
     const terRate = state.ter/100;
     const ts = Array.from({length:years+1},()=>[]);
     for (let i = 0; i < Ncomp; i++) {
@@ -681,6 +695,8 @@ function renderAdvMCComparison() {
         const exp = state.exps.filter(e=>+e.year===y).reduce((s,e)=>s+(+e.amount||0),0);
         const vol = getPortfolioVol(state.portfolio,state.age+y);
         const eqW = getEquityWeight(state.portfolio, state.age+y);
+        // μ per-anno: per lifecycle scende col glidepath (coerente con vol/eqW)
+        const mu = getRate(state.portfolio,'normal',y,state.age);
         let r;
         if (model==='gaussian') r = mu + 0.5*vol*vol + vol*randn_bm();
         else if (model==='student') {
@@ -688,15 +704,21 @@ function renderAdvMCComparison() {
           r = mu + 0.5*vol*vol*vf + vol*randn_t(nu_c);
         }
         else if (model==='garch') {
+          // Ancoraggio identico al runner principale: shock scalati alla σ target
+          // del portafoglio e drift ri-ancorato al μ per-anno (essenziale per leva/oro/trend).
+          const eqLR=GARCH_EQ.omega/(1-GARCH_EQ.alpha-GARCH_EQ.beta), obLR=GARCH_OB.omega/(1-GARCH_OB.alpha-GARCH_OB.beta);
+          const volStr_m=Math.sqrt(eqW*eqW*eqLR+(1-eqW)*(1-eqW)*obLR);
+          const kV=volStr_m>0 ? (vol/Math.sqrt(12))/volStr_m : 1;
           let annR=1, eqSig2=gEqSig2, obSig2=gObSig2;
-          for(let m=0;m<12;m++){const ee=randn_bm()*Math.sqrt(eqSig2);const oe=randn_bm()*Math.sqrt(obSig2);annR*=(1+eqW*(GARCH_EQ.mu+ee)+(1-eqW)*(GARCH_OB.mu+oe));eqSig2=GARCH_EQ.omega+GARCH_EQ.alpha*ee*ee+GARCH_EQ.beta*eqSig2;obSig2=GARCH_OB.omega+GARCH_OB.alpha*oe*oe+GARCH_OB.beta*obSig2;}
-          r=annR-1; gEqSig2=eqSig2; gObSig2=obSig2;
+          for(let m=0;m<12;m++){const ee=randn_bm()*Math.sqrt(eqSig2);const oe=randn_bm()*Math.sqrt(obSig2);annR*=(1+eqW*(GARCH_EQ.mu+ee*kV)+(1-eqW)*(GARCH_OB.mu+oe*kV));eqSig2=GARCH_EQ.omega+GARCH_EQ.alpha*ee*ee+GARCH_EQ.beta*eqSig2;obSig2=GARCH_OB.omega+GARCH_OB.alpha*oe*oe+GARCH_OB.beta*obSig2;}
+          const eStrA=Math.pow(1+eqW*GARCH_EQ.mu+(1-eqW)*GARCH_OB.mu,12)-1;
+          r=annR*(1+mu+0.5*vol*vol)/(1+eStrA)-1; gEqSig2=eqSig2; gObSig2=obSig2; // Itō: P50 ≈ Base
         } else if (model==='regime') {
           const RS=RS_PARAMS; const u=Math.random();
           if(rsState==='bull')rsState=u<RS.pBullBull?'bull':'bear'; else rsState=u<RS.pBearBull?'bull':'bear';
           let annR=1,cs=rsState;
           for(let m=0;m<12;m++){const pu=Math.random();if(cs==='bull')cs=pu<RS.pBullBull?'bull':'bear';else cs=pu<RS.pBearBull?'bull':'bear';const param=cs==='bull'?RS.bull:RS.bear;annR*=(1+eqW*(param.mu+param.sigma*randn_bm())+(1-eqW)*(0.0025+0.015*randn_bm()));}
-          const ptm=Math.pow(1+mu,1/12)-1;
+          const ptm=Math.pow(1+mu,1/12)-1 + 0.5*vol*vol/12; // Itō: P50 ≈ Base
           const pb=RS.pBearBull/(1-RS.pBullBull+RS.pBearBull);
           const rsE=pb*(eqW*RS.bull.mu+(1-eqW)*0.0025)+(1-pb)*(eqW*RS.bear.mu+(1-eqW)*0.0025);
           r=annR*Math.pow(1+(ptm-rsE),12)-1;

@@ -147,9 +147,9 @@ const PORT = {
   ec_glob_9060: {
     label: '⚡ Efficient Core 90/60 Globale',
     desc: 'Versione globale della strategia capital-efficient (efficient core 90/60 globale): 90% azioni globali sviluppati + 60% futures su titoli di stato globali (USA, UK, Germania, Giappone), esposizione notional 150%. Più diversificata della versione USA sia sul lato azionario sia obbligazionario. Costo di finanziamento della leva già dedotto. Volatilità ~14%/a. Disponibile come ETF UCITS. Adatta come "core" di un portafoglio per liberare spazio ad asset diversificanti senza ridurre l\'esposizione azionaria.',
-    best: .102, normal: .076, worst: .024, vol: .142,
+    best: .099, normal: .073, worst: .021, vol: .142,
     eq: .90, ob: .60, gold: 0, cash: 0, leverage: 1.5,
-    realRet: .056, inflBeta: -0.04, fxExp: 0.70,
+    realRet: .053, inflBeta: -0.04, fxExp: 0.70,
     breakdown: {
       'Az. Globali Sviluppati': '90%',
       'Futures Gov. Globali': '60%',
@@ -799,7 +799,12 @@ function getCrashWeights(port, age) {
     // return_stack ha una quota trend (managed futures) esplicita
     trendW = PORT[port]?.trend || 0;
   }
-  const defensive = Math.max(0, 1 - eq - trendW - carryW - commodW - goldW - cashW) + goldW + cashW;
+  // Esposizione difensiva: per i portafogli a leva (efficient core, return
+  // stacking) usa il peso obbligazionario ESPLICITO (es. 0.60 notional), non il
+  // residuo 1−eq che collasserebbe la leva. La somma può superare 1: corretto,
+  // il crash agisce sulle esposizioni notional.
+  const obExplicit = (port !== 'custom') ? PORT[port]?.ob : undefined;
+  const defensive = (obExplicit ?? Math.max(0, 1 - eq - trendW - carryW - commodW - goldW - cashW)) + goldW + cashW;
   return { eq, trendW, carryW, commodW, defensive };
 }
 
