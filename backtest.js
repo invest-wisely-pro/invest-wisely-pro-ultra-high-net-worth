@@ -465,12 +465,20 @@ function simulateBacktest(portKey, startYear, pacMonthly, w0, skipEvents, useCap
 // in HIST_MONTHLY (che copre solo azioni/obbligazioni/oro). Senza blocco, questi
 // asset verrebbero simulati implicitamente come obbligazionario (obW = residuo),
 // perdendo completamente il crisis alpha / la decorrelazione che ne giustificano l'uso.
+// Stesso blocco per asset compositi a leva (Efficient Core 90/60 USA/Globale):
+// isComposite+finCost > 0 indica esposizione notional >100%; il backtest storico
+// ignorerebbe la leva e il costo di finanziamento, producendo risultati fuorvianti.
 function customPortfolioIsNonBacktestable() {
   if (state.portfolio !== 'custom') return false;
   const NON_BT_CATS = new Set(['trend', 'carry']);
   return (state.customPortfolio?.slots || []).some(sl => {
     const ac = ASSET_CLASSES[sl.ac];
-    return Number(sl.pct) > 0 && ac && NON_BT_CATS.has(ac.cat);
+    if (!ac || !(Number(sl.pct) > 0)) return false;
+    // Categoria non backtestabile (trend following, carry, managed futures)
+    if (NON_BT_CATS.has(ac.cat)) return true;
+    // Asset composito a leva (efficient core 90/60 USA o Globale)
+    if (ac.isComposite && ac.finCost > 0) return true;
+    return false;
   });
 }
 
@@ -495,9 +503,9 @@ function runBacktest() {
     box.style.color = 'var(--orange, #b8860b)';
     const isCustomMF = portKey === 'custom' && customPortfolioIsNonBacktestable();
     box.innerHTML = isCustomMF
-      ? `Il portafoglio custom include <strong>Trend Following / Managed Futures</strong> o <strong>Carry</strong>, ` +
+      ? `Il portafoglio custom include <strong>Trend Following / Managed Futures</strong>, <strong>Carry</strong> o <strong>Efficient Core (leva)</strong>, ` +
         `asset privi di serie storica coerente in questo modello (i dati storici coprono solo azioni, obbligazioni e oro). ` +
-        `Senza blocco questi asset verrebbero modellati erroneamente come obbligazionario, producendo risultati fuorvianti. ` +
+        `Il backtest ignorerebbe la leva e i costi di finanziamento, producendo risultati fuorvianti. ` +
         `Usa le schede <strong>Simulatore</strong>, <strong>Monte Carlo</strong> o <strong>Frontiera Efficiente</strong>.`
       : `Il backtest storico non è applicabile a <strong>${lbl}</strong>. ` +
         `Questa strategia usa leva (esposizione &gt;100%) e/o managed futures, ` +
@@ -687,11 +695,17 @@ function runSequenceRiskStress() {
   if (!cfg) return;
 
   const portKey = btState.port === 'sim' ? state.portfolio : btState.port;
-  // Preset con leva / managed futures non backtestabili
-  if ({ ec_us_9060:1, ec_glob_9060:1, return_stack:1 }[portKey]) {
+  // Preset con leva / managed futures non backtestabili; stessa esclusione per
+  // portafoglio custom con Efficient Core, Trend Following o Carry.
+  const isCustomNonBT = portKey === 'custom' &&
+    (typeof customPortfolioIsNonBacktestable === 'function') &&
+    customPortfolioIsNonBacktestable();
+  if ({ ec_us_9060:1, ec_glob_9060:1, return_stack:1 }[portKey] || isCustomNonBT) {
     document.getElementById('btSeqRiskResults').style.display = 'block';
     document.getElementById('btSeqRiskContext').innerHTML =
-      'Lo stress test di sequenza non è disponibile per i portafogli con leva o managed futures (privi di serie storica coerente).';
+      isCustomNonBT
+        ? 'Lo stress test di sequenza non è disponibile per i portafogli custom con Efficient Core (leva), Trend Following o Carry (privi di serie storica coerente).'
+        : 'Lo stress test di sequenza non è disponibile per i portafogli con leva o managed futures (privi di serie storica coerente).';
     document.getElementById('btSeqRiskCards').innerHTML = '';
     document.getElementById('btSeqRiskNote').innerHTML = '';
     if (chartBtSeq) { chartBtSeq.destroy(); chartBtSeq = null; }
@@ -866,9 +880,9 @@ function runAllBacktests() {
     box.style.color = 'var(--orange, #b8860b)';
     const isCustomMF2 = portKey === 'custom' && customPortfolioIsNonBacktestable();
     box.innerHTML = isCustomMF2
-      ? `Il portafoglio custom include <strong>Trend Following / Managed Futures</strong> o <strong>Carry</strong>, ` +
+      ? `Il portafoglio custom include <strong>Trend Following / Managed Futures</strong>, <strong>Carry</strong> o <strong>Efficient Core (leva)</strong>, ` +
         `asset privi di serie storica coerente in questo modello (i dati storici coprono solo azioni, obbligazioni e oro). ` +
-        `Senza blocco questi asset verrebbero modellati erroneamente come obbligazionario, producendo risultati fuorvianti. ` +
+        `Il backtest ignorerebbe la leva e i costi di finanziamento, producendo risultati fuorvianti. ` +
         `Usa le schede <strong>Simulatore</strong>, <strong>Monte Carlo</strong> o <strong>Frontiera Efficiente</strong>.`
       : `Il backtest storico non è applicabile a <strong>${lbl}</strong>: ` +
         `usa leva e/o managed futures, asset senza serie storica coerente in questo modello. ` +

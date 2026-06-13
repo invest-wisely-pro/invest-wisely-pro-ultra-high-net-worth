@@ -349,8 +349,9 @@ function runAdvancedMC() {
       // il Block Bootstrap li modellerebbe come mix az/obbl/oro ignorando leva e
       // trend. Per questi, se è selezionato 'bootstrap', si ricade su GARCH
       // (parametrico, che usa il rendimento/vol corretti del portafoglio).
-      // Stessa cosa per il portafoglio custom che include Trend Following / Carry:
-      // fat_trend, fat_carry_bond, fat_carry_fx non hanno serie in HIST_MONTHLY.
+      // Stessa cosa per il portafoglio custom che include Trend Following / Carry
+      // o asset compositi a leva (Efficient Core 90/60): fat_trend, fat_carry_bond,
+      // fat_carry_fx, ec_us_core, ec_glob_core non hanno serie in HIST_MONTHLY.
       const LEVERAGED = { ec_us_9060: 1, ec_glob_9060: 1, return_stack: 1 };
       const isCustomWithMF = portfolio === 'custom' &&
         (typeof customPortfolioIsNonBacktestable === 'function') &&
@@ -360,7 +361,7 @@ function runAdvancedMC() {
       if (model === 'bootstrap' && (LEVERAGED[portfolio] || isCustomWithMF)) {
         model = 'garch';
         modelFallbackNote = isCustomWithMF
-          ? 'Il portafoglio custom include Trend Following / Managed Futures o Carry: il Block Bootstrap storico non dispone di serie storiche per questi asset. Usato il modello GARCH(1,1) parametrico, che modella correttamente rendimento e volatilità del portafoglio custom.'
+          ? 'Il portafoglio custom include Trend Following / Managed Futures, Carry o Efficient Core (leva): il Block Bootstrap storico non dispone di serie storiche coerenti per questi asset. Usato il modello GARCH(1,1) parametrico, che modella correttamente rendimento e volatilità del portafoglio custom.'
           : 'Il Block Bootstrap storico non è applicabile ai portafogli con leva / managed futures: usato il modello GARCH(1,1) parametrico.';
       }
       const terRate = ter/100;

@@ -575,3 +575,252 @@ tbody tr:hover{background:var(--bg2)}
 
 /* ── Badge build per beta testing ── */
 .beta-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;font-family:'DM Mono',monospace;color:#b06000;background:rgba(232,161,60,.18);border:1px solid rgba(232,161,60,.5);border-radius:5px;padding:2px 8px;vertical-align:middle;white-space:nowrap}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE OPTIMIZATION — iOS / Android
+   Target: 320px–480px (small phones), 481px–768px (tablet/large phone)
+   ══════════════════════════════════════════════════════════════ */
+
+/* iOS safe area (notch, Dynamic Island, home indicator) */
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .top-nav {
+    padding-top: calc(14px + env(safe-area-inset-top));
+  }
+}
+
+/* ── Slider thumb più grande su touch (min 44×44px Apple HIG) ── */
+@media (pointer: coarse) {
+  input[type=range] {
+    height: 6px;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    width: 26px;
+    height: 26px;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--blue);
+    border: none;
+    cursor: pointer;
+  }
+  /* Touch target minimo 44px per tutti i pulsanti */
+  .gbtn, .tab-btn, .addbtn, .dbtn, .tog-row {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tog-row {
+    padding: 6px 0;
+  }
+  /* Input testuali più comodi da toccare */
+  .einput, .custom-pct-input, .num-box {
+    min-height: 40px;
+    font-size: 14px; /* evita zoom automatico iOS (< 16px scatta lo zoom) */
+  }
+  .custom-select {
+    min-height: 44px;
+    font-size: 14px;
+  }
+}
+
+/* ── Prevent iOS auto-zoom on input focus (font-size ≥ 16px nei form) ── */
+@media (max-width: 768px) {
+  input[type=text],
+  input[type=number],
+  input[type=email],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  /* Ma mantieni DM Mono per i campi numerici dove è importante */
+  .einput, .custom-pct-input, .num-box {
+    font-size: 16px !important;
+  }
+}
+
+/* ── Layout compatto su schermi piccoli (≤ 480px) ── */
+@media (max-width: 480px) {
+
+  /* Top nav: brand + navlinks su righe separate, navlinks scrollabile */
+  .top-nav {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+  .top-nav .navlinks {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .top-nav .navlinks::-webkit-scrollbar { display: none; }
+  .top-nav .navlinks button {
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 6px 10px;
+    font-size: 11.5px;
+  }
+
+  /* Tab-nav: scroll orizzontale fluido */
+  .tab-nav {
+    padding: 0 10px;
+    gap: 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tab-nav::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    padding: 11px 12px;
+    font-size: 12px;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  /* Tab content: padding ridotto */
+  .tab-content {
+    padding: 14px 12px;
+  }
+
+  /* Sezioni: padding ridotto */
+  .sec, .sec-advanced {
+    padding: 12px 12px;
+  }
+  .header {
+    padding: 14px 14px 12px;
+  }
+
+  /* Grids: sempre 1 colonna su mobile piccolo */
+  .grid-2, .grid-3, .grid-4, .grid-side {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Grafici: altezza ridotta per non occupare tutto lo schermo */
+  .chart-wrap {
+    height: 280px !important;
+    padding: 10px 8px 8px;
+  }
+
+  /* Metriche (mcard): 2 colonne invece di 4 */
+  .grid-4 .mcard {
+    padding: 10px 10px;
+  }
+  .mv { font-size: 16px; }
+
+  /* Tabella risultati: scroll orizzontale */
+  .tbl-outer {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Entry rows (PIC/spese): input full-width */
+  .erow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .einput {
+    width: 100%;
+  }
+
+  /* Custom portfolio slots: stacked */
+  .custom-slot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .custom-select {
+    min-width: unset;
+    width: 100%;
+  }
+  .custom-pct-input {
+    width: 100%;
+    text-align: left;
+  }
+
+  /* Pulsanti CTA: full width */
+  .btn-group {
+    flex-direction: column;
+  }
+  .btn-group .gbtn {
+    width: 100%;
+    text-align: center;
+    padding: 12px;
+    font-size: 13px;
+  }
+
+  /* BT period cards: 2 colonne */
+  .grid-4:has(.bt-period-card) {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Home cards: 1 colonna */
+  .home-cards {
+    grid-template-columns: 1fr;
+  }
+  .home-hero h1 {
+    font-size: 24px;
+  }
+
+  /* Live banner: compresso */
+  .live-banner {
+    padding: 6px 10px;
+    font-size: 11px;
+    gap: 6px;
+  }
+  .live-chip {
+    font-size: 10.5px;
+    padding: 2px 7px;
+  }
+
+  /* Tooltip optionalità: non esca fuori schermo */
+  .opt-tooltip-bubble {
+    width: calc(100vw - 32px);
+    left: 50%;
+    transform: translateX(-50%) translateY(0);
+    right: auto;
+  }
+}
+
+/* ── Tablet / large phone (481px–768px) ── */
+@media (min-width: 481px) and (max-width: 768px) {
+  .tab-content { padding: 16px 16px; }
+  .chart-wrap { height: 340px !important; }
+  .grid-4 { grid-template-columns: 1fr 1fr !important; }
+  .tab-btn { padding: 11px 14px; font-size: 12.5px; }
+  /* Navlinks su mobile medio */
+  .top-nav .navlinks {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .top-nav .navlinks::-webkit-scrollbar { display: none; }
+  .top-nav .navlinks button {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+/* ── Scroll momentum su iOS per tutti i container scrollabili ── */
+.tab-nav,
+.tbl-outer,
+.top-nav .navlinks {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Evita testo microscopico su iPhone SE / schermi 320px ── */
+@media (max-width: 359px) {
+  body { font-size: 12.5px; }
+  .tab-btn { font-size: 11px; padding: 10px 9px; }
+  .mv { font-size: 14px; }
+  .ml { font-size: 10px; }
+}

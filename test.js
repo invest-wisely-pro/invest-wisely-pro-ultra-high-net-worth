@@ -162,7 +162,7 @@ function loadSimulator() {
   eval(grab(SRC.main, /let state = \{[\s\S]*?\n\};/).replace('let ', 'global.'));
   ['fmt','fmtN','fmtFull','getCrashYears',
    'getCrashYear','_sanitizeCrashYears','getCrashWeights','getLCWeight','getEquityWeight',
-   'getGoldWeight','getCashWeight','calcCustomParams','getRate','getRateEco','getEcoWindow',
+   'getGoldWeight','getCashWeight','expandCustomSlots','calcCustomParams','getRate','getRateEco','getEcoWindow',
    'projectEco','getPacForYear','project','blendedTaxRate','calcNetNom','cagrSafe'].forEach(fn => loadFn(SRC.main, fn));
 }
 function setState(o) {

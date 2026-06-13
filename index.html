@@ -2,7 +2,14 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- iOS / Android -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Suite Patrimoniale">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="format-detection" content="telephone=no">
 <meta name="description" content="Simulatore patrimoniale gratuito: PAC, Monte Carlo, decumulo, backtesting storico, fiscalità italiana. Solo scopo educativo — non costituisce consulenza finanziaria.">
 <meta name="robots" content="index, follow">
 <meta name="referrer" content="no-referrer">
@@ -1128,6 +1135,7 @@
         <button class="gbtn" data-k="custom">⚙️ Mia allocazione (dal Simulatore)</button>
       </div>
       <div id="decAllocWarn" style="display:none;font-size:11.5px;color:var(--orange,#e37400);background:var(--orange-dim,#3a2a00);border-radius:6px;padding:8px 10px;margin-top:8px;line-height:1.5"></div>
+      <div id="decFxBadge" style="font-size:11px;color:var(--text3);margin-top:6px;line-height:1.4"></div>
     </div>
     <div class="pblock"><div class="plabel"><span>Inflazione annua</span><span class="pval" id="lDecI">2.0%</span></div><input type="range" id="sDecI" min="0" max="8" step="0.5" value="2.0"><div class="range-hints"><span>0%</span><span>8%</span></div></div>
   </div>
