@@ -2940,9 +2940,9 @@ function runDecHistorical() {
             <div style="font-size:10.5px;color:var(--text3);margin-top:3px">${worstYr ? `Esaurito anno ${worstYr.exhaustYear}` : 'Tutti gli anni hanno retto'}</div>
           </div>
           <div class="dec-stat">
-            <div class="dec-stat-label">Drawdown Mediano</div>
+            <div class="dec-stat-label">Calo Max Capitale (mediano)</div>
             <div class="dec-stat-value" style="color:var(--orange)">${(median?.maxDrawdown*100 || 0).toFixed(0)}%</div>
-            <div style="font-size:10.5px;color:var(--text3);margin-top:3px">Picco-fondo del capitale</div>
+            <div style="font-size:10.5px;color:var(--text3);margin-top:3px">Picco-fondo, include i prelievi</div>
           </div>
         </div>
 
@@ -2963,7 +2963,7 @@ function runDecHistorical() {
               <th style="text-align:left">Evento</th>
               <th>Esito</th>
               <th>Capitale Finale</th>
-              <th>Max Drawdown</th>
+              <th>Calo Max Capitale</th>
             </tr></thead>
             <tbody>
               ${famousResults.map(x => {
@@ -2990,7 +2990,7 @@ function runDecHistorical() {
           </table>
         </div>
         <div style="font-size:11.5px;color:var(--text3);margin-top:10px;line-height:1.5">
-          <strong>Note metodologiche:</strong> usa la serie mensile storica (totali annui e mesi-crisi ancorati ai dati reali, infra-annuale ricostruito) e l'inflazione effettiva di ogni anno. Il portafoglio è ribilanciato implicitamente ai pesi target ogni mese. La strategia di prelievo applicata è quella selezionata sopra. Risultati confrontabili con Trinity Study (Bengen 1994) e successivi aggiornamenti (Pfau, Kitces).
+          <strong>Note metodologiche:</strong> usa la serie mensile storica (totali annui e mesi-crisi ancorati ai dati reali, infra-annuale ricostruito) e l'inflazione effettiva di ogni anno. Il portafoglio è ribilanciato implicitamente ai pesi target ogni mese. La strategia di prelievo applicata è quella selezionata sopra. <strong>Il "Calo Max Capitale" misura la riduzione massima del patrimonio dal suo picco e include sia i cali di mercato sia i prelievi periodici</strong>: in fase di decumulo è fisiologicamente più ampio del drawdown di solo mercato, perché il capitale scende anche per effetto dei prelievi che servono a vivere. Risultati confrontabili con Trinity Study (Bengen 1994) e successivi aggiornamenti (Pfau, Kitces).
         </div>`;
       document.getElementById('decHistResults').innerHTML = html;
     } catch (e) {
@@ -4338,7 +4338,7 @@ async function exportExcel() {
     try {
       const dh = runDecumuloHistorical();
       if (dh && dh.results && dh.results.length > 0) {
-        const hdrDH = ['Anno Inizio Decumulo', 'Sopravvive?', 'Capitale Finale (€)', 'Anno Esaurimento', 'Max Drawdown %'];
+        const hdrDH = ['Anno Inizio Decumulo', 'Sopravvive?', 'Capitale Finale (€)', 'Anno Esaurimento', 'Calo Max Capitale % (mercato+prelievi)'];
         const sorted = [...dh.results].sort((a, b) => a.startYear - b.startYear);
         const rowsDH = sorted.map(x => [
           x.startYear,
@@ -4563,7 +4563,7 @@ async function generatePDF() {
       { lbl: 'Valore Lordo Base', val: fmtFull(vN), col: BLU },
       { lbl: 'Netto Fiscale', val: fmtFull(nN), col: GRN },
       { lbl: 'Valore Reale', val: fmtFull(realN), col: TEAL },
-      { lbl: 'CAGR', val: cagrSafe(inv, vN, years).toFixed(2) + '%', col: PUR },
+      { lbl: 'CAGR', val: (planIRR(dN, years) * 100).toFixed(2) + '%', col: PUR },
     ];
     // helper inline
     function cagrSafe(i, v, n){ return (i>0 && v>0 && n>0) ? (Math.pow(v/i, 1/n)-1)*100 : 0; }
@@ -4584,13 +4584,13 @@ async function generatePDF() {
     // Executive Summary box
     subHdr('Sintesi Esecutiva');
     const moltN = (vN / Math.max(1, inv));
-    const cagrN = cagrSafe(inv, vN, years);
+    const cagrN = planIRR(dN, years) * 100; // IRR money-weighted: CAGR reale del portafoglio (non distorto dai PAC)
     narrative(
       `Il piano analizzato prevede un capitale iniziale di ${fmtFull(w)} e versamenti PAC di ${fmtFull(pac)}/mese ` +
       `su un orizzonte di ${years} anni (eta ${age}-${endAge}), allocato sul portafoglio « ${portMeta.label} ». ` +
       `Lo scenario base proietta un valore lordo finale di ${fmtFull(vN)} (moltiplicatore ${moltN.toFixed(2)}x sul totale investito di ${fmtFull(inv)}), ` +
       `con un netto fiscale stimato di ${fmtFull(nN)} e un valore reale (al netto di inflazione ${inflBottom.toFixed(1)}%) pari a ${fmtFull(realN)}. ` +
-      `Il tasso di crescita medio annuo composto (CAGR proxy) e' ${cagrN.toFixed(2)}%. ` +
+      `Il tasso di rendimento medio annuo composto del portafoglio (IRR money-weighted, che considera i versamenti graduali del PAC) e' ${cagrN.toFixed(2)}%. ` +
       (crossAge ? `Il punto di crossover (rendita netta annua >= PAC) viene raggiunto a ${crossAge} anni.` : `Nell'orizzonte analizzato non si raggiunge il punto di crossover rendita >= PAC.`)
     );
 
@@ -5274,7 +5274,7 @@ async function generatePDF() {
     // ─────────── 8b. DECUMULO STORICO (Trinity-style) ───────────
     try {
       const dh = runDecumuloHistorical();
-      sHdr('8b — Decumulo su Sequenze Storiche Reali (1970-2024)', [255, 152, 0]);
+      sHdr('8c — Decumulo su Sequenze Storiche Reali (1970-2024)', [255, 152, 0]);
       narrative(
         'Test di robustezza piu severo del Monte Carlo: ripercorre il piano di prelievo su tutti gli anni di partenza disponibili ' +
         'usando i rendimenti mensili storici REALI calibrati e l\'inflazione effettiva di ogni anno. Incorpora oil shock 1973, ' +
@@ -5331,7 +5331,7 @@ async function generatePDF() {
     if (portfolio === 'custom') {
       const cp = calcCustomParams();
       if (cp && (cp.fxExposure > 0.05 || cp.volStress)) {
-        sHdr('8c — Esposizione Cambio e Vol in Regime di Stress', [156, 39, 176]);
+        sHdr('8d — Esposizione Cambio e Vol in Regime di Stress', [156, 39, 176]);
         narrative(
           'Per un investitore in euro, l\'esposizione a valute estere (USD, GBP, JPY) ' +
           'introduce un secondo rischio: la volatilita del cambio EUR/USD (~8.5%/a storica). ' +
@@ -5366,7 +5366,7 @@ async function generatePDF() {
     // ─────────── 8b. VALUTAZIONI LIVE & STRESS CAPE ───────────
     const ld = window.liveMarketData;
     if (ld && (ld.status === 'ok' || ld.status === 'partial') && ld.cape_sp500) {
-      sHdr('8b — Valutazioni Live & Stress Test CAPE (Bogle)', TEAL);
+      sHdr('8e — Valutazioni Live & Stress Test CAPE (Bogle)', TEAL);
 
       // Dati live snapshot
       const capeUSA  = ld.cape_sp500;
@@ -5471,7 +5471,7 @@ async function generatePDF() {
       const stratLabels = { fixed: 'Fisso Nominale', inflation: 'Indicizzato Inflazione (4% rule)', gk: 'Guyton-Klinger (guard-rails)' };
       const decStratLabel = stratLabels[decState.strategy] || decState.strategy;
       const decPortMeta = getPortParams(decState.portfolio) || { label: decState.portfolio };
-      sHdr('7d \u2014 Piano di Decumulo \u2014 Strategia Prelievi', [0, 150, 136]);
+      sHdr('8f \u2014 Piano di Decumulo \u2014 Strategia Prelievi', [0, 150, 136]);
       let decExtraNote = '';
       if (decState.seq && decState.seq.on) {
         const sevLbl = { mild: '-20%', moderate: '-35%', severe: '-50%' }[decState.seq.severity] || '';
@@ -5605,7 +5605,7 @@ async function generatePDF() {
       const pacAnnuo = pac * 12;
       const mcProb   = (mc && typeof mc.successRate === 'number') ? mc.successRate : null; // 0-100 o null
       const eqW      = portMeta.eq ?? 0;
-      const cagrNom  = (inv > 0 && years > 0 && vN > 0) ? (Math.pow(vN / Math.max(inv, 1), 1 / years) - 1) * 100 : 0; // proxy CAGR sul versato
+      const cagrNom  = planIRR(dN, years) * 100; // IRR money-weighted (CAGR reale, considera la gradualita dei PAC)
       const muNom    = (portMeta.normal ?? 0) * 100;                    // rendimento atteso nominale del portafoglio
       const taxEur   = eT * vN;                                         // tasse stimate in euro
 
@@ -5648,6 +5648,53 @@ async function generatePDF() {
         else                   p3b += `Il piano risulta fragile: la maggioranza delle traiettorie non centra l'obiettivo. E consigliabile rivedere le ipotesi di base, alzando i versamenti o ridimensionando il target.`;
         narrative(p3b);
       }
+
+
+      // ===== 3bis. ANATOMIA DEL RENDIMENTO: da dove vengono i soldi =====
+      subHdr('4. Anatomia del rendimento: da dove arriva il risultato');
+      var pA = `Il rendimento atteso nominale di questo portafoglio e del ${muNom.toFixed(1)}% annuo. `;
+      pA += `Per capire cosa significa, conviene scomporlo. Una parte e il "premio per il rischio" che il mercato paga a chi accetta di esporsi alle oscillazioni (storicamente le azioni hanno reso ~4-5% in piu della liquidita priva di rischio); una parte e il rendimento reale di lungo periodo dell'economia; una parte, infine, e semplicemente la compensazione dell'inflazione attesa (${inflBottom.toFixed(1)}%/anno nelle tue ipotesi). `;
+      if (muNom - inflBottom > 4)      pA += `Al netto dell'inflazione, il rendimento reale atteso e di circa il ${(muNom - inflBottom).toFixed(1)}% annuo: un valore ambizioso, sostenibile solo accettando una volatilita del ${vol.toFixed(0)}% e i drawdown che ne conseguono. Nessun rendimento reale elevato e gratuito: e il compenso per la capacita di restare investiti nei momenti peggiori.`;
+      else if (muNom - inflBottom > 1.5) pA += `Al netto dell'inflazione, il rendimento reale atteso e di circa il ${(muNom - inflBottom).toFixed(1)}% annuo: un valore equilibrato, in linea con un portafoglio diversificato che bilancia crescita e stabilita.`;
+      else                              pA += `Al netto dell'inflazione, il rendimento reale atteso e di circa il ${(muNom - inflBottom).toFixed(1)}% annuo: modesto. Un portafoglio cosi prudente protegge dalle oscillazioni ma fatica a costruire ricchezza reale; e adatto a chi ha un orizzonte breve o non tollera le perdite, meno a chi punta alla crescita del capitale.`;
+      narrative(pA);
+
+      // ===== 4bis. LE TRE LEVE: cosa controlli davvero =====
+      subHdr('5. Le tre leve sotto il tuo controllo');
+      var pL = `Di tutte le variabili del piano, solo tre dipendono davvero da te; la quarta - il rendimento di mercato - non e governabile e va trattata come ipotesi. `;
+      // Tasso di risparmio
+      if (pacAnnuo > 0) {
+        pL += `(1) Il tasso di risparmio. Versi ${fmtFull(pacAnnuo)}/anno: e la leva piu potente nei primi anni, quando il capitale e piccolo e la capitalizzazione non e ancora decollata. Aumentare il versamento ha un effetto quasi lineare e immediato sul risultato, a differenza del rendimento che e incerto. `;
+      } else {
+        pL += `(1) Il tasso di risparmio. Questo piano non prevede versamenti periodici: l'intero risultato dipende dalla crescita del capitale iniziale. Aggiungere anche un PAC modesto cambierebbe in modo significativo la traiettoria, soprattutto sui primi anni. `;
+      }
+      // Orizzonte
+      if (years >= 20)        pL += `(2) L'orizzonte temporale. I tuoi ${years} anni sono un alleato formidabile: e l'unica leva che lavora "da sola", perche la capitalizzazione composta cresce in modo esponenziale, non lineare. Ogni anno in piu vale piu del precedente. `;
+      else if (years >= 10)   pL += `(2) L'orizzonte temporale. ${years} anni sono un orizzonte intermedio: la capitalizzazione composta agisce, ma non ha ancora la forza esponenziale degli orizzonti lunghi. Se possibile, allungarlo e la leva piu efficiente in assoluto. `;
+      else                    pL += `(2) L'orizzonte temporale. Con ${years} anni l'orizzonte e breve: la capitalizzazione composta ha poco tempo per agire e il rischio di un drawdown vicino al traguardo e la minaccia principale. Su orizzonti cosi, ridurre la volatilita conta piu che inseguire il rendimento. `;
+      // Costi
+      pL += `(3) I costi. Il TER dello ${ter.toFixed(2)}%/anno sembra piccolo, ma su ${years} anni, per effetto del compounding, sottrae una quota tutt'altro che trascurabile del montante finale. E l'unico fattore che riduce il rendimento con certezza matematica, anno dopo anno: a parita di strategia, ogni decimale di costo risparmiato finisce direttamente nel tuo risultato netto.`;
+      narrative(pL);
+
+      // ===== 5bis. IL RISCHIO CHE CONTA: non la volatilita, ma il comportamento =====
+      subHdr('6. Il rischio che conta davvero');
+      var pR = `La volatilita (${vol.toFixed(0)}% annuo) misura quanto oscilla il portafoglio, ma non e il vero rischio per un investitore di lungo periodo. `;
+      pR += `Il rischio reale e comportamentale: la tentazione di vendere durante un crollo, trasformando una perdita temporanea sullo schermo in una perdita permanente nel portafoglio. `;
+      if (eqW >= 0.7)        pR += `Con un'esposizione azionaria del ${(eqW*100).toFixed(0)}%, in una crisi severa questo portafoglio puo perdere il 40-50% del suo valore per uno o due anni. La storia mostra che chi ha mantenuto la posizione ha sempre recuperato; chi ha venduto al minimo ha cristallizzato la perdita. La domanda da porsi prima di investire non e "quanto posso guadagnare" ma "riusciro a non vendere quando varra meta?". `;
+      else if (eqW >= 0.4)   pR += `Con un'esposizione azionaria del ${(eqW*100).toFixed(0)}%, in una crisi severa il portafoglio puo subire cali del 20-30%: significativi ma piu sopportabili. Questo profilo bilanciato riduce proprio la probabilita di reazioni emotive controproducenti. `;
+      else                   pR += `Con un'esposizione azionaria contenuta (${(eqW*100).toFixed(0)}%), i drawdown attesi sono limitati: il portafoglio e costruito per la tranquillita psicologica piu che per la massimizzazione del rendimento, una scelta sensata se la priorita e dormire sonni tranquilli. `;
+      narrative(pR);
+      var pR2 = `Un dato aiuta a mettere in prospettiva: storicamente i mercati azionari hanno registrato un calo superiore al 20% circa ogni 5-7 anni, e si sono sempre ripresi su orizzonti sufficientemente lunghi. I cali non sono l'eccezione patologica, sono il prezzo d'ingresso del rendimento: il "pedaggio" che si paga per ottenere il premio al rischio nel lungo termine.`;
+      narrative(pR2);
+
+      // ===== 6bis. COME LEGGERE QUESTO REPORT (caso per caso) =====
+      subHdr('7. Come usare questo documento');
+      var pU = `Questo report non predice il futuro: esplora le conseguenze delle tue ipotesi. `;
+      pU += `Il modo corretto di usarlo e farne piu versioni e confrontarle: cambia un parametro alla volta - alza il versamento, allunga l'orizzonte, riduci il TER, abbassa il rendimento atteso a uno scenario prudente - e osserva come si muove il valore reale netto. `;
+      pU += `E in questa analisi di sensibilita, non nel singolo numero finale, che sta il valore dello strumento. `;
+      if (mcProb != null && mcProb < 70) pU += `In particolare, dato che la probabilita di successo stimata (${mcProb.toFixed(0)}%) non e elevata, vale la pena testare cosa serve per portarla in zona di sicurezza (>80%): di solito bastano aggiustamenti modesti ma costanti, applicati presto. `;
+      pU += `Il numero che conta resta uno: ${fmtFull(realN)}, il valore finale in potere d'acquisto di oggi al netto di imposte e inflazione. E questa la cifra che misura cosa potrai realmente fare con il tuo capitale.`;
+      narrative(pU);
 
       // ===== 4. A cosa prestare attenzione (avvisi dinamici) =====
       var avvisi = [];

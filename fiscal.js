@@ -231,13 +231,13 @@ function renderFiscale() {
     const taxResult = calcTaxOnSell(Math.min(sellAmount, sellYearData.currentValue), currentPriceAtSell, lotsAtSell.lots, method, regime, strumento, aliqGain, aliqOb, minusvalenze, 2025+sellYear);
     document.getElementById('fiscSellResult').innerHTML = `
       <div class="grid-4" style="margin-bottom:12px">
-        <div class="mcard"><div class="ml">Provento lordo</div><div class="mv" style="color:var(--text)">${fmt(taxResult.sellAmount)}</div></div>
-        <div class="mcard"><div class="ml">Base di costo (${method})</div><div class="mv" style="color:var(--blue)">${fmt(taxResult.costBasis)}</div></div>
-        <div class="mcard"><div class="ml">Plusvalenza tassabile</div><div class="mv" style="color:${taxResult.grossGain>0?'var(--orange)':'var(--green)}'}">${fmt(taxResult.taxableGain)}</div></div>
-        <div class="mcard"><div class="ml">Imposta dovuta (${taxResult.aliq}%)</div><div class="mv" style="color:var(--red)">${fmt(taxResult.tax)}</div></div>
-        <div class="mcard"><div class="ml">Netto incassato</div><div class="mv" style="color:var(--green)">${fmt(taxResult.netProceeds)}</div></div>
+        <div class="mcard"><div class="ml">Provento lordo</div><div class="mv" style="color:var(--text)">${fmtFull(taxResult.sellAmount)}</div></div>
+        <div class="mcard"><div class="ml">Base di costo (${method})</div><div class="mv" style="color:var(--blue)">${fmtFull(taxResult.costBasis)}</div></div>
+        <div class="mcard"><div class="ml">Plusvalenza tassabile</div><div class="mv" style="color:${taxResult.grossGain>0?'var(--orange)':'var(--green)}'}">${fmtFull(taxResult.taxableGain)}</div></div>
+        <div class="mcard"><div class="ml">Imposta dovuta (${taxResult.aliq}%)</div><div class="mv" style="color:var(--red)">${fmtFull(taxResult.tax)}</div></div>
+        <div class="mcard"><div class="ml">Netto incassato</div><div class="mv" style="color:var(--green)">${fmtFull(taxResult.netProceeds)}</div></div>
         <div class="mcard"><div class="ml">Aliquota effettiva</div><div class="mv" style="color:var(--text)">${taxResult.effectiveRate.toFixed(1)}%</div></div>
-        ${taxResult.minusUsed>0?`<div class="mcard"><div class="ml">Minus utilizzate</div><div class="mv" style="color:var(--green)">−${fmt(taxResult.minusUsed)}</div><div class="ms">dallo zainetto</div></div>`:''}
+        ${taxResult.minusUsed>0?`<div class="mcard"><div class="ml">Minus utilizzate</div><div class="mv" style="color:var(--green)">−${fmtFull(taxResult.minusUsed)}</div><div class="ms">dallo zainetto</div></div>`:''}
       </div>
       ${!taxResult.canUseMinus&&regime==='amministrato'&&strDesc.compensabile===false?`<div style="padding:10px 14px;background:var(--orange-dim);border:1px solid rgba(227,116,0,.3);border-radius:var(--radius-sm);font-size:12.5px;color:var(--orange)">⚠️ In regime amministrato con ${strDesc.label}, le minusvalenze pregresse <strong>non possono</strong> essere utilizzate in compensazione. Passare al regime dichiarativo per ottimizzare il carico fiscale.</div>`:''}`;
   }
