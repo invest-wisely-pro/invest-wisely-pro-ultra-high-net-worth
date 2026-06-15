@@ -325,6 +325,7 @@ const ADV_MODEL_DESC = {
   garch: '<strong>GARCH(1,1)</strong> — la volatilità non è costante ma <em>si autoalimenta</em>: un mese volatile tende a essere seguito da un altro volatile (<em>volatility clustering</em>, Engle 1982). I parametri α=0.09, β=0.90 sono calibrati su equity globale. Il fan chart si allarga e restringe nel tempo invece di essere monotonicamente crescente.',
   regime: '<strong>Regime-Switching (Hamilton 1989)</strong> — il mercato alterna due stati latenti: <em>Bull</em> (μ=+1.2%/m, σ=3.5%) e <em>Bear</em> (μ=−1.8%/m, σ=7.0%). La matrice di transizione P(Bull→Bull)=97%, P(Bear→Bull)=20% cattura la persistenza dei trend. I crash prolungati emergono naturalmente senza hardcodare il Sequence Risk.',
   bootstrap: '<strong>Block Bootstrap — Dati Storici Reali (1970–2024)</strong> — campiona blocchi di 12 mesi contigui da 660 rendimenti mensili (Azioni MSCI World Net EUR, Obbligazioni Euro Aggregate, Oro in EUR; inflazione CPI USA). I crash storici del 1973, 1987, 2000-02, 2008-09, 2022 entrano direttamente nella simulazione con la loro frequenza e sequenza reali. Nessuna assunzione parametrica sulla distribuzione. Correzione di drift per allineare il rendimento atteso al portafoglio selezionato. <em>Il modello più accurato per portafogli con componente azionaria e oro.</em>',
+  bootstrap5y: '<strong>Block Bootstrap 5 anni — Cicli Storici Completi (1970–2024)</strong> — campiona blocchi di <strong>60 mesi contigui</strong> (overlapping) dai dati storici reali. A differenza del bootstrap a 12 mesi, preserva la <strong>persistenza pluriennale</strong>: le correlazioni tra asset e con l\'inflazione restano quelle realmente osservate lungo un ciclo intero (es. la stagflazione 1973-77, il bull market 1995-99, la crisi 2007-09 col recupero). È il campione più fedele del rischio di sequenza reale, perché un crash e il suo recupero arrivano insieme come nella storia. Correzione di drift per allineare il rendimento atteso al portafoglio. <em>Il più realistico per valutare drawdown e sequence risk su orizzonti lunghi.</em>',
 };
 document.getElementById('advMcModelBtns').onclick = e => {
   const b = e.target.closest('[data-m]'); if (!b) return;
@@ -358,7 +359,7 @@ function runAdvancedMC() {
         customPortfolioIsNonBacktestable();
       let model = advMCState.model;
       let modelFallbackNote = '';
-      if (model === 'bootstrap' && (LEVERAGED[portfolio] || isCustomWithMF)) {
+      if ((model === 'bootstrap' || model === 'bootstrap5y') && (LEVERAGED[portfolio] || isCustomWithMF)) {
         model = 'garch';
         modelFallbackNote = isCustomWithMF
           ? 'Il portafoglio custom include Trend Following / Managed Futures, Carry o Efficient Core (leva): il Block Bootstrap storico non dispone di serie storiche coerenti per questi asset. Usato il modello GARCH(1,1) parametrico, che modella correttamente rendimento e volatilità del portafoglio custom.'
@@ -385,6 +386,11 @@ function runAdvancedMC() {
         let garchEqSig2 = garchEqSig2LR; // stato GARCH equity (carry-forward tra anni)
         let garchObSig2 = garchObSig2LR; // stato GARCH bond   (carry-forward tra anni)
         let rsState = 'bull'; // Regime init
+        // Stato per il Block Bootstrap a 5 anni (60 mesi): mantiene un blocco contiguo
+        // e ne legge anni consecutivi, preservando la persistenza pluriennale dei regimi
+        // (correlazioni asset-asset e asset-inflazione su un ciclo intero).
+        let b5Start = -1;   // indice di partenza del blocco corrente in HIST_MONTHLY
+        let b5Year  = 0;    // quanti anni del blocco corrente sono già stati consumati
 
         const simVols = [];
         for (let y = 1; y <= years; y++) {
@@ -464,6 +470,34 @@ function runAdvancedMC() {
             const rsShift = portTargetMonthly - E_steady_m;
             r = annR * Math.pow(1 + rsShift, 12) - 1;
             if (i===0) regimeHistory.push(rsState);
+          } else if (model === 'bootstrap5y') {
+            // Block Bootstrap a 5 anni: campiona blocchi di 60 mesi CONTIGUI (overlapping),
+            // così azioni/obbligazioni/oro e inflazione mantengono le correlazioni reali
+            // lungo un ciclo intero (es. la stagflazione 1973-77, il bull 1995-99).
+            const goldW_b = getGoldWeight(portfolio);
+            const cashW_b = getCashWeight(portfolio);
+            const obW_b   = Math.max(0, 1 - eqW - goldW_b - cashW_b);
+            const n_hist  = HIST_MONTHLY.length;
+            const BLOCK_M = 60; // 5 anni
+            // All'inizio del blocco (o quando i 5 anni sono esauriti) pesca un nuovo
+            // punto di partenza casuale tra tutti quelli che lasciano spazio a 60 mesi.
+            if (b5Start < 0 || b5Year >= 5) {
+              b5Start = Math.floor(Math.random() * (n_hist - BLOCK_M + 1));
+              b5Year  = 0;
+            }
+            const yOff = b5Start + b5Year * 12; // offset dei 12 mesi di QUESTO anno nel blocco
+            let annR = 1;
+            for (let m = 0; m < 12; m++) {
+              const row = calibrateHistRow(HIST_MONTHLY[Math.min(yOff + m, n_hist - 1)]);
+              const mR = eqW * row[0] + obW_b * row[1] + goldW_b * row[2] + cashW_b * 0.0025;
+              annR *= (1 + mR);
+            }
+            b5Year++;
+            // Stessa correzione di drift del bootstrap a 12 mesi: allinea E[] a PORT.normal
+            // senza distorcere la forma (la persistenza del blocco resta preservata).
+            const histMean5 = calcHistMean(eqW, goldW_b, obW_b, cashW_b);
+            const scaleFactor5 = (1 + muY) / (1 + histMean5);
+            r = annR * scaleFactor5 - 1;
           } else { // bootstrap — Block Bootstrap con dati storici reali 1970–2024
             const goldW_b = getGoldWeight(portfolio);
             const cashW_b = getCashWeight(portfolio);
@@ -666,6 +700,7 @@ function renderAdvMCHistogram(results, P, model) {
     if (model === 'student') txt += `Col modello <strong>t di Student</strong> osserva la coda sinistra più spessa: è la firma dei crash più frequenti. `;
     else if (model === 'regime') txt += `Col modello <strong>Regime-Switching</strong> la distribuzione può apparire leggermente bimodale (scenari rimasti in bull vs finiti in bear). `;
     else if (model === 'bootstrap') txt += `Col <strong>Block Bootstrap</strong> la forma riflette sequenze storiche reali, non una distribuzione teorica. `;
+    else if (model === 'bootstrap5y') txt += `Col <strong>Block Bootstrap 5 anni</strong> la forma riflette cicli storici interi: la coda negativa e tipicamente piu marcata perche crash e recuperi pluriennali restano agganciati come nella realta. `;
     if (overflow > 0) txt += `<span style="color:var(--text3)">(${overflow} traiettorie oltre il 98° percentile non mostrate per leggibilità.)</span>`;
     noteEl.innerHTML = txt;
   }
@@ -674,9 +709,9 @@ function renderAdvMCHistogram(results, P, model) {
 function renderAdvMCComparison() {
   // Esegui tutti i modelli (N ridotto per velocità)
   const Ncomp = 500, years = state.years, ages = Array.from({length:years+1},(_,i)=>state.age+i);
-  const models = ['gaussian','student','garch','regime','bootstrap'];
-  const modelColors = {gaussian:'#5f6368',student:'#1a73e8',garch:'#9334e6',regime:'#1e8e3e',bootstrap:'#e37400'};
-  const modelLabels = {gaussian:'Gaussiano',student:'t-Student',garch:'GARCH',regime:'Regime-Switch',bootstrap:'Bootstrap Storico'};
+  const models = ['gaussian','student','garch','regime','bootstrap','bootstrap5y'];
+  const modelColors = {gaussian:'#5f6368',student:'#1a73e8',garch:'#9334e6',regime:'#1e8e3e',bootstrap:'#e37400',bootstrap5y:'#c5221f'};
+  const modelLabels = {gaussian:'Gaussiano',student:'t-Student',garch:'GARCH',regime:'Regime-Switch',bootstrap:'Bootstrap 1a',bootstrap5y:'Bootstrap 5a'};
   const p50s = {};
   const compRows = [];
 

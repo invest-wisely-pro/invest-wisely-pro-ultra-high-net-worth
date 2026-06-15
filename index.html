@@ -1230,6 +1230,7 @@
         <button class="gbtn" data-m="garch" style="width:100%;text-align:left">📈 GARCH(1,1) — volatility clustering</button>
         <button class="gbtn" data-m="regime" style="width:100%;text-align:left">🔄 Regime-Switching Bull/Bear (Hamilton)</button>
         <button class="gbtn" data-m="bootstrap" style="width:100%;text-align:left">🔁 Block Bootstrap — Dati Storici Reali (1970–2024)</button>
+        <button class="gbtn" data-m="bootstrap5y" style="width:100%;text-align:left">🔗 Block Bootstrap 5 anni — Cicli Storici Completi (1970–2024)</button>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:12px">
@@ -1458,10 +1459,19 @@
       <div class="plabel"><span>Tipo strumento principale</span></div>
       <div class="btn-group" id="fiscStrumBtns" style="flex-wrap:wrap">
         <button class="gbtn a-blue" data-st="etf_ucits">ETF UCITS (reddito capitale)</button>
-        <button class="gbtn" data-st="etf_nonutf">ETF non-UCITS (reddito diverso)</button>
+        <button class="gbtn" data-st="etf_nonutf">ETF non-UCITS (IRPEF)</button>
         <button class="gbtn" data-st="azioni">Azioni dirette</button>
         <button class="gbtn" data-st="btp">BTP / Titoli Stato</button>
         <button class="gbtn" data-st="obblig">Obbligaz. corporate</button>
+        <button class="gbtn" data-st="portafoglio">⚖️ Portafoglio bilanciato (aliquota composita)</button>
+      </div>
+      <div id="fiscIrpefBox" style="display:none;margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+        <div class="plabel" style="margin-bottom:6px"><span>Aliquota marginale IRPEF (ETF non armonizzati)</span></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <input type="range" id="fiscIrpefSlider" min="23" max="43" step="1" value="35" style="flex:1;min-width:160px">
+          <span id="fiscIrpefVal" style="font-family:'DM Mono',monospace;font-weight:700;color:var(--blue);min-width:42px">35%</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:6px">Gli ETF non armonizzati si cumulano al reddito complessivo: imposta la tua aliquota marginale (scaglione IRPEF). Scaglioni 2025: 23% fino a 28k, 35% 28-50k, 43% oltre 50k.</div>
       </div>
     </div>
     <div class="pblock">

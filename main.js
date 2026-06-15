@@ -4449,9 +4449,34 @@ async function generatePDF() {
     const portMeta = getPortParams(portfolio) || { label: portfolio, desc: '', vol: 0, normal: 0, best: 0, worst: 0, realRet: 0, inflBeta: 0 };
     if (portfolio === 'custom') {
       const cp = calcCustomParams();
-      const slotDesc = (state.customPortfolio?.slots||[]).filter(s=>s.ac&&s.pct>0)
-        .map(s=>`${ASSET_CLASSES[s.ac]?.label||s.ac} ${s.pct}%`).join(', ');
-      portMeta.desc = `Portafoglio personalizzato: ${slotDesc}. Parametri calcolati con matrice di correlazione empirica.`;
+      const slots0 = (state.customPortfolio?.slots||[]).filter(s=>s.ac&&s.pct>0);
+      const slotDesc = slots0.map(s=>`${ASSET_CLASSES[s.ac]?.label||s.ac} ${s.pct}%`).join(', ');
+      // Classifica i pesi per categoria per spiegare la STRUTTURA del portafoglio custom
+      const catW = { eq:0, bond:0, gold:0, alt:0, cash:0 };
+      slots0.forEach(s=>{
+        const k = s.ac;
+        if (/^eq_|reits|fat_(valore|momentum|qualita|low_vol|size|investment|dividendi|multifat)|^ec_/.test(k)) catW.eq += s.pct;
+        else if (/^ob_|^fat_carry_bond/.test(k)) catW.bond += s.pct;
+        else if (k==='gold') catW.gold += s.pct;
+        else if (k==='cash') catW.cash += s.pct;
+        else if (/commodities|fat_trend|fat_carry_fx/.test(k)) catW.alt += s.pct;
+        else catW.eq += s.pct;
+      });
+      const tot0 = Object.values(catW).reduce((a,b)=>a+b,0) || 1;
+      const pctOf = v => Math.round(v/tot0*100);
+      let struttura = `Composizione per categoria: azionario ${pctOf(catW.eq)}%, obbligazionario ${pctOf(catW.bond)}%`;
+      if (catW.gold>0) struttura += `, oro ${pctOf(catW.gold)}%`;
+      if (catW.alt>0)  struttura += `, alternativi/diversificatori ${pctOf(catW.alt)}%`;
+      if (catW.cash>0) struttura += `, liquidita ${pctOf(catW.cash)}%`;
+      struttura += '. ';
+      // Lettura qualitativa del profilo
+      const eqShare = pctOf(catW.eq);
+      if (eqShare >= 75)      struttura += `Profilo aggressivo orientato alla crescita: l'alta quota azionaria (${eqShare}%) massimizza il rendimento atteso ma espone a drawdown severi nelle crisi. Adatto a orizzonti lunghi e alta tolleranza alle oscillazioni.`;
+      else if (eqShare >= 55) struttura += `Profilo orientato alla crescita con un cuscinetto difensivo: la quota azionaria (${eqShare}%) guida il rendimento, mentre obbligazioni e diversificatori ne attenuano le oscillazioni.`;
+      else if (eqShare >= 35) struttura += `Profilo bilanciato: l'esposizione azionaria (${eqShare}%) e la componente difensiva sono distribuite per cercare un compromesso tra crescita e stabilita.`;
+      else                    struttura += `Profilo prudente: la quota azionaria contenuta (${eqShare}%) privilegia la stabilita e la protezione del capitale rispetto alla crescita.`;
+      if (catW.gold>0 || catW.alt>0) struttura += ` La presenza di oro e/o strumenti diversificanti (trend following, commodities) mira a migliorare il comportamento del portafoglio nei regimi di stress, dove gli asset tradizionali tendono a muoversi insieme.`;
+      portMeta.desc = `Portafoglio personalizzato costruito su ${slots0.length} asset class: ${slotDesc}. ${struttura} Parametri (rendimento atteso, volatilita, correlazioni) calcolati con matrice di correlazione empirica tra le categorie, non come semplice media ponderata.`;
     }
 
     // Proiezioni base
@@ -4802,6 +4827,60 @@ async function generatePDF() {
 
     // Grafico Monte Carlo (riusa fan chart con MC overlay)
     embedChart('ch', 'Grafico 2 — Fan chart con bande di volatilita storica e overlay Monte Carlo.', 90);
+
+    // ─────────── 5c. MONTE CARLO AVANZATO (solo se eseguito dall'utente) ───────────
+    try {
+      const adv = (typeof advMCState !== 'undefined') ? advMCState.lastResult : null;
+      if (adv && adv.P) {
+        // Percentili del MC gaussiano (sezione 5) per il confronto, letti in sicurezza
+        const gLast = (mc && mc.p50) ? mc.p50.length - 1 : -1;
+        const gP10 = (mc && mc.p10 && gLast >= 0) ? mc.p10[gLast] : null;
+        const gP50 = (mc && mc.p50 && gLast >= 0) ? mc.p50[gLast] : null;
+        const gP90 = (mc && mc.p90 && gLast >= 0) ? mc.p90[gLast] : null;
+        const MODEL_NAMES = {
+          gaussian: 'Gaussiano',
+          student: 't-Student (fat tails)',
+          garch: 'GARCH (volatilita variabile)',
+          regime: 'Regime-Switching',
+          bootstrap: 'Block Bootstrap storico (12 mesi)',
+          bootstrap5y: 'Block Bootstrap 5 anni (cicli completi)'
+        };
+        const MODEL_DESC = {
+          student: 'Il modello t-Student introduce le "code grasse" (fat tails): eventi estremi piu frequenti di quanto preveda la distribuzione normale. Cattura meglio i crash improvvisi che la gaussiana standard tende a sottostimare.',
+          garch: 'Il modello GARCH simula la volatilita variabile nel tempo: i periodi turbolenti tendono a raggrupparsi (volatility clustering), come osservato nei mercati reali. Dopo un grande movimento ne seguono altri, in entrambe le direzioni.',
+          regime: 'Il modello Regime-Switching alterna stati di mercato distinti (calmo / turbolento) con probabilita di transizione calibrate, riproducendo l\'alternanza storica tra fasi tranquille e fasi di crisi.',
+          bootstrap: 'Il Block Bootstrap campiona blocchi di 12 mesi contigui dai rendimenti storici reali 1970-2024 (azioni MSCI World Net EUR, obbligazioni Euro Aggregate, oro in EUR). I crash storici (1973, 1987, 2000-02, 2008-09, 2022) entrano nella simulazione con la loro sequenza reale, senza alcuna assunzione sulla forma della distribuzione. E il modello piu fedele alla storia per portafogli con azioni e oro.',
+          gaussian: 'Il modello gaussiano standard assume rendimenti distribuiti normalmente attorno alla media attesa.',
+          bootstrap5y: 'Il Block Bootstrap a 5 anni campiona blocchi di 60 mesi contigui dai dati storici reali 1970-2024, preservando la persistenza pluriennale: le correlazioni tra asset e con l\'inflazione restano quelle realmente osservate lungo un ciclo intero (un crash e il suo recupero arrivano agganciati, come nella storia). E il campione piu fedele del rischio di sequenza reale su orizzonti lunghi.'
+        };
+        const mdl = adv.model || 'student';
+        chkPB(40);
+        sHdr('5c — Monte Carlo Avanzato: ' + (MODEL_NAMES[mdl] || mdl), ORG);
+        narrative(`Oltre al Monte Carlo gaussiano standard (sezione 5), hai eseguito una simulazione con un modello avanzato a ${adv.N || 2000} scenari. ${MODEL_DESC[mdl] || ''}`);
+        if (adv.modelFallbackNote) narrative(`Nota: ${adv.modelFallbackNote}`);
+        const Pa = adv.P;
+        doc.autoTable({
+          startY: y,
+          head: [['Percentile (modello avanzato)', 'Valore Finale', 'Confronto vs MC Gaussiano']],
+          body: [
+            ['P10 (pessimistico)', fmtFull(Pa.p10), gP10 ? `${Pa.p10>=gP10?'+':''}${fmtFull(Pa.p10-gP10)}` : '-'],
+            ['P50 (mediana)',      fmtFull(Pa.p50), gP50 ? `${Pa.p50>=gP50?'+':''}${fmtFull(Pa.p50-gP50)}` : '-'],
+            ['P90 (ottimistico)',  fmtFull(Pa.p90), gP90 ? `${Pa.p90>=gP90?'+':''}${fmtFull(Pa.p90-gP90)}` : '-'],
+          ],
+          theme:'grid', styles:{fontSize:8.5,cellPadding:2.5,font:'helvetica'},
+          headStyles:{fillColor:ORG,textColor:255,fontStyle:'bold',fontSize:8.5},
+          margin:{left:ML,right:ML}
+        });
+        y = doc.lastAutoTable.finalY + 5;
+        // Lettura comparativa adattiva
+        let pAdv = '';
+        if (gP10 != null && Pa.p10 < gP10 * 0.92) pAdv = `Il modello avanzato produce uno scenario pessimistico (P10) piu severo del gaussiano standard: ${fmtFull(Pa.p10)} contro ${fmtFull(gP10)}. E un risultato atteso e istruttivo - i modelli che incorporano code grasse, volatilita variabile o sequenze storiche reali tendono a rivelare un rischio di coda che la distribuzione normale sottostima. Ai fini della pianificazione prudenziale, questo P10 piu basso e un riferimento piu conservativo.`;
+        else if (gP10 != null && Pa.p10 > gP10 * 1.08) pAdv = `In questo caso il modello avanzato mostra una coda inferiore (P10) meno severa del gaussiano: ${fmtFull(Pa.p10)} contro ${fmtFull(gP10)}. Puo accadere quando le sequenze storiche campionate includono forti recuperi; resta utile confrontare entrambe le viste.`;
+        else pAdv = `I percentili del modello avanzato risultano complessivamente allineati a quelli del Monte Carlo gaussiano, segno che per questo portafoglio e orizzonte l'assunzione di normalita non distorce in modo sostanziale la stima del rischio.`;
+        narrative(pAdv);
+        narrative('Questa analisi e una lettura informativa dei diversi modelli statistici disponibili; non costituisce raccomandazione di investimento. Per esplorare interattivamente tutti i modelli (Gaussiano, t-Student, GARCH, Regime-Switching, Block Bootstrap) usa il tab MC Avanzato nell\'applicazione.');
+      }
+    } catch (e) { /* la sezione MC avanzato non deve mai bloccare il report */ }
 
     // ─────────── 5b. A/B CONFRONTO ───────────
     {
@@ -5201,7 +5280,8 @@ async function generatePDF() {
       narrative(
         `Confronto tra i 4 principali regimi/metodi di calcolo della plusvalenza. Strumento analizzato: ${fsStrum.replace('_', ' ').toUpperCase()}. ` +
         `Aliquota gain: ${fsAliqG.toFixed(1)}%. Aliquota ob.: ${fsAliqOb.toFixed(1)}%. Imposta di bollo: ${fsBollo.toFixed(2)}%/a. ` +
-        (totMinus > 0 ? `Minusvalenze in zainetto: ${fmtFull(totMinus)} (${fsMinus.length} voci).` : 'Nessuna minusvalenza nello zainetto fiscale.')
+        (totMinus > 0 ? `Minusvalenze in zainetto: ${fmtFull(totMinus)} (${fsMinus.length} voci).` : 'Nessuna minusvalenza nello zainetto fiscale.') +
+        ` Nota: questa sezione analizza un singolo strumento (${fsStrum.replace('_', ' ').toUpperCase()}) con la sua aliquota piena ${fsAliqG.toFixed(1)}%, per confrontare i regimi fiscali tra loro. La sezione 8 usa invece l'aliquota composita ${(blendedTaxRate(state.age)*100).toFixed(1)}% pesata sulla composizione del portafoglio (azioni 26% + obbligazioni 12,5%): per questo il netto fiscale qui differisce da quello dell'header. Entrambi sono corretti per il rispettivo scopo — qui il confronto tra regimi, lì la stima fiscale sul portafoglio reale.`
       );
       doc.autoTable({
         startY: y,
@@ -5551,6 +5631,41 @@ async function generatePDF() {
       }
     }
 
+    // ─────────── 8g. PREVIDENZA / PENSIONE (solo se l'utente ha personalizzato i dati) ───────────
+    try {
+      const customizzata = (typeof penState !== 'undefined') &&
+        (penState.ral !== 35000 || penState.montante !== 0 || penState.contYears !== 10 || penState.retAge !== 67);
+      if (customizzata && typeof calcPensione === 'function') {
+        const pr = calcPensione();
+        if (pr && isFinite(pr.pensioneLordaAnn) && pr.pensioneLordaAnn > 0) {
+          chkPB(40);
+          sHdr('8g — Stima Previdenziale (INPS)', [0, 121, 107]);
+          narrative(`Hai utilizzato il modulo Pensione del simulatore. Questa stima e indipendente dal piano di accumulo sopra: proietta la pensione pubblica INPS sulla base della tua carriera contributiva, secondo il metodo contributivo (montante rivalutato al PIL e convertito con il coefficiente di trasformazione per eta). E una stima semplificata a fini educativi, non un calcolo previdenziale ufficiale.`);
+          const ts = (pr.tassoSost != null) ? (pr.tassoSost * 100).toFixed(0) + '%' : 'n/d';
+          doc.autoTable({
+            startY: y,
+            head: [['Voce previdenziale', 'Stima']],
+            body: [
+              ['Pensione lorda annua (INPS)', fmtFull(pr.pensioneLordaAnn)],
+              ['Pensione netta mensile (stima)', fmtFull(pr.pensioneNettaMens) + '/mese'],
+              ['Tasso di sostituzione (su ultimo reddito)', ts],
+              ['Eta di pensionamento ipotizzata', String(penState.retAge) + ' anni'],
+            ],
+            theme:'grid', styles:{fontSize:8.5,cellPadding:2.5,font:'helvetica'},
+            headStyles:{fillColor:[0,121,107],textColor:255,fontStyle:'bold',fontSize:8.5},
+            margin:{left:ML,right:ML}
+          });
+          y = doc.lastAutoTable.finalY + 5;
+          let pPen = '';
+          const ts0 = pr.tassoSost != null ? pr.tassoSost : null;
+          if (ts0 != null && ts0 < 0.6)      pPen = `Il tasso di sostituzione stimato (${ts}) e relativamente basso: la pensione pubblica coprira una quota limitata dell'ultimo reddito da lavoro. E il contesto tipico in cui un piano di accumulo integrativo come quello analizzato in questo report assume un ruolo centrale per colmare il divario previdenziale.`;
+          else if (ts0 != null && ts0 < 0.75) pPen = `Il tasso di sostituzione stimato (${ts}) e intermedio: la pensione pubblica coprira una parte significativa ma non totale dell'ultimo reddito. Il capitale accumulato con il piano di questo report puo integrare la differenza.`;
+          else if (ts0 != null)               pPen = `Il tasso di sostituzione stimato (${ts}) e relativamente alto: la pensione pubblica coprira gran parte dell'ultimo reddito. Il piano di accumulo resta comunque utile come margine di sicurezza e per obiettivi di spesa aggiuntivi.`;
+          if (pPen) narrative(pPen + ' Questa e una lettura informativa, non una raccomandazione previdenziale; per una stima ufficiale consulta il tuo estratto conto INPS o un consulente abilitato.');
+        }
+      }
+    } catch (e) { /* la sezione previdenza non deve mai bloccare il report */ }
+
     // ─────────── 9. GLOSSARIO ───────────
     doc.addPage(); pN++; y = 20; miniHdr();
     sHdr('9 — Glossario dei Termini Tecnici', GRAY);
@@ -5608,6 +5723,28 @@ async function generatePDF() {
       const cagrNom  = planIRR(dN, years) * 100; // IRR money-weighted (CAGR reale, considera la gradualita dei PAC)
       const muNom    = (portMeta.normal ?? 0) * 100;                    // rendimento atteso nominale del portafoglio
       const taxEur   = eT * vN;                                         // tasse stimate in euro
+
+      // ===== 0. Giudizio complessivo (adattivo sulla combinazione dei risultati) =====
+      subHdr('Giudizio complessivo del piano');
+      var pG = '';
+      // (a) Solidita statistica: combina probabilita Monte Carlo e ampiezza della forbice
+      const robusto   = (mcProb != null && mcProb >= 80) || (mcProb == null && spreadPO < 0.5);
+      const fragile   = (mcProb != null && mcProb < 60)  || (mcProb == null && spreadPO > 0.75);
+      if (robusto)      pG += `Nel complesso il piano appare solido: ${mcProb != null ? `la probabilita di successo stimata (${mcProb.toFixed(0)}%) e elevata` : 'la dispersione tra scenari e contenuta'} e il margine tra esito centrale e scenario avverso lascia spazio di manovra. `;
+      else if (fragile) pG += `Nel complesso il piano mostra una fragilita da monitorare: ${mcProb != null ? `la probabilita di successo stimata (${mcProb.toFixed(0)}%) non e rassicurante` : 'la forbice tra scenario ottimistico e pessimistico e molto ampia'}, segno che il risultato dipende fortemente da ipotesi favorevoli: lo strumento permette di osservare come cambia l'esito modificando i parametri verso ipotesi piu prudenti. `;
+      else              pG += `Nel complesso il piano e ragionevolmente equilibrato: ${mcProb != null ? `la probabilita di successo stimata e ${mcProb.toFixed(0)}%` : 'la dispersione tra scenari e moderata'}. `;
+      // (b) Adeguatezza profilo vs orizzonte
+      if (eqW >= 0.7 && years < 12)       pG += `Attenzione pero all'abbinamento tra esposizione azionaria alta (${(eqW*100).toFixed(0)}%) e orizzonte breve (${years} anni): e la combinazione piu esposta al rischio di sequenza, perche un crollo vicino al traguardo avrebbe poco tempo per essere riassorbito. `;
+      else if (eqW >= 0.7 && years >= 20) pG += `L'abbinamento tra alta quota azionaria (${(eqW*100).toFixed(0)}%) e orizzonte lungo (${years} anni) e coerente: il tempo e l'alleato che permette all'azionario di esprimere il suo premio al rischio assorbendo i drawdown. `;
+      else if (eqW < 0.4 && years >= 20)  pG += `Si osserva un profilo prudente (azionario ${(eqW*100).toFixed(0)}%) su un orizzonte lungo (${years} anni): storicamente, su orizzonti estesi, le quote azionarie piu alte hanno mostrato rendimenti attesi superiori a fronte di oscillazioni maggiori - un dato di fatto storico, non un'indicazione su come allocare. `;
+      else                                pG += `L'abbinamento tra profilo di rischio e orizzonte (${years} anni) appare coerente con un approccio bilanciato. `;
+      // (c) Il numero che conta: moltiplicatore reale
+      if (realMult >= 2)      pG += `Al netto di inflazione e imposte, il capitale conferito si moltiplica circa ${realMult.toFixed(1)} volte in termini di potere d'acquisto reale: un risultato di sostanza.`;
+      else if (realMult >= 1.2) pG += `Al netto di inflazione e imposte, il potere d'acquisto reale cresce di circa ${realMult.toFixed(1)} volte il conferito: una crescita reale modesta ma positiva.`;
+      else                    pG += `Al netto di inflazione e imposte, la crescita reale del potere d'acquisto e contenuta (${realMult.toFixed(1)}x il conferito): il piano protegge piu che accrescere, in termini reali.`;
+      pG += ` Questo giudizio e una lettura informativa e divulgativa dei numeri prodotti dalle tue ipotesi, non una raccomandazione di investimento ne una valutazione di adeguatezza personale.`;
+      narrative(pG);
+      y += 1;
 
       // ===== 1. Il risultato in sintesi =====
       subHdr('1. Il risultato in sintesi');
