@@ -205,7 +205,8 @@ async function downloadGuidePDF() {
     li('Obbligazioni governative, oro, liquidita: fungono da rifugio (flight to quality), con un lieve rally difensivo durante il crash azionario.');
     li('Trend following / Managed futures: "crisis alpha" — tendono a guadagnare nelle crisi prolungate (2008, 2022) seguendo i trend ribassisti (beta -0.20). Sono veri diversificatori.');
     li('Commodities: NON sono un rifugio. Nei crash di liquidita (2008, marzo 2020) calano insieme alle azioni per de-leveraging e calo della domanda, anche se meno in profondita (beta 0.35).');
-    li('Carry (FX e obbligazionario): soffrono nelle crisi ("raccogliere monetine davanti a uno schiacciasassi") — downside reale, inferiore all\'azionario puro ma significativo (beta 0.45).');
+    li('Carry valutario e obbligazionario: soffrono nelle crisi ("raccogliere monetine davanti a uno schiacciasassi") — downside reale, inferiore all\'azionario puro ma significativo (beta 0.45).');
+    li('Carry sulle commodities (curve/roll): a differenza degli altri carry, tende a reggere o guadagnare nei risk-off azionari grazie alla decorrelazione strutturale dalle borse (beta di crash basso, 0.10) — si comporta piu da diversificatore che da asset rischioso.');
     callout('Questa modellazione differenziata e importante per valutare correttamente portafogli che includono managed futures, commodities o carry: il loro contributo alla resilienza in crisi e molto diverso. I beta sono stime prudenti basate sull\'evidenza storica, non garanzie.', BLU, 'Beta di crash per categoria');
 
     h1('7b — Stress Test Macro Storici — Path Mensile Ricostruito');

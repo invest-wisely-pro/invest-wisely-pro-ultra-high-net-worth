@@ -312,6 +312,12 @@ const ASSET_CLASSES = {
     histCAGR: 0.055, histPeriod: '1990-2024', src: 'Lustig, Roussanov & Verdelhan (2011)',
     desc: 'Premio carry valutario: long valute ad alto tasso di interesse, short valute a basso tasso. CAGR storico ~5.5%/a (1990-2024), σ ~9.5%. Storicamente uno dei premi più stabili nei mercati valutari. Soffre violentemente nei crash globali (es. 2008: −30%). Correlazione con azioni ρ≈0.15, con carry obbligazionario ρ≈0.35. Forward-looking ~4.0%/a.',
   },
+  fat_carry_comm: {
+    label: 'Carry Commodities (Curve/Roll)', emoji: '🛢️', cat: 'carry',
+    mu: 0.042, vol: 0.105, inflBeta: 0.45, ter: 0.55, fxExp: 0.0,
+    histCAGR: 0.058, histPeriod: '1990-2024', src: 'Koijen et al. (2018); Quantpedia term-structure',
+    desc: 'Premio carry sulle materie prime: cattura il roll yield della curva dei futures (long contratti deferred a forte backwardation, short front-month in contango). A differenza delle commodity long-only, tende a reggere o guadagnare nei risk-off azionari (decorrelazione strutturale). CAGR storico ~5.8%/a (1990-2024), σ ~10.5%, alta sensibilità all\'inflazione (inflBeta 0.45). Correlazione molto bassa con azioni (ρ≈0.10) e con le altre carry — è un diversificatore reale. ETF di riferimento: CRRY (leva), UEQC, CCRV. Forward-looking ~4.2%/a. Nota: il rendimento speculativo varia con la volatilità azionaria globale (alto quando la vol scende). Forward-looking normalizzato ~4.2%/a.',
+  },
   fat_trend: {
     label: 'Trend Following / Managed Futures', emoji: '🌊', cat: 'trend',
     mu: 0.055, vol: 0.150, inflBeta: 0.30, ter: 0.8, fxExp: 0.0,
@@ -430,14 +436,14 @@ const ASSET_CLASSES = {
   ec_us_core: {
     label: 'Efficient Core 90/60 USA', emoji: '\u26a1', cat: 'eq', isComposite: true,
     composite: [ { ac: 'eq_usa', w: 0.90 }, { ac: 'ob_usa_it', w: 0.60 } ],
-    finCost: 0.0125, ter: 0.35, fxExp: 0.70,
+    finCost: 0.0125, ter: 0.20, fxExp: 0.70,
     histPeriod: '1970-2024', src: 'WisdomTree NTSX / efficient core',
     desc: 'Mattoncino capital-efficient: 90% azioni USA + 60% Treasury USA (notional 150%, leva 1,5x). Nel builder si scompone nei due sottostanti, cos\u00ec puoi combinarlo con oro, trend, ex-USA ecc. mantenendo corretti correlazioni e tassazione. Costo di finanziamento ~1,25%/a gi\u00e0 dedotto.',
   },
   ec_glob_core: {
     label: 'Efficient Core 90/60 Globale', emoji: '\u26a1', cat: 'eq', isComposite: true,
     composite: [ { ac: 'eq_sviluppati', w: 0.90 }, { ac: 'ob_glob_gov', w: 0.60 } ],
-    finCost: 0.0125, ter: 0.40, fxExp: 0.55,
+    finCost: 0.0125, ter: 0.25, fxExp: 0.55,
     histPeriod: '1970-2024', src: 'efficient core globale',
     desc: 'Come l\'Efficient Core USA ma diversificato globalmente: 90% azioni mercati sviluppati + 60% governativi globali (hedged EUR), notional 150%. Nel builder si scompone nei sottostanti per un calcolo corretto di rischio, correlazioni e fiscalit\u00e0. Costo di finanziamento ~1,25%/a dedotto.',
   },
@@ -472,7 +478,12 @@ function expandCustomSlots(rawSlotsAll) {
       for (const comp of ac.composite) {
         // contributo FX assoluto del sotto-slot: la somma sui componenti = fxAgg × wSlotComposite
         const fxContrib = fxAgg * wSlotComposite * (comp.w / notional);
-        slots.push({ ac: comp.ac, pct: sl.pct * comp.w, fxContrib });
+        // contributo TER: il composito (ETF efficient core reale, es. NTSX ~0,20%)
+        // ha un TER UNICO che NON è la somma dei TER dei sottostanti. Lo ripartiamo
+        // sui sotto-slot in proporzione al notional, così terW ricostruisce il TER
+        // reale del composito (0,20% US / 0,25% Globale) invece dei TER nativi.
+        const terContrib = (ac.ter ?? 0.20) * wSlotComposite * (comp.w / notional);
+        slots.push({ ac: comp.ac, pct: sl.pct * comp.w, fxContrib, terContrib });
       }
       finCostTotal += wSlot * (ac.finCost ?? Math.max(0, notional - 1) * 0.025);
     } else {
@@ -803,7 +814,7 @@ function getCashWeight(port) {
 //   • gold/bond/cash → ricevono BOND_RALLY_RATE (fuga verso la sicurezza).
 // Beta deliberatamente prudenti: migliorano il realismo (commodity e carry NON
 // sono più trattati come rifugi) senza sovrastimare il danno né creare fragilità.
-const CRASH_BETA = { commodity: 0.35, carry: 0.45, trend: -0.20 };
+const CRASH_BETA = { commodity: 0.35, carry: 0.45, trend: -0.20, commCarry: 0.10 };
 
 // IRR money-weighted del piano di accumulo fino all'anno targetIdx.
 // data = array di project() con {invested, value}. Flussi: t=0 capitale iniziale,
@@ -841,12 +852,13 @@ function planIRR(data, targetIdx) {
 // { eq, trendW, carryW, commodW, defensive } dove defensive = bond+gold+cash
 // (riceve il bond rally). La somma è 1.
 function getCrashWeights(port, age) {
-  let eq, trendW = 0, carryW = 0, commodW = 0, goldW = 0, cashW = 0;
+  let eq, trendW = 0, carryW = 0, commodW = 0, goldW = 0, cashW = 0, commCarryW = 0;
   let obExplicitCustom;
   if (port === 'custom') {
     const cp = calcCustomParams();
     eq = cp.eq; trendW = cp.trendW || 0; carryW = cp.carryW || 0;
     commodW = cp.commodW || 0; goldW = cp.goldW || 0; cashW = cp.cashW || 0;
+    commCarryW = cp.commCarryW || 0;
     obExplicitCustom = cp.ob; // bond notional espanso (include la gamba a leva dei composite)
   } else {
     eq = getEquityWeight(port, age);
@@ -860,8 +872,8 @@ function getCrashWeights(port, age) {
   // residuo 1−eq che collasserebbe la leva. La somma può superare 1: corretto,
   // il crash agisce sulle esposizioni notional.
   const obExplicit = (port !== 'custom') ? PORT[port]?.ob : obExplicitCustom;
-  const defensive = (obExplicit ?? Math.max(0, 1 - eq - trendW - carryW - commodW - goldW - cashW)) + goldW + cashW;
-  return { eq, trendW, carryW, commodW, defensive };
+  const defensive = (obExplicit ?? Math.max(0, 1 - eq - trendW - carryW - commodW - commCarryW - goldW - cashW)) + goldW + cashW;
+  return { eq, trendW, carryW, commodW, commCarryW, defensive };
 }
 
 // ── Calcola parametri blended del portafoglio custom ──────────
@@ -874,14 +886,20 @@ function calcCustomParams() {
   // Pesi per categoria di sensibilità al crash (sequence risk). Sottoinsiemi di
   // otherFullW: servono SOLO per modellare il comportamento in crisi (crash beta),
   // non alterano la classificazione fiscale (otherFullW resta invariato).
-  let trendW = 0, carryW = 0, commodW = 0;
+  let trendW = 0, carryW = 0, commodW = 0, commCarryW = 0;
   for (const sl of slots) {
     const ac = ASSET_CLASSES[sl.ac];
     if (!ac) continue;
     const w = sl.pct / total;
     mu       += w * ac.mu;
     inflBeta += w * ac.inflBeta;
-    terW     += w * (ac.ter ?? 0.20);  // TER pesato (ipotesi ETF tipici retail)
+    // TER: per i sotto-slot di un composite usa il TER reale del composite
+    // (terContrib, già pro-quota); per gli slot normali il TER nativo dell'asset.
+    if (sl.terContrib !== undefined) {
+      terW   += sl.terContrib;
+    } else {
+      terW   += w * (ac.ter ?? 0.20);  // TER pesato (ipotesi ETF tipici retail)
+    }
     // esposizione FX pesata: per i sotto-slot di un composite usa la fxExp
     // aggregata dichiarata (ripartita pro-quota), non quella del componente.
     if (sl.fxContrib !== undefined) {
@@ -896,6 +914,7 @@ function calcCustomParams() {
     else                otherFullW += w;          // trend/carry/commodities/reit/factor → 26% (redditi diversi)
     // Categorizzazione per crash beta (non altera eqW/obW/otherFullW)
     if (ac.cat === 'trend')      trendW  += w;
+    else if (sl.ac === 'fat_carry_comm') commCarryW += w; // commodity carry: regge nei risk-off (beta crash basso)
     else if (ac.cat === 'carry') carryW  += w;
     else if (ac.cat === 'real' && !ac.isGold) commodW += w; // commodities (oro escluso)
   }
@@ -961,7 +980,7 @@ function calcCustomParams() {
     volNoFx: sigma,                // vol senza componente FX (riferimento)
     eq:   eqW, ob: obW2, gold: goldW, cash: cashW,
     goldW, cashW, otherFullW,
-    trendW, carryW, commodW,        // pesi per categoria (modellazione crash/sequence risk)
+    trendW, carryW, commodW, commCarryW,        // pesi per categoria (modellazione crash/sequence risk)
     realRet:  Math.max(0, muNet - 0.021),
     inflBeta,
     ter:  terW,                    // TER pesato suggerito (ETF tipici)
@@ -1310,6 +1329,7 @@ function project(scenario, withSeq, terOverride = null, portOverride = null) {
           sev * cw.eq
         + sev * CRASH_BETA.commodity * cw.commodW
         + sev * CRASH_BETA.carry     * cw.carryW
+        + sev * CRASH_BETA.commCarry * (cw.commCarryW || 0)
         + sev * CRASH_BETA.trend     * cw.trendW
         + BOND_RALLY_RATE            * cw.defensive;
     } else {
@@ -1455,6 +1475,7 @@ function runMontecarlo() {
         sev2 * cwCat.eq
       + sev2 * CRASH_BETA.commodity * cwCat.commodW
       + sev2 * CRASH_BETA.carry     * cwCat.carryW
+      + sev2 * CRASH_BETA.commCarry * (cwCat.commCarryW || 0)
       + sev2 * CRASH_BETA.trend     * cwCat.trendW
       + BOND_RALLY_RATE             * cwCat.defensive;
     const cuf2 = cw2 > 0 ? Math.pow(Math.pow(1 / (1 + eqCR * sf), 1 / RECOVERY_YEARS), RECOVERY_CATCHUP) : 1;
@@ -2708,6 +2729,7 @@ function simulateDecumulo(sc) {
       decCrashMap[cy] = sev * cw.eq
         + sev * CRASH_BETA.commodity * cw.commodW
         + sev * CRASH_BETA.carry     * cw.carryW
+        + sev * CRASH_BETA.commCarry * (cw.commCarryW || 0)
         + sev * CRASH_BETA.trend     * cw.trendW
         + BOND_RALLY_RATE            * cw.defensive;
     });
@@ -3194,6 +3216,7 @@ function renderCustomBuilder() {
   // la quota nominale. Es: 15% EC 90/60 = 22.5% esposizione effettiva.
   let notionalTotal = 0;
   let hasLeverage = false;
+  let hasAltStrategy = false;  // trend following / carry (inclus. commodity carry): usano futures, non backtestabili
   for (const sl of slots) {
     const pct = +sl.pct || 0;
     if (!pct) continue;
@@ -3205,6 +3228,7 @@ function renderCustomBuilder() {
     } else {
       notionalTotal += pct;
     }
+    if (ac && (ac.cat === 'trend' || ac.cat === 'carry')) hasAltStrategy = true;
   }
   const notionalOk = notionalTotal <= 100.5;
   const cp = calcCustomParams();
@@ -3245,6 +3269,9 @@ function renderCustomBuilder() {
     ${hasLeverage && !notionalOk ? `<div style="font-size:11.5px;color:var(--orange);background:var(--orange-dim);border:1px solid rgba(227,116,0,.3);border-radius:var(--radius-sm);padding:7px 12px;margin-bottom:8px;line-height:1.6">
       ⚡ <strong>Portafoglio a leva:</strong> la quota nominale ${total.toFixed(0)}% include Efficient Core che opera con esposizione notional ${notionalTotal.toFixed(1)}% (leva ${(notionalTotal/100).toFixed(2)}×). Il simulatore modella correttamente questa leva. Il <strong>backtest storico</strong> e il <strong>Monte Carlo block bootstrap</strong> non sono disponibili — usa il <strong>Monte Carlo GARCH</strong> o il <strong>Simulatore</strong>.
     </div>` : ''}
+    ${hasAltStrategy && !hasLeverage ? `<div style="font-size:11.5px;color:var(--orange);background:var(--orange-dim);border:1px solid rgba(227,116,0,.3);border-radius:var(--radius-sm);padding:7px 12px;margin-bottom:8px;line-height:1.6">
+      🌊 <strong>Strategia su futures (trend/carry):</strong> il portafoglio include trend following / managed futures o carry (incluso il Carry Commodities), strumenti che operano tramite contratti futures. Il simulatore li modella con parametri calibrati (rendimento, volatilità, comportamento nelle crisi). Il <strong>backtest storico</strong> e il <strong>Monte Carlo block bootstrap</strong> non sono disponibili — non esiste una serie storica mensile reale per queste strategie. Usa il <strong>Monte Carlo GARCH</strong> o il <strong>Simulatore</strong>.
+    </div>` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <button class="addbtn" style="flex:1;min-width:140px" onclick="addCustomSlot()">+ Aggiungi asset class</button>
       <button class="gbtn a-blue" onclick="normalizeCustom()">⚖️ Normalizza a 100%</button>
@@ -3256,7 +3283,7 @@ function renderCustomBuilder() {
       <button class="gbtn" onclick="resetCustomPreset('inflaz')" title="Anti-inflazione: Az+TIPS+Oro+Comm">Anti-Inflaz.</button>
       <button class="gbtn" onclick="resetCustomPreset('multifat')" title="Multi-fattore + Bond + Oro">Multi-Fat.</button>
       <button class="gbtn" onclick="resetCustomPreset('trend_div')" title="Azioni + Trend Following + Bond + Oro">Trend+Div.</button>
-      <button class="gbtn" onclick="resetCustomPreset('carry_mix')" title="Carry Bond + FX Carry + Azioni + Bond">Carry Mix</button>
+      <button class="gbtn" onclick="resetCustomPreset('carry_mix')" title="Carry Bond + FX Carry + Commodity Carry + Azioni + Bond">Carry Mix</button>
     </div>
     <div class="info-box" style="font-size:11.5px">
       <strong>Dati:</strong> mu = rendimento nominale forward-looking (10-20a), σ = volatilità storica 1970-2024. Fonti: DMS Yearbook 2024, dati Federal Reserve (FRED), Banche Centrali, letteratura accademica (Fama-French, Jegadeesh-Titman, Carhart). La volatilità usa una matrice di correlazione semplificata tra categorie (es. ρ(az,bond)≈−0.05, ρ(az,oro)≈0.05) — risultato più realistico della semplice media ponderata.
@@ -3320,7 +3347,7 @@ function getFxAdjustment(portKey, age) {
 // Chiamata quando si cambia portafoglio preset, cosi il costo riflette gli ETF
 // che tipicamente lo replicano (e non resta il TER del portafoglio precedente).
 // Il custom usa syncCustomTer (TER ponderato sugli ETF scelti).
-const PRESET_TER = { "eq100": 0.18, "eq80": 0.18, "eq60": 0.17, "eq50": 0.16, "eq40": 0.15, "eq20": 0.13, "ob100": 0.12, "lifecycle": 0.18, "golden_butterfly": 0.20, "permanent": 0.20, "all_seasons": 0.25, "larry": 0.30, "global_market": 0.22, "ec_us_9060": 0.35, "ec_glob_9060": 0.40, "return_stack": 0.55 };
+const PRESET_TER = { "eq100": 0.18, "eq80": 0.18, "eq60": 0.17, "eq50": 0.16, "eq40": 0.15, "eq20": 0.13, "ob100": 0.12, "lifecycle": 0.18, "golden_butterfly": 0.20, "permanent": 0.20, "all_seasons": 0.25, "larry": 0.30, "global_market": 0.22, "ec_us_9060": 0.20, "ec_glob_9060": 0.25, "return_stack": 0.55 };
 function syncPresetTer(portKey) {
   if (portKey === 'custom') return; // il custom ha il suo sync dedicato
   const t = PRESET_TER[portKey];
@@ -3375,7 +3402,7 @@ function resetCustomPreset(key){
     inflaz:       [{ac:'eq_sviluppati',pct:30},{ac:'ob_infl',pct:30},{ac:'gold',pct:20},{ac:'commodities',pct:20}],
     multifat:     [{ac:'fat_multifat',pct:70},{ac:'ob_glob_agg',pct:20},{ac:'gold',pct:10}],
     trend_div:    [{ac:'eq_sviluppati',pct:40},{ac:'fat_trend',pct:25},{ac:'ob_glob_gov',pct:25},{ac:'gold',pct:10}],
-    carry_mix:    [{ac:'fat_carry_bond',pct:30},{ac:'fat_carry_fx',pct:20},{ac:'eq_sviluppati',pct:30},{ac:'ob_glob_agg',pct:20}],
+    carry_mix:    [{ac:'fat_carry_bond',pct:25},{ac:'fat_carry_fx',pct:20},{ac:'fat_carry_comm',pct:15},{ac:'eq_sviluppati',pct:25},{ac:'ob_glob_agg',pct:15}],
   };
   if(p[key]){state.customPortfolio.slots=p[key].map(s=>({...s}));renderCustomBuilder();syncCustomTer();render();}
 }
@@ -3731,6 +3758,7 @@ function updateSeqDesc() {
   const acr = sevD * cwD.eq
             + sevD * CRASH_BETA.commodity * cwD.commodW
             + sevD * CRASH_BETA.carry     * cwD.carryW
+            + sevD * CRASH_BETA.commCarry * (cwD.commCarryW || 0)
             + sevD * CRASH_BETA.trend     * cwD.trendW
             + BOND_RALLY_RATE             * cwD.defensive;
   const pctv = Math.abs((acr * 100).toFixed(1)) + '%';

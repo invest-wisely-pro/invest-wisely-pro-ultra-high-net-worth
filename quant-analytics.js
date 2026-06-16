@@ -16,7 +16,7 @@ const AC_KEYS_EF = [
   'eq_sviluppati','eq_usa','eq_europa','eq_em','eq_small_value',
   'reits','fat_valore','fat_momentum','fat_qualita','fat_low_vol',
   'fat_size','fat_investment','fat_dividendi','fat_multifat',
-  'fat_carry_bond','fat_carry_fx','fat_trend',
+  'fat_carry_bond','fat_carry_fx','fat_carry_comm','fat_trend',
   'ob_usa_st','ob_usa_it','ob_usa_lt','ob_usa_ult',
   'ob_eu_st','ob_eu_it','ob_eu_lt',
   'ob_glob_gov','ob_glob_agg','ob_infl',
@@ -31,7 +31,7 @@ const AC_CAT_EF = {
   eq_sviluppati:'eq', eq_usa:'eq', eq_europa:'eq', eq_em:'eq', eq_small_value:'eq', reits:'eq',
   fat_valore:'fat', fat_momentum:'fat', fat_qualita:'fat', fat_low_vol:'fat',
   fat_size:'fat', fat_investment:'fat', fat_dividendi:'fat', fat_multifat:'fat',
-  fat_carry_bond:'carry', fat_carry_fx:'carry', fat_trend:'trend',
+  fat_carry_bond:'carry', fat_carry_fx:'carry', fat_carry_comm:'carry', fat_trend:'trend',
   ob_usa_st:'ob_usa', ob_usa_it:'ob_usa', ob_usa_lt:'ob_usa', ob_usa_ult:'ob_usa',
   ob_eu_st:'ob_eu', ob_eu_it:'ob_eu', ob_eu_lt:'ob_eu',
   ob_glob_gov:'ob_glob', ob_glob_agg:'ob_glob', ob_infl:'ob_glob',
@@ -194,6 +194,10 @@ const CORR_MATRIX = (() => {
     ['fat_carry_fx','fat_carry_bond', 0.35],
     ['fat_carry_bond','eq_sviluppati',0.10],
     ['fat_carry_bond','ob_glob_agg',  0.30],
+    ['fat_carry_comm','eq_sviluppati',0.10],  // commodity carry: decorrelato dalle azioni (diversificatore)
+    ['fat_carry_comm','fat_carry_fx', 0.15],  // poco correlato anche con le altre carry
+    ['fat_carry_comm','commodities',  0.35],  // legame con le materie prime, ma è strategia di curva
+    ['fat_carry_comm','ob_infl',      0.25],  // sensibile all'inflazione
     ['fat_multifat','eq_sviluppati',  0.82],  // multi-fattore ≈ azionario con tilt
     ['fat_multifat','fat_valore',     0.80],
     ['fat_multifat','fat_momentum',   0.55],
@@ -1199,6 +1203,7 @@ const FACTOR_LOADINGS = {
   // ── Carry / Trend (esposizione equity ridotta) ──────────────────────
   fat_carry_bond:  { MKT: 0.05, SMB:  0.00, HML:  0.00, RMW:  0.00, CMA:  0.00, MOM:  0.00 },
   fat_carry_fx:    { MKT: 0.10, SMB:  0.00, HML:  0.00, RMW:  0.00, CMA:  0.00, MOM:  0.00 },
+  fat_carry_comm:  { MKT: 0.08, SMB:  0.00, HML:  0.00, RMW:  0.00, CMA:  0.00, MOM:  0.10 },
   fat_trend:       { MKT: 0.05, SMB:  0.00, HML:  0.00, RMW:  0.00, CMA:  0.00, MOM:  0.15 },
   // ── Bond, real assets, cash (esposizione ~0 ai fattori equity) ──────
   ob_usa_st:       { MKT: 0.00, SMB: 0, HML: 0, RMW: 0, CMA: 0, MOM: 0 },
@@ -2228,7 +2233,10 @@ function _renderOptResult() {
             <div style="font-size:16px;font-weight:700;font-family:'DM Mono',monospace;color:${k.c}">${k.v}</div>
           </div>`).join('')}
       </div>
-      <div style="font-size:10.5px;color:var(--text3);margin-top:6px">* Rendimento reale = atteso − inflazione attesa (${state.inflBottom?.toFixed(1) || '2.0'}%)</div>
+      <div style="font-size:10.5px;color:var(--text3);margin-top:6px">* Rendimento reale = atteso − inflazione attesa (${state.inflBottom?.toFixed(1) || '2.0'}%). Il "Rendimento atteso" è nominale (lordo di inflazione): applicando al Simulatore, l'inflazione viene scontata una sola volta nella proiezione.${_optState.returnBasis === 'historical' ? ' <strong style="color:var(--orange)">Base storica attiva</strong>: il Simulatore userà i rendimenti forward-looking (più prudenti), quindi mostrerà un rendimento atteso inferiore a quello qui sopra — i pesi però restano identici.' : ''}</div>
+      <div style="font-size:10.5px;color:var(--text3);margin-top:5px;line-height:1.55;background:var(--bg);border-radius:var(--radius-sm);padding:7px 10px;border:1px solid var(--border)">
+        ⓘ <strong>Ottimizzazione parametrica:</strong> Markowitz lavora su rendimenti attesi forward-looking, volatilità e correlazioni <em>modellate</em> — non su una serie storica di prezzi. I risultati non sono un backtest: indicano l'allocazione efficiente secondo i parametri del modello, non ciò che sarebbe accaduto storicamente. Per asset come trend following e carry (incluso il Carry Commodities) questo è l'unico approccio possibile, poiché non esiste una serie storica mensile reale.
+      </div>
     </div>
 
     <!-- Grafici e tabella allocazione -->
@@ -2384,7 +2392,13 @@ function _renderOptCharts(allocRows, rc) {
 // ── Applica portafoglio ottimale al simulatore (custom) ───────────────────
 window.optApplyToSimulator = function() {
   if (!_optState.result) return;
-  if (!confirm('Sostituire il portafoglio Custom corrente con l\'allocazione ottimizzata? Questa azione è irreversibile (puoi salvare lo stato attuale prima dal pannello Scenari Salvati).')) return;
+  // Se l'ottimizzazione è su base STORICA, il rendimento mostrato (CAGR 1970-2024)
+  // è più alto di quello che userà il Simulatore (forward-looking, più prudente).
+  // Avvisiamo l'utente così il calo del rendimento atteso è atteso, non una sorpresa.
+  const histWarn = (_optState.returnBasis === 'historical')
+    ? '\n\nNOTA: hai ottimizzato sui rendimenti STORICI (CAGR 1970-2024). Il Simulatore ricalcolerà il portafoglio con i rendimenti FORWARD-LOOKING (più prudenti), quindi il rendimento atteso mostrato sarà più basso di quello dell\'optimizer. I pesi restano identici; cambia solo l\'ipotesi di rendimento, in coerenza con tutto il resto del Simulatore.'
+    : '';
+  if (!confirm('Sostituire il portafoglio Custom corrente con l\'allocazione ottimizzata? Questa azione è irreversibile (puoi salvare lo stato attuale prima dal pannello Scenari Salvati).' + histWarn)) return;
   // Costruisci slots custom
   const slots = _optState.assets.map((k, i) => ({
     ac: k,
