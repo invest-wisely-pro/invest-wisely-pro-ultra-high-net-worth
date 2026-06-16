@@ -577,10 +577,10 @@ function renderAdvMCResults() {
   chartAdvMC=new Chart(document.getElementById('chAdvMC'),{type:'line',data:{labels:ages,datasets:[
     {label:'P10',data:p10,borderColor:'rgba(217,48,37,.22)',borderWidth:1,pointRadius:0,fill:false,tension:.35},
     {label:'P25',data:p25,borderColor:'rgba(217,48,37,.32)',borderWidth:1,pointRadius:0,fill:{target:0,above:'rgba(217,48,37,.10)',below:'transparent'},tension:.35},
-    {label:'P50',data:p50,borderColor:'#1a73e8',borderWidth:2.5,pointRadius:0,fill:{target:1,above:'rgba(26,115,232,.09)',below:'transparent'},tension:.35},
+    {label:'P50',data:p50,borderColor:'#23606f',borderWidth:2.5,pointRadius:0,fill:{target:1,above:'rgba(35,96,111,.09)',below:'transparent'},tension:.35},
     {label:'P75',data:p75,borderColor:'rgba(30,142,62,.32)',borderWidth:1,pointRadius:0,fill:{target:2,above:'rgba(30,142,62,.10)',below:'transparent'},tension:.35},
     {label:'P90',data:p90,borderColor:'rgba(30,142,62,.22)',borderWidth:1,pointRadius:0,fill:{target:3,above:'rgba(30,142,62,.07)',below:'transparent'},tension:.35},
-    {label:'Media',data:mArr,borderColor:'rgba(26,115,232,.5)',borderWidth:1.5,borderDash:[4,3],pointRadius:0,fill:false,tension:.35},
+    {label:'Media',data:mArr,borderColor:'rgba(35,96,111,.5)',borderWidth:1.5,borderDash:[4,3],pointRadius:0,fill:false,tension:.35},
   ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:true,labels:{font:{size:11}}},tooltip:{callbacks:{title:c=>'Età '+c[0].label,label:c=>' '+c.dataset.label+': '+fmt(c.raw)},backgroundColor:'#fff',borderColor:'#dadce0',borderWidth:1,titleColor:'#202124',bodyColor:'#5f6368',padding:10}},scales:{x:{ticks:{color:tC,font:{size:11,family:'DM Mono'},maxTicksLimit:12},grid:{color:gC}},y:{ticks:{color:tC,font:{size:11,family:'DM Mono'},callback:v=>fmt(v)},grid:{color:gC}}}}});
 
   // GARCH vol chart
@@ -665,7 +665,7 @@ function renderAdvMCHistogram(results, P, model) {
         ctx.save(); ctx.translate(px + 3, top + 4); ctx.fillText(text, 0, 8); ctx.restore();
         ctx.restore();
       };
-      draw(p50, '#1a73e8', 'Mediana');
+      draw(p50, '#23606f', 'Mediana');
       draw(invested, '#5f6368', 'Versato');
     }
   };
@@ -710,7 +710,7 @@ function renderAdvMCComparison() {
   // Esegui tutti i modelli (N ridotto per velocità)
   const Ncomp = 500, years = state.years, ages = Array.from({length:years+1},(_,i)=>state.age+i);
   const models = ['gaussian','student','garch','regime','bootstrap','bootstrap5y'];
-  const modelColors = {gaussian:'#5f6368',student:'#1a73e8',garch:'#9334e6',regime:'#1e8e3e',bootstrap:'#e37400',bootstrap5y:'#c5221f'};
+  const modelColors = {gaussian:'#5f6368',student:'#23606f',garch:'#9334e6',regime:'#1e8e3e',bootstrap:'#e37400',bootstrap5y:'#c5221f'};
   const modelLabels = {gaussian:'Gaussiano',student:'t-Student',garch:'GARCH',regime:'Regime-Switch',bootstrap:'Bootstrap 1a',bootstrap5y:'Bootstrap 5a'};
   const p50s = {};
   const compRows = [];

@@ -73,7 +73,7 @@
 :root{
   --bg:#fff;--bg2:#f8f9fa;--bg3:#f1f3f4;--border:#dadce0;--border2:#e8eaed;
   --text:#202124;--text2:#5f6368;--text3:#80868b;
-  --blue:#1a73e8;--blue-dim:rgba(26,115,232,.1);
+  --blue:#23606f;--blue-dim:rgba(35,96,111,.1);
   --green:#1e8e3e;--green-dim:rgba(30,142,62,.1);
   --orange:#e37400;--orange-dim:rgba(227,116,0,.1);
   --purple:#9334e6;--purple-dim:rgba(147,52,230,.1);
@@ -89,7 +89,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .header{display:flex;align-items:baseline;gap:10px;padding:20px 20px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .header h1{font-size:18px;font-weight:600;letter-spacing:-.01em}
 .header .sub{font-size:12.5px;color:var(--text3);font-family:'DM Mono',monospace}
-.badge{margin-left:auto;font-size:10px;font-family:'DM Mono',monospace;color:var(--blue);border:1px solid rgba(26,115,232,.3);background:var(--blue-dim);border-radius:4px;padding:3px 8px;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.badge{margin-left:auto;font-size:10px;font-family:'DM Mono',monospace;color:var(--blue);border:1px solid rgba(35,96,111,.3);background:var(--blue-dim);border-radius:4px;padding:3px 8px;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
 
 /* ── TABS ── */
 .tab-nav{display:flex;gap:2px;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;overflow-x:auto}
@@ -175,7 +175,7 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}
 .adv-desc{margin-top:14px;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12.5px;color:var(--text2);line-height:1.6}
 
 /* ── OPTIONALITY BOX ── */
-.optionality-box{background:linear-gradient(135deg,#e8f4fd 0%,#f0eaff 100%);border:1px solid rgba(26,115,232,.25);border-radius:var(--radius);padding:14px 18px;margin-bottom:10px}
+.optionality-box{background:linear-gradient(135deg,#e8f4fd 0%,#f0eaff 100%);border:1px solid rgba(35,96,111,.25);border-radius:var(--radius);padding:14px 18px;margin-bottom:10px}
 .optionality-title{font-size:13px;font-weight:700;color:var(--blue);margin-bottom:6px;display:flex;align-items:center;gap:8px}
 .optionality-desc{font-size:12.5px;color:var(--text2);line-height:1.7}
 
@@ -258,17 +258,17 @@ tbody tr:hover{background:var(--bg2)}
 
 /* ── A/B ── */
 .ab-badge{display:inline-block;font-size:10px;font-weight:700;font-family:'DM Mono',monospace;padding:2px 8px;border-radius:3px;text-transform:uppercase;letter-spacing:.06em}
-.ab-a{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(26,115,232,.3)}
+.ab-a{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(35,96,111,.3)}
 .ab-b{background:var(--purple-dim);color:var(--purple);border:1px solid rgba(147,52,230,.3)}
 .ab-panel{border-radius:var(--radius);padding:14px;margin-bottom:10px}
-.ab-panel-a{background:var(--blue-dim);border:1px solid rgba(26,115,232,.3)}
+.ab-panel-a{background:var(--blue-dim);border:1px solid rgba(35,96,111,.3)}
 .ab-panel-b{background:var(--purple-dim);border:1px solid rgba(147,52,230,.3)}
 
 /* ── PDF ── */
-.pdf-section{margin-top:28px;padding:24px 20px;background:linear-gradient(135deg,#1a73e8 0%,#0d47a1 100%);border-radius:var(--radius);display:flex;align-items:center;gap:20px;flex-wrap:wrap;box-shadow:0 4px 16px rgba(26,115,232,.25)}
+.pdf-section{margin-top:28px;padding:24px 20px;background:linear-gradient(135deg,#23606f 0%,#0d47a1 100%);border-radius:var(--radius);display:flex;align-items:center;gap:20px;flex-wrap:wrap;box-shadow:0 4px 16px rgba(35,96,111,.25)}
 .pdf-section-text h3{font-size:16px;font-weight:600;color:#fff;margin-bottom:4px}
 .pdf-section-text p{font-size:12.5px;color:rgba(255,255,255,.8);line-height:1.5}
-.pdf-btn{display:inline-flex;align-items:center;gap:10px;padding:12px 22px;background:#fff;color:#1a73e8;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.15);transition:all .18s ease;flex-shrink:0;margin-left:auto}
+.pdf-btn{display:inline-flex;align-items:center;gap:10px;padding:12px 22px;background:#fff;color:#23606f;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.15);transition:all .18s ease;flex-shrink:0;margin-left:auto}
 .pdf-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.2)}
 .pdf-btn:disabled{opacity:.6;cursor:not-allowed}
 
@@ -303,12 +303,12 @@ tbody tr:hover{background:var(--bg2)}
 .top-nav .navlinks button.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 .home-hero{max-width:1100px;margin:0 auto;padding:60px 24px 30px;text-align:center}
 .home-hero h1{font-size:40px;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin-bottom:14px;color:var(--text)}
-.home-hero h1 span{background:linear-gradient(90deg,#1a73e8,#9334e6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.home-hero h1 span{background:linear-gradient(90deg,#23606f,#9334e6);-webkit-background-clip:text;background-clip:text;color:transparent}
 .home-hero p{font-size:16px;color:var(--text2);max-width:680px;margin:0 auto 8px;line-height:1.6}
 .home-cards{max-width:1100px;margin:30px auto 0;padding:0 24px;display:grid;grid-template-columns:1fr 1fr;gap:22px}
 @media(max-width:780px){.home-cards{grid-template-columns:1fr}.home-hero h1{font-size:30px}}
 .home-card{position:relative;background:#fff;border:1px solid var(--border);border-radius:16px;padding:30px;cursor:pointer;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.04);overflow:hidden;text-align:left;font-family:inherit}
-.home-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(26,115,232,.18);border-color:var(--blue)}
+.home-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(35,96,111,.18);border-color:var(--blue)}
 .home-card .icon{font-size:36px;margin-bottom:16px;display:inline-flex;align-items:center;justify-content:center;width:60px;height:60px;border-radius:14px}
 .home-card.sim .icon{background:var(--blue-dim);color:var(--blue)}
 .home-card.guide .icon{background:var(--purple-dim);color:var(--purple)}
@@ -390,7 +390,7 @@ tbody tr:hover{background:var(--bg2)}
 
 /* ── TOOLTIP OPTIONALITÀ ── */
 .opt-tooltip-wrap{position:relative;display:inline-flex;align-items:center;gap:5px}
-.opt-tooltip-icon{width:16px;height:16px;border-radius:50%;background:var(--blue-dim);border:1px solid rgba(26,115,232,.3);color:var(--blue);font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;cursor:help;flex-shrink:0;font-family:'DM Mono',monospace}
+.opt-tooltip-icon{width:16px;height:16px;border-radius:50%;background:var(--blue-dim);border:1px solid rgba(35,96,111,.3);color:var(--blue);font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;cursor:help;flex-shrink:0;font-family:'DM Mono',monospace}
 .opt-tooltip-icon:hover .opt-tooltip-bubble,
 .opt-tooltip-icon:focus .opt-tooltip-bubble{opacity:1;pointer-events:auto;transform:translateY(0)}
 .opt-tooltip-bubble{position:absolute;bottom:calc(100% + 8px);left:0;width:320px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.6;box-shadow:0 4px 16px rgba(0,0,0,.12);opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity .18s,transform .18s;z-index:99;font-family:'DM Sans',sans-serif;font-weight:400}
@@ -399,7 +399,7 @@ tbody tr:hover{background:var(--bg2)}
 @media(max-width:480px){.opt-tooltip-bubble{width:260px;left:-40px}}
 
 /* ── CUSTOM PORTFOLIO BUILDER ── */
-.custom-builder{background:linear-gradient(135deg,#e8f4fd 0%,#f3e8ff 100%);border:1.5px solid rgba(26,115,232,.3);border-radius:var(--radius);padding:14px 18px;margin-top:8px;display:none}
+.custom-builder{background:linear-gradient(135deg,#e8f4fd 0%,#f3e8ff 100%);border:1.5px solid rgba(35,96,111,.3);border-radius:var(--radius);padding:14px 18px;margin-top:8px;display:none}
 .custom-builder.visible{display:block}
 .custom-slot{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
 .custom-select{flex:1;min-width:180px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);font-size:12.5px;font-family:'DM Sans',sans-serif;color:var(--text);outline:none;cursor:pointer;transition:border-color .15s}
@@ -457,8 +457,8 @@ tbody tr:hover{background:var(--bg2)}
   border-color: rgba(227,116,0,.2);
 }
 .live-banner.live-ok {
-  background: rgba(26,115,232,.04);
-  border-color: rgba(26,115,232,.18);
+  background: rgba(35,96,111,.04);
+  border-color: rgba(35,96,111,.18);
 }
 .live-dot {
   width: 8px; height: 8px;
@@ -522,9 +522,9 @@ tbody tr:hover{background:var(--bg2)}
   color: var(--text3);
   margin-top: 4px;
   padding: 4px 10px;
-  background: rgba(26,115,232,.04);
+  background: rgba(35,96,111,.04);
   border-radius: 6px;
-  border-left: 2px solid rgba(26,115,232,.3);
+  border-left: 2px solid rgba(35,96,111,.3);
 }
 
 /* Sezione collassabile (sequence risk) */
@@ -554,8 +554,8 @@ tbody tr:hover{background:var(--bg2)}
 .num-box::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .num-box:focus {
   outline: none;
-  border-color: var(--blue, #1a73e8);
-  box-shadow: 0 0 0 3px rgba(26,115,232,.18);
+  border-color: var(--blue, #23606f);
+  box-shadow: 0 0 0 3px rgba(35,96,111,.18);
 }
 .num-box-wrap {
   position: relative;
@@ -824,3 +824,65 @@ tbody tr:hover{background:var(--bg2)}
   .mv { font-size: 14px; }
   .ml { font-size: 10px; }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOO BIG TO FAIL EDITION — tema su licenza del podcast
+   Palette dalla cover: tramonto corallo, crema, blu petrolio. Poster flat rétro.
+   Override non distruttivo: la struttura della suite resta invariata.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#fffdf9;--bg2:#faf4ea;--bg3:#f3ebdd;--border:#e0d5c1;--border2:#ebe2d1;
+  --text:#22333d;--text2:#54646d;--text3:#7e8b91;
+  --blue:#23606f;--blue-dim:rgba(35,96,111,.12);
+  --green:#27875b;--green-dim:rgba(39,135,91,.12);
+  --orange:#e06a36;--orange-dim:rgba(224,106,54,.12);
+  --purple:#8a55c8;--purple-dim:rgba(138,85,200,.12);
+  --amber:#e8a13c;--amber-dim:rgba(232,161,60,.18);
+  --red:#cf3b2b;--red-dim:rgba(207,59,43,.12);
+  --teal:#178677;--teal-dim:rgba(23,134,119,.12);
+  --tbtf-coral:#e8604a;--tbtf-coral-deep:#cf4732;--tbtf-cream:#f4ede1;
+  --tbtf-ink:#1f3540;--tbtf-slate:#2e4a56;--tbtf-sky:#bcd6e0;
+}
+
+/* ── Header poster ── */
+.header{background:linear-gradient(180deg,#fbf4e8,var(--bg));border-bottom:2.5px solid var(--tbtf-ink);align-items:center;gap:14px;padding:14px 20px}
+.tbtf-logo-slot{display:flex;align-items:center;line-height:0}
+.tbtf-title-block{display:flex;flex-direction:column;gap:2px}
+.header h1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tbtf-wordmark{display:inline-block;background:var(--tbtf-coral);color:#fff;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:4px;border:1.5px solid var(--tbtf-ink);transform:rotate(-2deg);box-shadow:2px 2px 0 var(--tbtf-ink);font-family:'DM Mono',monospace;white-space:nowrap}
+.badge{color:var(--tbtf-coral-deep);border-color:rgba(207,71,50,.4);background:rgba(232,96,74,.1)}
+
+/* ── Home hero: cielo al tramonto della cover ── */
+.home-hero h1 span{background:linear-gradient(90deg,var(--tbtf-coral),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* ── Sezione host: i tre del platonico bar ── */
+.tbtf-hosts-section{max-width:1100px;margin:34px auto 0;padding:0 24px}
+.tbtf-hosts-head{text-align:center;margin-bottom:18px}
+.tbtf-hosts-head h2{font-size:24px;font-weight:700;color:var(--tbtf-ink);letter-spacing:-.01em}
+.tbtf-hosts-head p{font-size:14px;color:var(--text2);max-width:640px;margin:6px auto 0;line-height:1.6}
+.tbtf-hosts-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+@media(max-width:880px){.tbtf-hosts-grid{grid-template-columns:1fr}}
+.tbtf-host-card{position:relative;background:var(--tbtf-cream);border:2px solid var(--tbtf-ink);border-radius:16px;padding:24px 20px 20px;cursor:pointer;transition:.18s;text-align:center;font-family:inherit;box-shadow:4px 4px 0 var(--tbtf-ink)}
+.tbtf-host-card:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--tbtf-ink)}
+.tbtf-host-card:active{transform:translate(1px,1px);box-shadow:2px 2px 0 var(--tbtf-ink)}
+.tbtf-host-card h3{font-size:17px;font-weight:700;color:var(--tbtf-ink);margin-top:10px}
+.tbtf-host-card h3 small{display:block;font-size:11px;font-weight:600;color:var(--tbtf-coral-deep);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.tbtf-role{font-size:12px;color:var(--text3);font-style:italic;margin-top:2px}
+.tbtf-quote{font-size:13px;color:var(--text2);line-height:1.6;margin:10px 0 14px;min-height:62px}
+.tbtf-host-card .cta{display:inline-block;font-size:13px;font-weight:700;color:#fff;background:var(--blue);border:1.5px solid var(--tbtf-ink);border-radius:8px;padding:7px 16px}
+.tbtf-host-card.coral .cta{background:var(--tbtf-coral)}
+.tbtf-host-card.ink .cta{background:var(--tbtf-slate)}
+.tbtf-license-note{text-align:center;font-size:12px;color:var(--text3);margin-top:16px}
+.tbtf-license-note a{color:var(--tbtf-coral-deep);font-weight:600}
+
+/* ── Banner di Alain nella guida ── */
+.tbtf-guide-banner{display:flex;gap:16px;align-items:center;background:var(--tbtf-cream);border:2px solid var(--tbtf-ink);border-radius:14px;padding:16px 18px;margin:0 0 22px;box-shadow:4px 4px 0 var(--tbtf-ink)}
+.tbtf-guide-banner-name{font-size:11px;font-weight:700;color:var(--tbtf-coral-deep);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.tbtf-guide-banner-text{font-size:13.5px;color:var(--text);line-height:1.6}
+.tbtf-guide-banner > span{flex-shrink:0;line-height:0}
+@media(max-width:600px){.tbtf-guide-banner{flex-direction:column;text-align:center}}
+
+/* ── Host nel tier chooser ── */
+.tier-card-host{display:flex;justify-content:center;margin-bottom:10px;line-height:0}
+.tier-card-host-line{font-size:11.5px;font-weight:600;color:var(--tbtf-coral-deep);font-family:'DM Mono',monospace;margin-top:4px}

@@ -782,7 +782,7 @@ function _renderFrontierView() {
       data: frontierData,
       type: 'scatter',
       showLine: true,
-      borderColor: 'rgba(26,115,232,0.9)',
+      borderColor: 'rgba(35,96,111,0.9)',
       backgroundColor: frontierData.map(p => {
         const t = (p.sharpe - minSh) / (maxSh - minSh + 0.001);
         const r = Math.round(26  + (26-217)*t*0 + (0)*t);
@@ -969,6 +969,9 @@ function _renderVaRView() {
   // Per i custom con Efficient Core: segnala che il calcolo usa i sottostanti atomici
   const _hasComposite = key === 'custom' &&
     (state.customPortfolio?.slots||[]).some(s => { const ac = ASSET_CLASSES[s.ac]; return ac && ac.isComposite; });
+  // Leva presente: preset Efficient Core / Return Stacking, o custom con composite.
+  // Il VaR normalizza i pesi al 100%, quindi sottostima il rischio amplificato dalla leva.
+  const _varLeveraged = _hasComposite || key === 'ec_us_9060' || key === 'ec_glob_9060' || key === 'return_stack';
   const portLabel = key==='custom'
     ? ('Custom' + (_hasComposite ? ' <span style="font-size:10px;color:var(--text3);font-weight:400">(Efficient Core espanso nei sottostanti)</span>' : ''))
     : (PORT[key]?.label||key);
@@ -1002,7 +1005,9 @@ function _renderVaRView() {
       <strong>Orizzonte:</strong> ${horizon} anno/i · <strong>TER:</strong> ${ter.toFixed(2)}% ·
       <strong>Rendimento netto:</strong> ${((mu-ter/100)*100).toFixed(1)}%/a · <strong>Volatilità:</strong> ${(vol*100).toFixed(1)}%/a
     </div>
-
+    ${_varLeveraged ? `<div style="font-size:11.5px;color:var(--orange);background:rgba(230,138,0,.07);border:1px solid rgba(230,138,0,.30);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:14px;line-height:1.55">
+      ⚡ <strong>Portafoglio a leva:</strong> il VaR/CVaR espande i sottostanti ma normalizza i pesi al 100%, quindi <strong>sottostima il rischio reale</strong> amplificato dalla leva (notional &gt;100%). Per una stima corretta del rischio di questo portafoglio usa il <strong>Simulatore</strong> o il <strong>Monte Carlo Avanzato</strong>, che modellano leva e costo di finanziamento.
+    </div>` : ''}
     <div class="tbl-outer" style="margin-bottom:20px">
       <table>
         <thead>
@@ -1223,7 +1228,7 @@ const FACTOR_LOADINGS = {
 
 // Metadati fattori per UI
 const FACTOR_META = {
-  MKT: { name: 'Market Beta',           short: 'MKT', color: '#1a73e8',
+  MKT: { name: 'Market Beta',           short: 'MKT', color: '#23606f',
          desc: 'Esposizione al mercato azionario globale. β=1 = correlazione perfetta col mercato. Premio storico ~6%/a (Sharpe 1964, CAPM).' },
   SMB: { name: 'Size (Small minus Big)', short: 'SMB', color: '#9334e6',
          desc: 'Premio delle small caps vs large (Banz 1981). β>0 = tilt small. Storico ~1.5–2%/a, compresso post-pubblicazione.' },
@@ -1379,7 +1384,7 @@ function _renderFactorWaterfall(decomp) {
   ];
   let cum = 0;
   const bars = items.map(it => { const start = cum; cum += it.value; return { ...it, start, end: cum }; });
-  bars.push({ label: 'TOTALE', value: cum, color: '#1a73e8', start: 0, end: cum });
+  bars.push({ label: 'TOTALE', value: cum, color: '#23606f', start: 0, end: cum });
 
   const ctx = canvas.getContext('2d');
   _factorChart = new Chart(ctx, {
@@ -1607,7 +1612,7 @@ window.FACTOR_PREMIA         = FACTOR_PREMIA;
 // ════════════════════════════════════════════════════════════════════════════
 
 const OBJ_META = {
-  max_sharpe:    { label: 'Massimo Sharpe Ratio', icon: '⭐', color: '#1a73e8',
+  max_sharpe:    { label: 'Massimo Sharpe Ratio', icon: '⭐', color: '#23606f',
                    desc: 'Massimizza (μ−RF)/σ — miglior rendimento per unità di rischio totale.' },
   min_variance:  { label: 'Minima Varianza',       icon: '🛡️', color: '#1e8e3e',
                    desc: 'Minimizza σ — portafoglio difensivo a varianza ridotta.' },
@@ -1934,8 +1939,7 @@ function _renderOptimizerView() {
         <div style="font-size:12px;color:var(--text3)">
           Usa il <strong>Simulatore</strong> o il <strong>Monte Carlo Avanzato</strong> per analizzare
           questo portafoglio — modellano correttamente la leva e il costo di finanziamento.
-          La <strong>Frontiera Efficiente</strong> e il <strong>VaR/CVaR</strong> in questa scheda
-          funzionano correttamente (espandono i composite nei sottostanti con i pesi notional corretti).
+          Nota: anche la <strong>Frontiera Efficiente</strong> e il <strong>VaR/CVaR</strong> di questa scheda espandono i composite nei sottostanti ma <strong>normalizzano i pesi al 100%</strong>, quindi non riflettono il rischio amplificato dalla leva (notional &gt;100%): per quei portafogli il rischio reale è superiore a quanto mostrato qui. Il riferimento corretto resta il Simulatore.
         </div>
       </div>`;
     return;
@@ -2318,7 +2322,7 @@ function _renderOptCharts(allocRows, rc) {
   if (_optRcChart) { _optRcChart.destroy(); _optRcChart = null; }
 
   // Colori coerenti per asset
-  const colors = ['#1a73e8','#9334e6','#1e8e3e','#e37400','#00897b','#d93025','#fbbc04','#5f6368','#0097a7','#673ab7','#ff7043','#4caf50'];
+  const colors = ['#23606f','#9334e6','#1e8e3e','#e37400','#00897b','#d93025','#fbbc04','#5f6368','#0097a7','#673ab7','#ff7043','#4caf50'];
 
   // Pie chart allocazione
   const pieCanvas = document.getElementById('optPieChart');
@@ -2358,8 +2362,8 @@ function _renderOptCharts(allocRows, rc) {
           {
             label: 'Peso',
             data: allocRows.map(r => +(r.w * 100).toFixed(2)),
-            backgroundColor: 'rgba(26,115,232,0.6)',
-            borderColor: 'rgba(26,115,232,1)',
+            backgroundColor: 'rgba(35,96,111,0.6)',
+            borderColor: 'rgba(35,96,111,1)',
             borderWidth: 1,
           },
           {
@@ -2420,7 +2424,7 @@ window.optApplyToSimulator = function() {
 // ── Toast notification per optimizer ──────────────────────────────────────
 function _flashOptToast(msg, type) {
   type = type || 'green';
-  const colors = { green: '#1e8e3e', orange: '#e37400', red: '#d93025', blue: '#1a73e8' };
+  const colors = { green: '#1e8e3e', orange: '#e37400', red: '#d93025', blue: '#23606f' };
   const old = document.getElementById('optToast');
   if (old) old.remove();
   const el = document.createElement('div');

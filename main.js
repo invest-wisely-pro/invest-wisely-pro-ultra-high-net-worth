@@ -248,13 +248,13 @@ const ASSET_CLASSES = {
     label: 'Fattore Valore (Value)', emoji: '💎', cat: 'fat', isEq: true,
     mu: 0.072, vol: 0.175, inflBeta: 0.35, ter: 0.3, fxExp: 0.85,
     histCAGR: 0.105, histPeriod: '1970-2024', src: 'Fama & French (1992, 1993)',
-    desc: 'Azioni con basse valutazioni (P/B, P/E, EV/EBITDA bassi). CAGR storico long-only ~10.5%/a. Ha sottoperformato il mercato tra 2007 e 2020, recuperando dal 2021. Forward-looking ~7.5%/a. Alta correlazione con azioni cicliche e finanziarie — soffre in recessioni profonde. Correlazione con Momentum ρ≈−0.15: ottima complementarità.',
+    desc: 'Azioni con basse valutazioni (P/B, P/E, EV/EBITDA bassi). CAGR storico long-only ~10.5%/a. Ha sottoperformato il mercato tra 2007 e 2020, recuperando dal 2021. Forward-looking ~7.2%/a. Alta correlazione con azioni cicliche e finanziarie — soffre in recessioni profonde. Correlazione con Momentum ρ≈−0.15: ottima complementarità.',
   },
   fat_momentum: {
     label: 'Fattore Momentum (Prezzo)', emoji: '🚀', cat: 'fat', isEq: true,
     mu: 0.075, vol: 0.195, inflBeta: 0.05, ter: 0.3, fxExp: 0.85,
     histCAGR: 0.120, histPeriod: '1970-2024', src: 'Jegadeesh & Titman (1993), Carhart (1997)',
-    desc: 'Strategia long sistematica sui vincitori degli ultimi 12-1 mesi. CAGR storico long-only ~12%/a (1970-2024). Rendimento elevato ma con crash risk: drawdown violenti nei mercati a U-turn (es. 2009: −60%). Forward-looking ~8%/a. Correlazione con Valore ρ≈−0.15 — principale beneficio del multi-fattore.',
+    desc: 'Strategia long sistematica sui vincitori degli ultimi 12-1 mesi. CAGR storico long-only ~12%/a (1970-2024). Rendimento elevato ma con crash risk: drawdown violenti nei mercati a U-turn (es. 2009: −60%). Forward-looking ~7.5%/a. Correlazione con Valore ρ≈−0.15 — principale beneficio del multi-fattore.',
   },
   fat_qualita: {
     label: 'Fattore Qualità / Redditività', emoji: '⭐', cat: 'fat', isEq: true,
@@ -762,7 +762,6 @@ let picId = 0, expId = 0, pacChgId = 0;
 function fmt(v) {
   if (v === null || v === undefined || isNaN(v)) return '—';
   const a = Math.abs(v), s = v < 0 ? '−' : '';
-  if (a >= 1e9) return s + '€' + (a / 1e9).toFixed(2) + 'Mld';
   if (a >= 1e6) return s + '€' + (a / 1e6).toFixed(2) + 'M';
   if (a >= 1e3) return s + '€' + Math.round(a / 1e3) + 'k';
   return s + '€' + Math.round(a);
@@ -1595,11 +1594,11 @@ function buildChart(best, normal, worst, seqNorm, ages, opt, crashAge, crossAge,
     // ds indices after base lines:
     // b+0 = P10, b+1 = P25, b+2 = P50mc, b+3 = P75, b+4 = P90
     const b = baseDsCount;
-    fanBands.push({ label:'P10',  data:mcFan.p10, borderColor:'rgba(26,115,232,.15)', borderWidth:1, pointRadius:0, fill:false, tension:.35 });
-    fanBands.push({ label:'P25',  data:mcFan.p25, borderColor:'rgba(26,115,232,.25)', borderWidth:1, pointRadius:0, fill:{target:b,   above:'rgba(26,115,232,.07)', below:'transparent'}, tension:.35 });
-    fanBands.push({ label:'P50mc',data:mcFan.p50, borderColor:'rgba(26,115,232,.45)', borderWidth:2, borderDash:[4,3], pointRadius:0, fill:{target:b+1, above:'rgba(26,115,232,.10)', below:'transparent'}, tension:.35 });
-    fanBands.push({ label:'P75',  data:mcFan.p75, borderColor:'rgba(26,115,232,.25)', borderWidth:1, pointRadius:0, fill:{target:b+2, above:'rgba(26,115,232,.10)', below:'transparent'}, tension:.35 });
-    fanBands.push({ label:'P90',  data:mcFan.p90, borderColor:'rgba(26,115,232,.15)', borderWidth:1, pointRadius:0, fill:{target:b+3, above:'rgba(26,115,232,.06)', below:'transparent'}, tension:.35 });
+    fanBands.push({ label:'P10',  data:mcFan.p10, borderColor:'rgba(35,96,111,.15)', borderWidth:1, pointRadius:0, fill:false, tension:.35 });
+    fanBands.push({ label:'P25',  data:mcFan.p25, borderColor:'rgba(35,96,111,.25)', borderWidth:1, pointRadius:0, fill:{target:b,   above:'rgba(35,96,111,.07)', below:'transparent'}, tension:.35 });
+    fanBands.push({ label:'P50mc',data:mcFan.p50, borderColor:'rgba(35,96,111,.45)', borderWidth:2, borderDash:[4,3], pointRadius:0, fill:{target:b+1, above:'rgba(35,96,111,.10)', below:'transparent'}, tension:.35 });
+    fanBands.push({ label:'P75',  data:mcFan.p75, borderColor:'rgba(35,96,111,.25)', borderWidth:1, pointRadius:0, fill:{target:b+2, above:'rgba(35,96,111,.10)', below:'transparent'}, tension:.35 });
+    fanBands.push({ label:'P90',  data:mcFan.p90, borderColor:'rgba(35,96,111,.15)', borderWidth:1, pointRadius:0, fill:{target:b+3, above:'rgba(35,96,111,.06)', below:'transparent'}, tension:.35 });
   }
 
   // Curva "Reale" = Base deflazionata per HICP live (o inflBottom se non disponibile)
@@ -1613,14 +1612,14 @@ function buildChart(best, normal, worst, seqNorm, ages, opt, crashAge, crossAge,
 
   const ds = [
     { label:'Ott.', data:best, borderColor:'#36d490', borderWidth:2, pointRadius:0, fill:false, tension:.35 },
-    { label:'Base', data:normal, borderColor:'#1a73e8', borderWidth:3, pointRadius:0, fill:false, tension:.35 },
+    { label:'Base', data:normal, borderColor:'#23606f', borderWidth:3, pointRadius:0, fill:false, tension:.35 },
     { label:'Pess.', data:worst, borderColor:'#e37400', borderWidth:2, pointRadius:0, fill:false, tension:.35 },
     ...(seqNorm ? [{ label:'Seq.', data:seqNorm, borderColor:'#9334e6', borderWidth:2.2, borderDash:[7,4], pointRadius:0, fill:false, tension:.35 }] : []),
     ...fanBands,
     { label:`Reale (${inflSource})`, data:realBase, borderColor:'rgba(0,0,0,.28)', borderWidth:1.5, borderDash:[4,3], pointRadius:0, fill:false, tension:.35 },
     { label:'PIC', data:ptPic, borderColor:'transparent', backgroundColor:'#36d490', pointRadius:6, showLine:false },
     { label:'Exp', data:ptExp, borderColor:'transparent', backgroundColor:'#d93025', pointRadius:6, showLine:false },
-    { label:'PacChg', data:ptPac, borderColor:'transparent', backgroundColor:'rgba(26,115,232,.9)', pointRadius:7, pointStyle:'rectRot', showLine:false },
+    { label:'PacChg', data:ptPac, borderColor:'transparent', backgroundColor:'rgba(35,96,111,.9)', pointRadius:7, pointStyle:'rectRot', showLine:false },
   ];
 
   const gC = 'rgba(0,0,0,.05)', tC = 'rgba(0,0,0,.45)';
@@ -1699,7 +1698,7 @@ function renderInflation(vN, vW, vBt, inv, years, dN) {
   // Scenari inflazione: bassa/centrale/alta + stocastici
   const inflScenarios = [
     { l: 'Bassa inflazione', rate: Math.max(0, inflBase - inflSig * 2), c: '#1e8e3e', bg: '#e8f5e9' },
-    { l: 'Centrale (' + state.inflBottom.toFixed(1) + '%)', rate: inflBase, c: '#1a73e8', bg: '#e8f0fe' },
+    { l: 'Centrale (' + state.inflBottom.toFixed(1) + '%)', rate: inflBase, c: '#23606f', bg: '#e8f0fe' },
     { l: 'Alta inflazione', rate: inflBase + inflSig * 2, c: '#e37400', bg: '#fff3e0' },
     { l: 'Stocastica (σ=' + state.inflVol.toFixed(1) + '%)', rate: inflBase + inflSig, c: '#9334e6', bg: '#f3e8ff' },
   ];
@@ -1763,7 +1762,7 @@ function renderInflation(vN, vW, vBt, inv, years, dN) {
   document.getElementById('inflDetails').innerHTML = `
     <div style="background:#fff;border:1px solid #ffe0b2;border-radius:var(--radius-sm);padding:14px;margin-bottom:14px">
       <div style="font-size:11px;color:#e65100;font-weight:700;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:10px">Rendita Sostenibile in Potere d'Acquisto Reale</div>
-      ${[{ r: .03, l: '3%', c: '#1a73e8' }, { r: .035, l: '3.5%', c: '#1e8e3e' }, { r: .04, l: '4%', c: '#1e8e3e' }].map(s => {
+      ${[{ r: .03, l: '3%', c: '#23606f' }, { r: .035, l: '3.5%', c: '#1e8e3e' }, { r: .04, l: '4%', c: '#1e8e3e' }].map(s => {
     const gA = vN * s.r, nA = gA * (1 - eT), nR = nA / df;
     return `<div class="infl-swr-row"><span style="font-weight:600;color:#e65100;width:40px">SWR ${s.l}</span><span style="color:#795548">Net nom. <strong>${fmt(nA)}</strong>/a</span><span>→</span><span><strong style="color:${s.c};font-size:14px">${fmt(nR)}</strong>/a reali (${fmt(nR / 12)}/m)</span></div>`;
   }).join('')}
@@ -1952,7 +1951,7 @@ function renderEcoScenarios() {
     data: {
       labels: ages,
       datasets: [
-        { label: 'Base', data: vBase, borderColor: '#1a73e8', borderWidth: 2.5, pointRadius: 0, fill: false, tension: .35 },
+        { label: 'Base', data: vBase, borderColor: '#23606f', borderWidth: 2.5, pointRadius: 0, fill: false, tension: .35 },
         { label: eco.label, data: vEco, borderColor: eco.color, borderWidth: 3, pointRadius: 0, fill: false, tension: .35 },
         { label: 'Reale (deflatato)', data: vReal, borderColor: eco.color, borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0, fill: false, tension: .35 },
       ]
@@ -2330,7 +2329,7 @@ function renderMultiRegime() {
         // Media
         { label: 'Media', data: res.mean, borderColor: '#9c27b0', borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, fill: false, tension: .35 },
         // Baseline deterministica
-        { label: 'Base (crescita normale)', data: vBase, borderColor: '#1a73e8', borderWidth: 2, pointRadius: 0, fill: false, tension: .35, borderDash: [6, 3] },
+        { label: 'Base (crescita normale)', data: vBase, borderColor: '#23606f', borderWidth: 2, pointRadius: 0, fill: false, tension: .35, borderDash: [6, 3] },
       ]
     },
     options: {
@@ -2579,9 +2578,9 @@ function renderAB() {
   document.getElementById('ab-a-info').innerHTML = `<div style="display:flex;gap:20px;flex-wrap:wrap;font-size:12.5px"><div><strong>${pA?.label ?? state.portfolio}</strong></div><div>TER: <strong>${state.ter.toFixed(2)}%</strong></div><div>PAC: <strong>${fmt(state.pac)}/m</strong></div>${pA && pA.normal ? `<div>Rend. base: <strong>${((pA.normal - state.ter / 100) * 100).toFixed(2)}%</strong>/a</div>` : ''}</div><div style="margin-top:8px;font-size:12px;color:var(--text2)">Valore finale base: <strong style="color:var(--blue)">${fmt(dAn[years].value)}</strong></div>`;
   if (chartAB) { chartAB.destroy(); chartAB = null; }
   const ds = [
-    { label: 'A Ott.', data: dA.map(d => d.value), borderColor: 'rgba(26,115,232,.4)', borderWidth: 1, pointRadius: 0, fill: false, tension: .35, borderDash: [4, 3] },
-    { label: 'A Base', data: dAn.map(d => d.value), borderColor: '#1a73e8', borderWidth: 3, pointRadius: 0, fill: false, tension: .35 },
-    { label: 'A Pess.', data: dAw.map(d => d.value), borderColor: 'rgba(26,115,232,.4)', borderWidth: 1, pointRadius: 0, fill: false, tension: .35, borderDash: [4, 3] },
+    { label: 'A Ott.', data: dA.map(d => d.value), borderColor: 'rgba(35,96,111,.4)', borderWidth: 1, pointRadius: 0, fill: false, tension: .35, borderDash: [4, 3] },
+    { label: 'A Base', data: dAn.map(d => d.value), borderColor: '#23606f', borderWidth: 3, pointRadius: 0, fill: false, tension: .35 },
+    { label: 'A Pess.', data: dAw.map(d => d.value), borderColor: 'rgba(35,96,111,.4)', borderWidth: 1, pointRadius: 0, fill: false, tension: .35, borderDash: [4, 3] },
     { label: 'B Ott.', data: dBb.map(d => d.value), borderColor: 'rgba(147,52,230,.4)', borderWidth: 1, pointRadius: 0, fill: false, tension: .35, borderDash: [4, 3] },
     { label: 'B Base', data: dBn.map(d => d.value), borderColor: '#9334e6', borderWidth: 3, pointRadius: 0, fill: false, tension: .35 },
     { label: 'B Pess.', data: dBw.map(d => d.value), borderColor: 'rgba(147,52,230,.4)', borderWidth: 1, pointRadius: 0, fill: false, tension: .35, borderDash: [4, 3] },
@@ -2608,7 +2607,7 @@ function renderAB() {
   ];
   document.getElementById('ab-metrics').innerHTML = `<div class="tbl-outer"><table><thead><tr><th style="text-align:left">Metrica</th><th style="color:var(--blue)">A — ${pA?.label ?? state.portfolio}</th><th style="color:var(--purple)">B — ${PORT[stateB.portfolio]?.label ?? stateB.portfolio}</th><th>Δ (B−A)</th></tr></thead><tbody>${mRows.map(r => `<tr><td style="text-align:left">${r[0]}</td><td style="color:var(--blue);font-weight:600">${r[1]}</td><td style="color:var(--purple);font-weight:600">${r[2]}</td><td>${r[3]}</td></tr>`).join('')}</tbody></table></div>`;
   const gainA = Math.max(0, dAn[years].value - invA), gainB = Math.max(0, dBn[years].value - invB);
-  document.getElementById('ab-fiscal').innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="liq-card" style="border:1px solid rgba(26,115,232,.3)"><div class="liq-card-title" style="color:var(--blue)">A — ${pA?.label ?? state.portfolio}</div><div class="liq-row"><span style="color:var(--text2)">Lordo</span><strong>${fmt(dAn[years].value)}</strong></div><div class="liq-row" style="color:var(--red)"><span>Tasse CG (${(txFA * 100).toFixed(1)}%)</span><span>−${fmt(gainA * txFA)}</span></div><div class="liq-row" style="border-top:1px solid var(--border);padding-top:8px;margin-bottom:0"><strong style="color:var(--blue)">Netto</strong><strong style="color:var(--blue);font-size:15px">${fmt(nA)}</strong></div></div><div class="liq-card" style="border:1px solid rgba(147,52,230,.3)"><div class="liq-card-title" style="color:var(--purple)">B — ${PORT[stateB.portfolio]?.label ?? stateB.portfolio}</div><div class="liq-row"><span style="color:var(--text2)">Lordo</span><strong>${fmt(dBn[years].value)}</strong></div><div class="liq-row" style="color:var(--red)"><span>Tasse CG (${(txFB * 100).toFixed(1)}%)</span><span>−${fmt(gainB * txFB)}</span></div><div class="liq-row" style="border-top:1px solid var(--border);padding-top:8px;margin-bottom:0"><strong style="color:var(--purple)">Netto</strong><strong style="color:var(--purple);font-size:15px">${fmt(nB)}</strong></div></div></div><div style="margin-top:10px;padding:10px 14px;background:${deltaN >= 0 ? 'var(--green-dim)' : 'var(--red-dim)'};border-radius:var(--radius-sm);font-size:13px;color:${deltaN >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:600">Portafoglio B porta ${deltaN >= 0 ? '+' + fmt(deltaN) + ' netti IN PIÙ rispetto ad A' : fmt(Math.abs(deltaN)) + ' netti IN MENO rispetto ad A'} in scenario base.</div>`;
+  document.getElementById('ab-fiscal').innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="liq-card" style="border:1px solid rgba(35,96,111,.3)"><div class="liq-card-title" style="color:var(--blue)">A — ${pA?.label ?? state.portfolio}</div><div class="liq-row"><span style="color:var(--text2)">Lordo</span><strong>${fmt(dAn[years].value)}</strong></div><div class="liq-row" style="color:var(--red)"><span>Tasse CG (${(txFA * 100).toFixed(1)}%)</span><span>−${fmt(gainA * txFA)}</span></div><div class="liq-row" style="border-top:1px solid var(--border);padding-top:8px;margin-bottom:0"><strong style="color:var(--blue)">Netto</strong><strong style="color:var(--blue);font-size:15px">${fmt(nA)}</strong></div></div><div class="liq-card" style="border:1px solid rgba(147,52,230,.3)"><div class="liq-card-title" style="color:var(--purple)">B — ${PORT[stateB.portfolio]?.label ?? stateB.portfolio}</div><div class="liq-row"><span style="color:var(--text2)">Lordo</span><strong>${fmt(dBn[years].value)}</strong></div><div class="liq-row" style="color:var(--red)"><span>Tasse CG (${(txFB * 100).toFixed(1)}%)</span><span>−${fmt(gainB * txFB)}</span></div><div class="liq-row" style="border-top:1px solid var(--border);padding-top:8px;margin-bottom:0"><strong style="color:var(--purple)">Netto</strong><strong style="color:var(--purple);font-size:15px">${fmt(nB)}</strong></div></div></div><div style="margin-top:10px;padding:10px 14px;background:${deltaN >= 0 ? 'var(--green-dim)' : 'var(--red-dim)'};border-radius:var(--radius-sm);font-size:13px;color:${deltaN >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:600">Portafoglio B porta ${deltaN >= 0 ? '+' + fmt(deltaN) + ' netti IN PIÙ rispetto ad A' : fmt(Math.abs(deltaN)) + ' netti IN MENO rispetto ad A'} in scenario base.</div>`;
   const step = Math.max(1, Math.floor(years / 12));
   const rowsAB = []; for (let i = 0; i <= years; i += step) rowsAB.push(i);
   document.getElementById('ab-table').innerHTML = rowsAB.map(i => {
@@ -3061,7 +3060,7 @@ function renderDecumulo() {
   chartDec = new Chart(document.getElementById('chDec'), {
     type: 'line', data: { labels, datasets: [
       { label: 'Ottimistico', data: dBest.map(d => d.end), borderColor: '#36d490', borderWidth: 2, pointRadius: 0, fill: false, tension: .35 },
-      { label: 'Base', data: dBase.map(d => d.end), borderColor: '#1a73e8', borderWidth: 3, pointRadius: 0, fill: 'origin', backgroundColor: 'rgba(26,115,232,.06)', tension: .35 },
+      { label: 'Base', data: dBase.map(d => d.end), borderColor: '#23606f', borderWidth: 3, pointRadius: 0, fill: 'origin', backgroundColor: 'rgba(35,96,111,.06)', tension: .35 },
       { label: 'Pessimistico', data: dWorst.map(d => d.end), borderColor: '#e37400', borderWidth: 2, pointRadius: 0, fill: false, tension: .35 },
     ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { callbacks: { title: c => c[0].label, label: c => ' ' + c.dataset.label + ': ' + fmt(c.raw) }, backgroundColor: '#fff', borderColor: '#dadce0', borderWidth: 1, titleColor: '#202124', bodyColor: '#5f6368', padding: 10 } }, scales: { x: { ticks: { color: 'rgba(0,0,0,.45)', font: { size: 11, family: 'DM Mono' }, maxTicksLimit: 12 }, grid: { color: 'rgba(0,0,0,.05)' } }, y: { ticks: { color: 'rgba(0,0,0,.45)', font: { size: 11, family: 'DM Mono' }, callback: v => fmt(v) }, grid: { color: 'rgba(0,0,0,.05)' } } } },
@@ -3166,7 +3165,7 @@ function buildValuationDashboard(portKey) {
       Fwd reale <strong style="color:${realFwdColor}">${(realFwd*100).toFixed(1)}%</strong>/a
     </span>`);
 
-  return `<div style="margin-top:10px;padding:10px;background:rgba(26,115,232,.04);border:1px solid rgba(26,115,232,.15);border-radius:8px">
+  return `<div style="margin-top:10px;padding:10px;background:rgba(35,96,111,.04);border:1px solid rgba(35,96,111,.15);border-radius:8px">
     <div style="font-size:10.5px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">⚡ Valutazioni Live · ${new Date(d.fetchedAt).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${chips.join('')}</div>
   </div>`;
@@ -3437,7 +3436,7 @@ function makeEditable(labelId, sliderId, stateKey, fmtFn, opts) {
     inp.type = 'text';
     inp.inputMode = 'numeric';
     inp.value = cur;                                   // numero grezzo, niente € o punti
-    inp.style.cssText = 'width:9ch;font:inherit;color:inherit;background:var(--bg2,#1a1a1a);border:1px solid var(--blue,#1a73e8);border-radius:5px;padding:1px 5px;text-align:right';
+    inp.style.cssText = 'width:9ch;font:inherit;color:inherit;background:var(--bg2,#1a1a1a);border:1px solid var(--blue,#23606f);border-radius:5px;padding:1px 5px;text-align:right';
     const oldHTML = lab.innerHTML;
     lab.innerHTML = '';
     lab.appendChild(inp);
@@ -4530,7 +4529,7 @@ async function generatePDF() {
     try { mc = runMontecarlo(); } catch (_) { mc = null; }
 
     // Palette
-    const BLU = [26, 115, 232], GRN = [30, 142, 62], ORG = [227, 116, 0], PUR = [147, 52, 230];
+    const BLU = [35, 96, 111], GRN = [30, 142, 62], ORG = [227, 116, 0], PUR = [147, 52, 230];
     const TEAL = [0, 137, 123], GRAY = [95, 99, 104], LBG = [248, 249, 250];
     const WHT = [255, 255, 255], RED = [217, 48, 37], DARK = [32, 33, 36];
     const W = 210, H = 297, ML = 14, MR = 14, CW = W - ML - MR;

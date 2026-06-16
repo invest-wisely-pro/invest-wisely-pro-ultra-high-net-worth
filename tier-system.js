@@ -317,7 +317,7 @@ const INFO_TEXTS = {
       if (isPro) {
         badge.textContent = 'PRO SUITE';
         badge.style.color = 'var(--blue)';
-        badge.style.borderColor = 'rgba(26,115,232,.3)';
+        badge.style.borderColor = 'rgba(35,96,111,.3)';
         badge.style.background = 'var(--blue-dim)';
       } else {
         badge.textContent = 'BASE';
@@ -403,14 +403,15 @@ const INFO_TEXTS = {
     modal.innerHTML = `
       <div class="tier-modal">
         <div class="tier-modal-header">
-          <div class="tier-modal-title">Scegli la tua modalità</div>
-          <div class="tier-modal-sub">Puoi cambiare in qualsiasi momento dal pulsante nell'header</div>
+          <div class="tier-modal-title">Scegli la tua guida</div>
+          <div class="tier-modal-sub">Vittorio ti porta nella Base, Nicola nella Pro. Puoi cambiare in qualsiasi momento dal pulsante nell'header.</div>
         </div>
         <div class="tier-modal-cards">
           <button class="tier-card tier-card-base" onclick="window.setTier('base'); window.hideTierChooser()">
-            <div class="tier-card-icon">📊</div>
+            <div class="tier-card-host"><span data-tbtf-host="vittorio" data-tbtf-size="68"></span></div>
             <div class="tier-card-name">Versione Base</div>
-            <div class="tier-card-tagline">Essenziale e intuitiva</div>
+            <div class="tier-card-host-line">con Vittorio · Finanza Cafona</div>
+            <div class="tier-card-tagline">Essenziale e concreta — «roba che si capisce al volo»</div>
             <ul class="tier-card-list">
               <li>✓ Simulatore patrimoniale completo</li>
               <li>✓ Scenari economici (6 regimi macro)</li>
@@ -429,9 +430,10 @@ const INFO_TEXTS = {
           </button>
           <button class="tier-card tier-card-pro" onclick="window.setTier('pro'); window.hideTierChooser()">
             <div class="tier-card-badge-pro">✦ SUITE COMPLETA</div>
-            <div class="tier-card-icon">🚀</div>
+            <div class="tier-card-host"><span data-tbtf-host="nicola" data-tbtf-size="68"></span></div>
             <div class="tier-card-name">Versione Pro</div>
-            <div class="tier-card-tagline">Strumenti quantitativi avanzati</div>
+            <div class="tier-card-host-line">con Nicola · The Italian Leather Sofa</div>
+            <div class="tier-card-tagline">Strumenti quantitativi avanzati — «andiamo al fondo delle cose»</div>
             <ul class="tier-card-list">
               <li>✓ Tutto della versione Base</li>
               <li>✓ MC Avanzato (GARCH, t-Student, Regime-Switching)</li>
@@ -780,11 +782,11 @@ const INFO_TEXTS = {
 }
 .tier-toggle-btn.btn-pro {
   color: var(--blue);
-  border-color: rgba(26,115,232,.3);
+  border-color: rgba(35,96,111,.3);
   background: var(--blue-dim);
 }
 .tier-toggle-btn.btn-pro:hover {
-  background: rgba(26,115,232,.18);
+  background: rgba(35,96,111,.18);
 }
 
 /* ── Tier Chooser Modal ───────────────────────────────────────── */
@@ -861,12 +863,12 @@ const INFO_TEXTS = {
   box-shadow: 0 8px 24px rgba(0,137,123,.14);
 }
 .tier-card-pro {
-  border-color: rgba(26,115,232,.35);
-  background: linear-gradient(135deg, #fff 60%, rgba(26,115,232,.04));
+  border-color: rgba(35,96,111,.35);
+  background: linear-gradient(135deg, #fff 60%, rgba(35,96,111,.04));
 }
 .tier-card-pro:hover {
   border-color: var(--blue);
-  box-shadow: 0 8px 24px rgba(26,115,232,.18);
+  box-shadow: 0 8px 24px rgba(35,96,111,.18);
 }
 .tier-card-badge-pro {
   position: absolute;
@@ -877,7 +879,7 @@ const INFO_TEXTS = {
   font-weight: 700;
   color: var(--blue);
   background: var(--blue-dim);
-  border: 1px solid rgba(26,115,232,.25);
+  border: 1px solid rgba(35,96,111,.25);
   border-radius: 4px;
   padding: 2px 7px;
   letter-spacing: .07em;
@@ -952,7 +954,7 @@ const INFO_TEXTS = {
 }
 .home-tier-banner {
   background: linear-gradient(135deg, var(--blue-dim) 0%, var(--purple-dim) 100%);
-  border: 1px solid rgba(26,115,232,.2);
+  border: 1px solid rgba(35,96,111,.2);
   border-radius: 14px;
   padding: 22px 24px;
   display: flex;
@@ -1033,7 +1035,7 @@ const INFO_TEXTS = {
 .info-helper-btn:hover {
   background: var(--blue-dim);
   color: var(--blue);
-  border-color: rgba(26,115,232,.3);
+  border-color: rgba(35,96,111,.3);
 }
 
 /* ── Info Popover ─────────────────────────────────────────────── */

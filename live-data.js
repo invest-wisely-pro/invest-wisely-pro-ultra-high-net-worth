@@ -378,7 +378,7 @@ function getBondSignal(yield10y, inflExpected = 0.025) {
 }
 
 const SIGNAL_COLORS = {
-  cheap: '#36d490', fair: '#1a73e8', expensive: '#e37400', very_expensive: '#d93025',
+  cheap: '#36d490', fair: '#23606f', expensive: '#e37400', very_expensive: '#d93025',
   attractive: '#36d490', poor: '#e37400', very_poor: '#d93025',
 };
 const SIGNAL_LABELS_IT = {
@@ -826,7 +826,7 @@ function renderValuationStress() {
       liveNote.innerHTML = `⚠️ Dati CAPE live non disponibili (API esterne irraggiungibili). Usando valore di riferimento hardcoded (${d.cape_sp500.toFixed(1)}). <button class="gbtn" onclick="fetchLiveMarketData()" style="font-size:11px;margin-left:6px">↺ Riprova</button>`;
     } else if (d.status === 'ok' || d.status === 'partial') {
       liveNote.style.display = 'block';
-      liveNote.style.color = 'var(--blue, #1a73e8)';
+      liveNote.style.color = 'var(--blue, #23606f)';
       liveNote.textContent = `✓ Dati live aggiornati${d.fetchedAt ? ' alle ' + new Date(d.fetchedAt).toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'}) : ''}.${d.status === 'partial' ? ' (dati parziali)' : ''}`;
     } else {
       liveNote.style.display = 'none';
@@ -986,7 +986,7 @@ function renderValuationStress() {
     data: {
       labels: capeRange,
       datasets: [
-        { label: 'Rend. Totale', data: retRange, borderColor: '#1a73e8', borderWidth: 2.5, pointRadius: 0, fill: false, tension: .3 },
+        { label: 'Rend. Totale', data: retRange, borderColor: '#23606f', borderWidth: 2.5, pointRadius: 0, fill: false, tension: .3 },
         { label: 'Rend. Fondamentale', data: fundRange, borderColor: '#36d490', borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, fill: false, tension: .3 },
         { label: 'Rend. Speculativo', data: specRange, borderColor: '#e37400', borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, fill: false, tension: .3 },
       ],
@@ -1008,7 +1008,7 @@ function renderValuationStress() {
           annotations: {
             currentCape: { type: 'line', xMin: capeNow.toFixed(1), xMax: capeNow.toFixed(1), borderColor: 'rgba(217,48,37,.7)', borderWidth: 2, borderDash: [4, 3], label: { display: true, content: `Port. ${capeNow.toFixed(1)}`, position: 'start', font: { size: 10 } } },
             usaCape: { type: 'line', xMin: capeUSA.toFixed(1), xMax: capeUSA.toFixed(1), borderColor: 'rgba(217,48,37,.35)', borderWidth: 1, borderDash: [2, 4], label: { display: capeUSA.toFixed(1) !== capeNow.toFixed(1), content: `S&P ${capeUSA.toFixed(1)}`, position: 'end', font: { size: 9 } } },
-            histMean: { type: 'line', xMin: histMeanPort.toFixed(1), xMax: histMeanPort.toFixed(1), borderColor: 'rgba(26,115,232,.5)', borderWidth: 1.5, borderDash: [3, 3], label: { display: true, content: `Media ${histMeanPort}`, position: 'end', font: { size: 10 } } },
+            histMean: { type: 'line', xMin: histMeanPort.toFixed(1), xMax: histMeanPort.toFixed(1), borderColor: 'rgba(35,96,111,.5)', borderWidth: 1.5, borderDash: [3, 3], label: { display: true, content: `Media ${histMeanPort}`, position: 'end', font: { size: 10 } } },
           }
         }
       },
