@@ -782,7 +782,7 @@ function _renderFrontierView() {
       data: frontierData,
       type: 'scatter',
       showLine: true,
-      borderColor: 'rgba(35,96,111,0.9)',
+      borderColor: 'rgba(26,115,232,0.9)',
       backgroundColor: frontierData.map(p => {
         const t = (p.sharpe - minSh) / (maxSh - minSh + 0.001);
         const r = Math.round(26  + (26-217)*t*0 + (0)*t);
@@ -1228,7 +1228,7 @@ const FACTOR_LOADINGS = {
 
 // Metadati fattori per UI
 const FACTOR_META = {
-  MKT: { name: 'Market Beta',           short: 'MKT', color: '#23606f',
+  MKT: { name: 'Market Beta',           short: 'MKT', color: '#1a73e8',
          desc: 'Esposizione al mercato azionario globale. β=1 = correlazione perfetta col mercato. Premio storico ~6%/a (Sharpe 1964, CAPM).' },
   SMB: { name: 'Size (Small minus Big)', short: 'SMB', color: '#9334e6',
          desc: 'Premio delle small caps vs large (Banz 1981). β>0 = tilt small. Storico ~1.5–2%/a, compresso post-pubblicazione.' },
@@ -1384,7 +1384,7 @@ function _renderFactorWaterfall(decomp) {
   ];
   let cum = 0;
   const bars = items.map(it => { const start = cum; cum += it.value; return { ...it, start, end: cum }; });
-  bars.push({ label: 'TOTALE', value: cum, color: '#23606f', start: 0, end: cum });
+  bars.push({ label: 'TOTALE', value: cum, color: '#1a73e8', start: 0, end: cum });
 
   const ctx = canvas.getContext('2d');
   _factorChart = new Chart(ctx, {
@@ -1612,7 +1612,7 @@ window.FACTOR_PREMIA         = FACTOR_PREMIA;
 // ════════════════════════════════════════════════════════════════════════════
 
 const OBJ_META = {
-  max_sharpe:    { label: 'Massimo Sharpe Ratio', icon: '⭐', color: '#23606f',
+  max_sharpe:    { label: 'Massimo Sharpe Ratio', icon: '⭐', color: '#1a73e8',
                    desc: 'Massimizza (μ−RF)/σ — miglior rendimento per unità di rischio totale.' },
   min_variance:  { label: 'Minima Varianza',       icon: '🛡️', color: '#1e8e3e',
                    desc: 'Minimizza σ — portafoglio difensivo a varianza ridotta.' },
@@ -2322,7 +2322,7 @@ function _renderOptCharts(allocRows, rc) {
   if (_optRcChart) { _optRcChart.destroy(); _optRcChart = null; }
 
   // Colori coerenti per asset
-  const colors = ['#23606f','#9334e6','#1e8e3e','#e37400','#00897b','#d93025','#fbbc04','#5f6368','#0097a7','#673ab7','#ff7043','#4caf50'];
+  const colors = ['#1a73e8','#9334e6','#1e8e3e','#e37400','#00897b','#d93025','#fbbc04','#5f6368','#0097a7','#673ab7','#ff7043','#4caf50'];
 
   // Pie chart allocazione
   const pieCanvas = document.getElementById('optPieChart');
@@ -2362,8 +2362,8 @@ function _renderOptCharts(allocRows, rc) {
           {
             label: 'Peso',
             data: allocRows.map(r => +(r.w * 100).toFixed(2)),
-            backgroundColor: 'rgba(35,96,111,0.6)',
-            borderColor: 'rgba(35,96,111,1)',
+            backgroundColor: 'rgba(26,115,232,0.6)',
+            borderColor: 'rgba(26,115,232,1)',
             borderWidth: 1,
           },
           {
@@ -2424,7 +2424,7 @@ window.optApplyToSimulator = function() {
 // ── Toast notification per optimizer ──────────────────────────────────────
 function _flashOptToast(msg, type) {
   type = type || 'green';
-  const colors = { green: '#1e8e3e', orange: '#e37400', red: '#d93025', blue: '#23606f' };
+  const colors = { green: '#1e8e3e', orange: '#e37400', red: '#d93025', blue: '#1a73e8' };
   const old = document.getElementById('optToast');
   if (old) old.remove();
   const el = document.createElement('div');

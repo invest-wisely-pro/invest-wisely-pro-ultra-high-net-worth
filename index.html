@@ -15,7 +15,7 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
-<title>Suite Patrimoniale — Too Big To Fail Edition</title>
+<title>Simulatore Patrimoniale Pro — Edizione Capitali Elevati</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -43,7 +43,7 @@
 <div id="view-home" class="view active">
   <div class="home-hero">
     <h1>Pianifica il tuo <span>patrimonio</span> con dati alla mano.</h1>
-    <p>Una suite professionale di simulazione patrimoniale in edizione <strong>Too Big To Fail</strong>: scenari multipli, Monte Carlo, regimi economici, sequence risk e decumulo — tutto in un'unica interfaccia, gratuita e senza registrazione. Niente consigli finanziari (sia mai che ci arrestano), solo numeri da esplorare.</p>
+    <p>Una suite professionale di simulazione patrimoniale: scenari multipli, Monte Carlo, regimi economici, sequence risk e fase di decumulo — tutto in un'unica interfaccia, gratuita e senza registrazione.</p>
   </div>
   <div class="home-cards">
     <button class="home-card sim" onclick="showView('app')">
@@ -69,38 +69,6 @@
       <span class="cta">Apri la guida →</span>
     </button>
   </div>
-  <!-- ── I TRE HOST ── -->
-  <div class="tbtf-hosts-section">
-    <div class="tbtf-hosts-head">
-      <h2>Tre voci, tre guide</h2>
-      <p>Come al bancone del platonico bar del podcast: ognuno dei tre ti accompagna nella sua parte preferita della suite. Scegli da chi farti portare in giro.</p>
-    </div>
-    <div class="tbtf-hosts-grid">
-      <button class="tbtf-host-card coral" onclick="showView('guide')">
-        <span data-tbtf-host="alain" data-tbtf-size="88"></span>
-        <h3>Alain <small>Salto Mentale</small></h3>
-        <p class="tbtf-role">il Comandante</p>
-        <p class="tbtf-quote">«Prima di smanettare con gli slider, capiamo cosa stiamo facendo. Ti porto io nella guida — domande scomode incluse.»</p>
-        <span class="cta">Guida all'utilizzo →</span>
-      </button>
-      <button class="tbtf-host-card" onclick="if(window.setTier)window.setTier('base');showView('app')">
-        <span data-tbtf-host="vittorio" data-tbtf-size="88"></span>
-        <h3>Vittorio <small>Finanza Cafona</small></h3>
-        <p class="tbtf-role">l'uomo del popolo</p>
-        <p class="tbtf-quote">«Patrimonio, PAC, orizzonte e quanto ci resta in tasca: roba concreta, zero fronzoli. La versione Base è casa mia.»</p>
-        <span class="cta">Versione Base →</span>
-      </button>
-      <button class="tbtf-host-card ink" onclick="if(window.setTier)window.setTier('pro');showView('app')">
-        <span data-tbtf-host="nicola" data-tbtf-size="88"></span>
-        <h3>Nicola <small>The Italian Leather Sofa</small></h3>
-        <p class="tbtf-role">il Maestro, quello tecnico</p>
-        <p class="tbtf-quote">«GARCH, CAPE, VaR, Markowitz: nella Pro andiamo al fondo delle cose. Tranquillo, te le spiego strada facendo.»</p>
-        <span class="cta">Suite Pro →</span>
-      </button>
-    </div>
-    <div class="tbtf-license-note">Interfaccia ispirata allo stile di <a href="https://www.toobigtofail.it" target="_blank" rel="noopener">Too Big To Fail</a> — edizione realizzata su licenza del podcast.</div>
-  </div>
-
   <!-- ── TIER SELECTION BANNER ── -->
   <div class="home-tier-section">
     <div class="home-tier-banner">
@@ -162,13 +130,6 @@
     <div class="guide-head">
       <h1>📖 Guida all'utilizzo del Simulatore</h1>
       <button class="guide-dl" id="guideDlBtn" onclick="downloadGuidePDF()">⬇️ Scarica guida in PDF</button>
-    </div>
-    <div class="tbtf-guide-banner">
-      <span data-tbtf-host="alain" data-tbtf-size="68"></span>
-      <div>
-        <div class="tbtf-guide-banner-name">Alain · Salto Mentale — il Comandante</div>
-        <div class="tbtf-guide-banner-text">«Benvenuto, questa guida la presidio io. Scheda per scheda, parametro per parametro, con qualche domanda scomoda per non farti usare i numeri a caso. Andiamo con ordine.»</div>
-      </div>
     </div>
     <p class="guide-intro">Questa guida spiega passo-passo come utilizzare ciascuna scheda della suite, quali parametri inserire e — soprattutto — <b>come ogni modifica incide sui risultati finali</b>. Tutti i dati restano nel tuo browser: non viene inviato nulla a server esterni.</p>
 
@@ -693,11 +654,8 @@
 <div id="view-app" class="view">
 
 <div class="header">
-  <span class="tbtf-logo-slot" data-tbtf-logo="42"></span>
-  <div class="tbtf-title-block">
-    <h1>Simulatore Patrimoniale <span class="tbtf-wordmark">Too Big To Fail</span> <span class="beta-badge">BETA 1 · GIU 2026</span></h1>
-    <span class="sub">Edizione su licenza del podcast · finanza personale a 3 voci · GARCH · Fiscalità IT · Backtesting</span>
-  </div>
+  <h1>Simulatore Patrimoniale <span class="beta-badge">BETA 1 · 100M</span></h1>
+  <span class="sub">Edizione Capitali Elevati (fino a €100M) · GARCH · Fiscalità IT Completa · Backtesting Storico</span>
   <div class="badge">PRO SUITE</div>
 </div>
 
@@ -727,8 +685,8 @@
     <span id="blendedTaxBadge" style="margin-left:auto;font-size:10.5px;background:var(--purple-dim);color:var(--purple);border:1px solid rgba(147,52,230,.3);padding:3px 8px;border-radius:4px;font-family:'DM Mono',monospace">—</span>
   </div>
   <div class="grid-2">
-    <div class="pblock"><div class="plabel"><span>Patrimonio iniziale</span><span class="pval" id="lW">€0</span></div><input type="range" id="sW" min="0" max="5000000" step="1000" value="0"><div class="range-hints"><span>€0</span><span>€5M</span></div></div>
-    <div class="pblock"><div class="plabel"><span>PAC mensile (base)</span><span class="pval" id="lP">€0/m</span></div><input type="range" id="sP" min="0" max="15000" step="50" value="0"><div class="range-hints"><span>€0</span><span>€15.000</span></div></div>
+    <div class="pblock"><div class="plabel"><span>Patrimonio iniziale</span><span class="pval" id="lW">€0</span></div><input type="range" id="sW" min="0" max="100000000" step="50000" value="0"><div class="range-hints"><span>€0</span><span>€100M</span></div></div>
+    <div class="pblock"><div class="plabel"><span>PAC mensile (base)</span><span class="pval" id="lP">€0/m</span></div><input type="range" id="sP" min="0" max="100000" step="250" value="0"><div class="range-hints"><span>€0</span><span>€100.000</span></div></div>
     <div class="pblock"><div class="plabel"><span>Età iniziale</span><span class="pval" id="lA">0 anni</span></div><input type="range" id="sA" min="0" max="80" step="1" value="0"><div class="range-hints"><span>0</span><span>80</span></div></div>
     <div class="pblock"><div class="plabel"><span>Orizzonte temporale</span><span class="pval" id="lY">35 anni</span></div><input type="range" id="sY" min="1" max="50" step="1" value="35"><div class="range-hints"><span>1 anno</span><span>50 anni</span></div></div>
     <div class="pblock"><div class="plabel"><span class="opt-tooltip-wrap">💎 Soglia Optionality <span class="opt-tooltip-icon" tabindex="0">?<span class="opt-tooltip-bubble"><strong style="color:var(--blue)">Cos'è la Soglia di Optionality?</strong><br>Livello patrimoniale a cui il portafoglio ti dà <em>opzioni di vita reali</em> — part-time, sabbatico, cambio carriera — prima della libertà finanziaria totale (FIRE). Distinta dal FIRE (100% copertura): questa è il punto di <strong>"abbastanza per avere scelta"</strong>. Il grafico mostra la linea tratteggiata per vedere quando ogni scenario la raggiunge.</span></span></span><span class="pval" id="lO">€450.000</span></div><input type="range" id="sO" min="50000" max="3000000" step="25000" value="450000"><div class="range-hints"><span>€50k</span><span>€3M</span></div></div>
@@ -1115,7 +1073,7 @@
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="pblock"><div class="plabel"><span>TER B</span><span class="pval" style="background:var(--purple-dim);color:var(--purple);border:1px solid rgba(147,52,230,.3)" id="lAbTer">0.20%</span></div><input type="range" id="sAbTer" min="0" max="2.0" step="0.05" value="0.20" oninput="stateB.ter=+this.value;document.getElementById('lAbTer').textContent=this.value+'%';renderAB()"></div>
-        <div class="pblock"><div class="plabel"><span>PAC B</span><span class="pval" style="background:var(--purple-dim);color:var(--purple);border:1px solid rgba(147,52,230,.3)" id="lAbPac">= A</span></div><input type="range" id="sAbPac" min="-1" max="15000" step="50" value="-1" oninput="stateB.pac=+this.value;document.getElementById('lAbPac').textContent=this.value<0?'= A':'€'+Math.round(this.value)+'/m';renderAB()"><div class="range-hints"><span>= A</span><span>€15.000</span></div></div>
+        <div class="pblock"><div class="plabel"><span>PAC B</span><span class="pval" style="background:var(--purple-dim);color:var(--purple);border:1px solid rgba(147,52,230,.3)" id="lAbPac">= A</span></div><input type="range" id="sAbPac" min="-1" max="100000" step="250" value="-1" oninput="stateB.pac=+this.value;document.getElementById('lAbPac').textContent=this.value<0?'= A':'€'+Math.round(this.value)+'/m';renderAB()"><div class="range-hints"><span>= A</span><span>€100.000</span></div></div>
       </div>
     </div>
   </div>
@@ -1141,7 +1099,7 @@
   <div class="sec-label" data-info-id="info-mc-prob">🎯 Probabilità di Successo (Monte Carlo 1.000 Scenari)</div>
   <div class="info-box" style="margin-bottom:16px">Calcola quante volte il portafoglio rimane positivo per tutta la durata del prelievo. Piano con &gt;90% = robusto secondo i financial planner professionisti.</div>
   <div class="grid-2" style="margin-bottom:16px">
-    <div class="pblock"><div class="plabel"><span>Prelievo annuo target</span><span class="pval" id="lMcW">€24.000/a</span></div><input type="range" id="sMcW" min="0" max="300000" step="1000" value="24000"><div class="range-hints"><span>€0</span><span>€300k/anno</span></div></div>
+    <div class="pblock"><div class="plabel"><span>Prelievo annuo target</span><span class="pval" id="lMcW">€24.000/a</span></div><input type="range" id="sMcW" min="0" max="5000000" step="10000" value="24000"><div class="range-hints"><span>€0</span><span>€5M/anno</span></div></div>
     <div class="pblock"><div class="plabel"><span>Anni di prelievo (post-accumulo)</span><span class="pval" id="lMcY">25 anni</span></div><input type="range" id="sMcY" min="5" max="50" step="1" value="25"><div class="range-hints"><span>5</span><span>50 anni</span></div></div>
     <div class="pblock"><div class="plabel"><span>Indicizzazione prelievo/anno</span><span class="pval" id="lMcI">2.0%</span></div><input type="range" id="sMcI" min="0" max="5" step="0.5" value="2.0"><div class="range-hints"><span>0%</span><span>5%/anno</span></div></div>
     <div style="display:flex;align-items:flex-end"><button class="gbtn a-blue" onclick="runSuccessMC()" style="padding:10px 20px;font-size:13.5px;font-weight:600;width:100%">🎯 Calcola Probabilità</button></div>
@@ -1161,8 +1119,8 @@
     <span id="importStatus" style="font-size:12px;color:var(--text3)">Usa parametri manuali oppure importa il valore finale simulato</span>
   </div>
   <div class="grid-2" style="margin-bottom:16px">
-    <div class="pblock"><div class="plabel"><span>Patrimonio iniziale decumulo</span><span class="pval" id="lDecStart">€500.000</span></div><input type="range" id="sDecStart" min="0" max="5000000" step="10000" value="500000"><div class="range-hints"><span>€0</span><span>€5M</span></div></div>
-    <div class="pblock"><div class="plabel"><span>Prelievo annuo iniziale</span><span class="pval" id="lDecW">€20.000/a</span></div><input type="range" id="sDecW" min="0" max="300000" step="1000" value="20000"><div class="range-hints"><span>€0</span><span>€300k/anno</span></div></div>
+    <div class="pblock"><div class="plabel"><span>Patrimonio iniziale decumulo</span><span class="pval" id="lDecStart">€500.000</span></div><input type="range" id="sDecStart" min="0" max="100000000" step="100000" value="500000"><div class="range-hints"><span>€0</span><span>€100M</span></div></div>
+    <div class="pblock"><div class="plabel"><span>Prelievo annuo iniziale</span><span class="pval" id="lDecW">€20.000/a</span></div><input type="range" id="sDecW" min="0" max="5000000" step="10000" value="20000"><div class="range-hints"><span>€0</span><span>€5M/anno</span></div></div>
     <div class="pblock"><div class="plabel"><span>Anni di decumulo</span><span class="pval" id="lDecY">30 anni</span></div><input type="range" id="sDecY" min="5" max="50" step="1" value="30"><div class="range-hints"><span>5</span><span>50 anni</span></div></div>
     <div class="pblock"><div class="plabel"><span>TER in decumulo</span><span class="pval" id="lDecTer">0.20%</span></div><input type="range" id="sDecTer" min="0" max="2.0" step="0.05" value="0.20"><div class="range-hints"><span>0%</span><span>2.0%</span></div></div>
     <div>
@@ -1359,11 +1317,11 @@
         <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:8px">Parametri</div>
         <div class="pblock" style="margin-bottom:8px">
           <div class="plabel"><span>PAC mensile</span><span class="pval" id="lBtPac">€500/m</span></div>
-          <input type="range" id="sBtPac" min="0" max="15000" step="100" value="500" oninput="btState.pac=+this.value;document.getElementById('lBtPac').textContent='€'+fmtN(+this.value)+'/m'">
+          <input type="range" id="sBtPac" min="0" max="100000" step="500" value="500" oninput="btState.pac=+this.value;document.getElementById('lBtPac').textContent='€'+fmtN(+this.value)+'/m'">
         </div>
         <div class="pblock">
           <div class="plabel"><span>Capitale iniziale</span><span class="pval" id="lBtW">€10.000</span></div>
-          <input type="range" id="sBtW" min="0" max="5000000" step="5000" value="10000" oninput="btState.w=+this.value;document.getElementById('lBtW').textContent=fmt(+this.value)">
+          <input type="range" id="sBtW" min="0" max="100000000" step="50000" value="10000" oninput="btState.w=+this.value;document.getElementById('lBtW').textContent=fmt(+this.value)">
         </div>
       </div>
     </div>
@@ -1535,7 +1493,7 @@
     <div class="grid-2" style="margin-bottom:14px">
       <div class="pblock">
         <div class="plabel"><span>Importo vendita (€)</span><span class="pval" id="lFiscSell">€50.000</span></div>
-        <input type="range" id="sFiscSell" min="0" max="1000000" step="5000" value="50000" oninput="fiscState.sellAmount=+this.value;document.getElementById('lFiscSell').textContent=fmt(+this.value);renderFiscale()">
+        <input type="range" id="sFiscSell" min="0" max="50000000" step="100000" value="50000" oninput="fiscState.sellAmount=+this.value;document.getElementById('lFiscSell').textContent=fmt(+this.value);renderFiscale()">
       </div>
       <div class="pblock">
         <div class="plabel"><span>Anno di vendita</span><span class="pval" id="lFiscSellY">10°</span></div>
@@ -1797,13 +1755,13 @@
     <!-- Target capitale -->
     <div class="pblock" id="goalTargetBlock">
       <div class="plabel"><span>🎯 Obiettivo patrimoniale</span><span class="pval" id="lGoalTarget">€500k</span></div>
-      <input type="range" id="sGoalTarget" min="10000" max="5000000" step="10000" value="500000">
+      <input type="range" id="sGoalTarget" min="10000" max="100000000" step="100000" value="500000">
       <div class="range-hints"><span>€10k</span><span>€5M</span></div>
     </div>
     <!-- PAC mensile -->
     <div class="pblock" id="goalPACBlock" style="display:none">
       <div class="plabel"><span>💳 PAC mensile</span><span class="pval" id="lGoalPAC">€500/m</span></div>
-      <input type="range" id="sGoalPAC" min="0" max="15000" step="50" value="500">
+      <input type="range" id="sGoalPAC" min="0" max="100000" step="250" value="500">
       <div class="range-hints"><span>€0</span><span>€15.000</span></div>
     </div>
     <!-- Anni -->
@@ -1815,7 +1773,7 @@
     <!-- Capitale iniziale -->
     <div class="pblock">
       <div class="plabel"><span>🏦 Patrimonio iniziale</span><span class="pval" id="lGoalW0">€0</span></div>
-      <input type="range" id="sGoalW0" min="0" max="5000000" step="1000" value="0">
+      <input type="range" id="sGoalW0" min="0" max="100000000" step="50000" value="0">
       <div class="range-hints"><span>€0</span><span>€5M</span></div>
     </div>
     <!-- TER -->
@@ -1938,7 +1896,6 @@
 <script src="scenarios-manager.js"></script>
 <script src="pro-features.js"></script>
 <script src="quant-analytics.js"></script>
-<script src="tbtf-brand.js"></script>
 <script src="tier-system.js"></script>
 
 </body>

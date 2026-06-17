@@ -11,7 +11,7 @@ async function downloadGuidePDF() {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const W = 210, H = 297, ML = 16, MR = 16, CW = W - ML - MR;
     let y = 0, pN = 1;
-    const BLU = [35,96,111], PUR = [147,52,230], GRAY = [95,99,104], DARK = [32,33,36], LBG = [248,249,250], AMBER = [251,188,4];
+    const BLU = [26,115,232], PUR = [147,52,230], GRAY = [95,99,104], DARK = [32,33,36], LBG = [248,249,250], AMBER = [251,188,4];
 
     const hdrBar = () => {
       doc.setFillColor(...LBG); doc.rect(0,0,W,12,'F');

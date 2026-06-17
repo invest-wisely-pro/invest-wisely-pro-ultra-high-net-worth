@@ -222,7 +222,7 @@ function renderFiscale() {
   const labels = yearlyData.map(d=>'Anno '+d.year);
   const gC='rgba(0,0,0,.05)',tC='rgba(0,0,0,.45)';
   chartFisc=new Chart(document.getElementById('chFisc'),{type:'line',data:{labels,datasets:[
-    {label:'Valore di mercato',data:yearlyData.map(d=>d.currentValue),borderColor:'#23606f',borderWidth:2.5,pointRadius:0,fill:true,backgroundColor:'rgba(35,96,111,.08)',tension:.35},
+    {label:'Valore di mercato',data:yearlyData.map(d=>d.currentValue),borderColor:'#1a73e8',borderWidth:2.5,pointRadius:0,fill:true,backgroundColor:'rgba(26,115,232,.08)',tension:.35},
     {label:'Capitale investito',data:yearlyData.map(d=>d.totalInvested),borderColor:'#1e8e3e',borderWidth:2,pointRadius:0,fill:false,borderDash:[5,4],tension:.35},
   ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:true},tooltip:{callbacks:{title:c=>c[0].label,label:c=>' '+c.dataset.label+': '+fmt(c.raw)},backgroundColor:'#fff',borderColor:'#dadce0',borderWidth:1,titleColor:'#202124',bodyColor:'#5f6368',padding:10}},scales:{x:{ticks:{color:tC,font:{size:11,family:'DM Mono'},maxTicksLimit:15},grid:{color:gC}},y:{ticks:{color:tC,font:{size:11,family:'DM Mono'},callback:v=>fmt(v)},grid:{color:gC}}}}});
 
@@ -303,7 +303,7 @@ function renderFiscale() {
 
   // Chart confronto
   if (chartFiscComp) { chartFiscComp.destroy(); chartFiscComp=null; }
-  const colors=['#23606f','#9334e6','#1e8e3e','#00897b'];
+  const colors=['#1a73e8','#9334e6','#1e8e3e','#00897b'];
   chartFiscComp=new Chart(document.getElementById('chFiscComp'),{type:'bar',data:{labels:scResults.map(s=>s.l),datasets:[{label:'Netto finale',data:scResults.map(s=>s.net),backgroundColor:colors.map((c,i)=>scResults[i].net===bestNet?c+'dd':c+'66'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' Netto: '+fmt(c.raw)}}},scales:{x:{ticks:{color:tC,font:{size:11}}},y:{ticks:{color:tC,font:{size:11},callback:v=>fmt(v)},grid:{color:gC}}}}});
 
   // Bollo nel tempo

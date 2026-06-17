@@ -35,12 +35,12 @@
           <strong>solo sul tuo dispositivo</strong> — nessun dato viene inviato a server esterni,
           nessun tracciamento, nessuna profilazione.
           <a href="#" onclick="showView('cookie');document.getElementById('cookieConsentBanner').remove();return false;"
-             style="color:#23606f;margin-left:4px">Leggi la Cookie Policy</a>
+             style="color:#1a73e8;margin-left:4px">Leggi la Cookie Policy</a>
         </div>
         <div style="display:flex;gap:10px;flex-shrink:0">
           <button id="cookieAcceptBtn" style="
             padding:9px 20px; border-radius:8px; border:none;
-            background:#23606f; color:#fff; font-size:13px; font-weight:600;
+            background:#1a73e8; color:#fff; font-size:13px; font-weight:600;
             cursor:pointer; font-family:'DM Sans',sans-serif;
           ">Accetta</button>
           <button id="cookieDeclineBtn" style="
@@ -145,7 +145,7 @@
           </p>
         </div>
         <button id="disclaimerAcceptBtn" style="
-          width:100%; padding:13px; background:#23606f; color:#fff;
+          width:100%; padding:13px; background:#1a73e8; color:#fff;
           border:none; border-radius:8px; font-size:14px; font-weight:700;
           cursor:pointer; font-family:'DM Sans',sans-serif; letter-spacing:.01em;
         ">✓ Ho capito — continua</button>
@@ -298,7 +298,7 @@ function renderContextualWarnings() {
   const colorMap = {
     red:    { bg: 'var(--red-dim)',    border: 'rgba(217,48,37,.35)',    text: 'var(--red)' },
     orange: { bg: 'var(--orange-dim)', border: 'rgba(227,116,0,.35)',    text: 'var(--orange)' },
-    blue:   { bg: 'var(--blue-dim)',   border: 'rgba(35,96,111,.25)',   text: 'var(--blue)' },
+    blue:   { bg: 'var(--blue-dim)',   border: 'rgba(26,115,232,.25)',   text: 'var(--blue)' },
   };
 
   container.innerHTML = warnings.map(w => {

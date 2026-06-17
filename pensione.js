@@ -593,7 +593,7 @@ function renderPenChart(r) {
     data: {
       labels,
       datasets: [
-        { label: 'Pensione INPS netta',   data: decData.map(d => d.pensNettaMens), backgroundColor: 'rgba(35,96,111,0.75)',  stack: 'cover', order: 2 },
+        { label: 'Pensione INPS netta',   data: decData.map(d => d.pensNettaMens), backgroundColor: 'rgba(26,115,232,0.75)',  stack: 'cover', order: 2 },
         { label: 'Rendita Fondo Pensione',data: decData.map(d => d.rendFPMens),    backgroundColor: 'rgba(147,52,230,0.75)', stack: 'cover', order: 2 },
         { label: 'Prelievo ETF Portfolio',data: decData.map(d => d.etfMens),       backgroundColor: 'rgba(0,150,136,0.75)',  stack: 'cover', order: 2 },
         { label: 'Gap non coperto',       data: decData.map(d => d.gapMens),       backgroundColor: 'rgba(217,48,37,0.35)',  stack: 'cover', order: 2 },
@@ -634,7 +634,7 @@ function renderPenINPS(r) {
       <div class="mcard"><div class="ml">Pensione netta mensile</div><div class="mv" style="color:var(--blue)">${fmt(pensioneNettaMens)}</div><div class="ms">× 13 mensilità INPS</div></div>
       <div class="mcard"><div class="ml">Tasso di sostituzione</div><div class="mv" style="color:${tsCol}">${(tassoSost*100).toFixed(1)}%</div><div class="ms">Lorda / RAL finale</div></div>
     </div>
-    <div style="background:#e8f0fe;border:1px solid #aecbfa;border-radius:var(--radius-sm);padding:12px 16px;font-size:12px;color:#23606f;line-height:1.7">
+    <div style="background:#e8f0fe;border:1px solid #aecbfa;border-radius:var(--radius-sm);padding:12px 16px;font-size:12px;color:#1a73e8;line-height:1.7">
       <strong>Formula (metodo contributivo):</strong>
       Pensione lorda = Montante (${fmt(cumMontante)}) × Coefficiente (${(coeffTrasf*100).toFixed(3)}%) = <strong>${fmt(r.pensioneLordaAnn)}/anno</strong>.<br>
       Montante rivalutato a PIL nom. (PIL reale ${(penState.pil*100).toFixed(1)}% + inflaz. ${(penState.infl*100).toFixed(1)}% = ${((penState.pil+penState.infl)*100).toFixed(1)}%/a).
