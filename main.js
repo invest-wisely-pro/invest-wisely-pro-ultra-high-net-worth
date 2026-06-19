@@ -3255,7 +3255,7 @@ function renderCustomBuilder() {
       <div class="custom-slot">
         <select class="custom-select" onchange="updCustomAc(${i},this.value)">
           <option value="">— Seleziona asset class —</option>
-          ${Object.entries(ASSET_CLASSES).map(([k,v])=>`<option value="${k}"${sl.ac===k?' selected':''}>${v.emoji} ${v.label}</option>`).join('')}
+          ${buildAcOptions(sl.ac)}
         </select>
         <input class="custom-pct-input" type="number" min="0" max="100" step="5" value="${sl.pct}" placeholder="%" onchange="updCustomPct(${i},+this.value)">
         <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">%</span>
@@ -3377,6 +3377,41 @@ function syncCustomTer() {
 function addCustomSlot(){ state.customPortfolio.slots.push({ac:'',pct:0}); renderCustomBuilder(); syncCustomTer(); render(); }
 function delCustomSlot(i){ state.customPortfolio.slots.splice(i,1); if(!state.customPortfolio.slots.length) state.customPortfolio.slots.push({ac:'eq_world',pct:100}); renderCustomBuilder(); syncCustomTer(); render(); }
 function updCustomAc(i,ac){ state.customPortfolio.slots[i].ac=ac; renderCustomBuilder(); syncCustomTer(); render(); }
+
+// Costruisce le <option> del builder raggruppate per categoria in <optgroup>.
+// Niente emoji: la distinzione visiva è data dalle intestazioni native dei gruppi,
+// stile terminale finanziario. I gruppi seguono un ordine logico (azioni → fattori
+// → obbligazioni → reali → carry/trend → liquidità → strategie a leva).
+function buildAcOptions(selectedAc) {
+  const GROUPS = [
+    { label: 'Azioni',                test: (k,v) => v.cat === 'eq' && !v.isComposite },
+    { label: 'Fattori / Smart Beta',  test: (k,v) => v.cat === 'fat' },
+    { label: 'Obbligazioni',          test: (k,v) => typeof v.cat === 'string' && v.cat.indexOf('ob') === 0 },
+    { label: 'Beni reali (oro, materie prime)', test: (k,v) => v.cat === 'real' },
+    { label: 'Strategie alternative (carry, trend)', test: (k,v) => v.cat === 'carry' || v.cat === 'trend' },
+    { label: 'Liquidità',             test: (k,v) => v.cat === 'cash' },
+    { label: 'Strategie a leva (Efficient Core)', test: (k,v) => v.isComposite === true },
+  ];
+  const entries = Object.entries(ASSET_CLASSES);
+  const used = new Set();
+  let html = '';
+  for (const g of GROUPS) {
+    const items = entries.filter(([k,v]) => !used.has(k) && g.test(k,v));
+    if (!items.length) continue;
+    items.forEach(([k]) => used.add(k));
+    html += `<optgroup label="${g.label}">`;
+    html += items.map(([k,v]) => `<option value="${k}"${selectedAc===k?' selected':''}>${v.label}</option>`).join('');
+    html += `</optgroup>`;
+  }
+  // eventuali asset non classificate (fallback di sicurezza)
+  const orphans = entries.filter(([k]) => !used.has(k));
+  if (orphans.length) {
+    html += `<optgroup label="Altro">`;
+    html += orphans.map(([k,v]) => `<option value="${k}"${selectedAc===k?' selected':''}>${v.label}</option>`).join('');
+    html += `</optgroup>`;
+  }
+  return html;
+}
 function updCustomPct(i,pct){ state.customPortfolio.slots[i].pct=Math.max(0,pct); renderCustomBuilder(); syncCustomTer(); render(); }
 function normalizeCustom(){ const s=state.customPortfolio.slots.filter(sl=>sl.ac&&sl.pct>0); const t=s.reduce((acc,sl)=>acc+sl.pct,0); if(!t) return; state.customPortfolio.slots=s.map(sl=>({...sl,pct:Math.round(sl.pct/t*1000)/10})); renderCustomBuilder(); syncCustomTer(); render(); }
 
