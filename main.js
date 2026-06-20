@@ -3400,14 +3400,14 @@ function buildAcOptions(selectedAc) {
     if (!items.length) continue;
     items.forEach(([k]) => used.add(k));
     html += `<optgroup label="${g.label}">`;
-    html += items.map(([k,v]) => `<option value="${k}"${selectedAc===k?' selected':''}>${v.label}</option>`).join('');
+    html += items.map(([k,v]) => `<option value="${k}"${selectedAc===k?' selected':''}>${v.emoji} ${v.label}</option>`).join('');
     html += `</optgroup>`;
   }
   // eventuali asset non classificate (fallback di sicurezza)
   const orphans = entries.filter(([k]) => !used.has(k));
   if (orphans.length) {
     html += `<optgroup label="Altro">`;
-    html += orphans.map(([k,v]) => `<option value="${k}"${selectedAc===k?' selected':''}>${v.label}</option>`).join('');
+    html += orphans.map(([k,v]) => `<option value="${k}"${selectedAc===k?' selected':''}>${v.emoji} ${v.label}</option>`).join('');
     html += `</optgroup>`;
   }
   return html;

@@ -93,7 +93,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 
 /* ── TABS ── */
 .tab-nav{display:flex;gap:2px;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;overflow-x:auto}
-.tab-btn{display:inline-flex;align-items:center;gap:7px;padding:13px 18px;border:none;border-bottom:3px solid transparent;background:transparent;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap}
+.tab-btn{display:inline-flex;align-items:center;gap:7px;padding:13px 18px;border:none;border-bottom:3px solid transparent;background:transparent;font-size:14px;font-weight:500;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap}
 .tab-btn:hover{color:var(--text);border-bottom-color:var(--border)}
 .tab-btn.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
 .tab-content{display:none;padding:20px}
@@ -694,7 +694,7 @@ tbody tr:hover{background:var(--bg2)}
   .tab-nav::-webkit-scrollbar { display: none; }
   .tab-btn {
     padding: 13px 14px;
-    font-size: 12px;
+    font-size: 13px;
     gap: 4px;
     flex-shrink: 0;
     min-height: 44px;
@@ -835,7 +835,7 @@ tbody tr:hover{background:var(--bg2)}
   .tab-content { padding: 16px 16px; }
   .chart-wrap { height: 340px !important; }
   .grid-4 { grid-template-columns: 1fr 1fr !important; }
-  .tab-btn { padding: 11px 14px; font-size: 12.5px; }
+  .tab-btn { padding: 11px 14px; font-size: 13.5px; }
   /* Navlinks su mobile medio */
   .top-nav .navlinks {
     overflow-x: auto;
@@ -860,7 +860,7 @@ tbody tr:hover{background:var(--bg2)}
 /* ── Evita testo microscopico su iPhone SE / schermi 320px ── */
 @media (max-width: 359px) {
   body { font-size: 12.5px; }
-  .tab-btn { font-size: 11px; padding: 10px 9px; }
+  .tab-btn { font-size: 12px; padding: 10px 9px; }
   .mv { font-size: 14px; }
   .ml { font-size: 10px; }
 }
