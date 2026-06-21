@@ -21,8 +21,8 @@ async function downloadGuidePDF() {
       doc.setDrawColor(220,220,220); doc.line(ML, 11.2, W-MR, 11.2);
     };
     const chk = (n=12) => { if (y+n>278){ doc.addPage(); pN++; y=18; hdrBar(); } };
-    const h1 = (t) => { chk(16); doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(...BLU); doc.text(pdfSafe(t), ML, y); y+=7; doc.setDrawColor(...BLU); doc.setLineWidth(.6); doc.line(ML,y-2,ML+30,y-2); doc.setLineWidth(.2); doc.setTextColor(0,0,0); };
-    const h2 = (t) => { chk(10); doc.setFontSize(10.5); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK); doc.text(pdfSafe(t), ML, y); y+=5; doc.setTextColor(0,0,0); };
+    const h1 = (t) => { chk(16); doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(...BLU); doc.text(pdfSafe(t), ML, y); y+=7; doc.setDrawColor(...BLU); doc.setLineWidth(.6); doc.line(ML,y-2,ML+30,y-2); doc.setLineWidth(.2); doc.setTextColor(0,0,0); y+=4.5; };
+    const h2 = (t) => { chk(10); doc.setFontSize(10.5); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK); doc.text(pdfSafe(t), ML, y); y+=5.8; doc.setTextColor(0,0,0); };
     const p  = (t, ind=0) => {
       doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(50,55,60);
       const lines = doc.splitTextToSize(pdfSafe(t), CW-ind);
