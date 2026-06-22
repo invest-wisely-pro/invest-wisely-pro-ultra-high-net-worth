@@ -470,12 +470,22 @@ function simulateBacktest(portKey, startYear, pacMonthly, w0, skipEvents, useCap
 // ignorerebbe la leva e il costo di finanziamento, producendo risultati fuorvianti.
 function customPortfolioIsNonBacktestable() {
   if (state.portfolio !== 'custom') return false;
-  const NON_BT_CATS = new Set(['trend', 'carry']);
+  // Categorie senza serie storica reale propria: trend following, carry.
+  // Esteso ai fattoriali ('fat') e ai mercati emergenti: nel backtest/bootstrap
+  // userebbero come proxy la serie delle azioni sviluppate (MSCI World), che ha
+  // una storia reale DIVERSA (i fattoriali hanno cicli e crash propri, gli
+  // emergenti un percorso storico distinto). Mostrare quel proxy come se fosse
+  // la storia dell'asset sarebbe fuorviante → blocco, finché non esistono serie reali.
+  // NB: i proxy difendibili restano consentiti (bond di categoria simile, commodities/oro).
+  const NON_BT_CATS = new Set(['trend', 'carry', 'fat']);
+  const NON_BT_KEYS = new Set(['eq_em']);
   return (state.customPortfolio?.slots || []).some(sl => {
     const ac = ASSET_CLASSES[sl.ac];
     if (!ac || !(Number(sl.pct) > 0)) return false;
-    // Categoria non backtestabile (trend following, carry, managed futures)
+    // Categoria non backtestabile (trend, carry, fattoriali)
     if (NON_BT_CATS.has(ac.cat)) return true;
+    // Asset specifico senza serie reale (mercati emergenti)
+    if (NON_BT_KEYS.has(sl.ac)) return true;
     // Asset composito a leva (efficient core 90/60 USA o Globale)
     if (ac.isComposite && ac.finCost > 0) return true;
     return false;
@@ -503,10 +513,10 @@ function runBacktest() {
     box.style.color = 'var(--orange, #b8860b)';
     const isCustomMF = portKey === 'custom' && customPortfolioIsNonBacktestable();
     box.innerHTML = isCustomMF
-      ? `Il portafoglio custom include <strong>Trend Following / Managed Futures</strong>, <strong>Carry</strong> o <strong>Efficient Core (leva)</strong>, ` +
-        `asset privi di serie storica coerente in questo modello (i dati storici coprono solo azioni, obbligazioni e oro). ` +
-        `Il backtest ignorerebbe la leva e i costi di finanziamento, producendo risultati fuorvianti. ` +
-        `Usa le schede <strong>Simulatore</strong>, <strong>Monte Carlo</strong> o <strong>Frontiera Efficiente</strong>.`
+      ? `Il portafoglio custom include <strong>Trend Following / Managed Futures</strong>, <strong>Carry</strong>, <strong>Fattoriali</strong> (Value, Momentum, ecc.), <strong>Mercati Emergenti</strong> o <strong>Efficient Core (leva)</strong>, ` +
+        `asset privi di una serie storica reale propria in questo modello (i dati storici mensili coprono solo azioni sviluppate, obbligazioni e oro). ` +
+        `Per i fattoriali e gli emergenti il backtest userebbe come proxy la serie delle azioni sviluppate — una storia diversa da quella reale dell'asset — producendo risultati fuorvianti. ` +
+        `Usa le schede <strong>Simulatore</strong>, <strong>Monte Carlo</strong> o <strong>Frontiera Efficiente</strong>, che usano i parametri specifici di ogni asset.`
       : `Il backtest storico non è applicabile a <strong>${lbl}</strong>. ` +
         `Questa strategia usa leva (esposizione &gt;100%) e/o managed futures, ` +
         `asset per cui non esiste una serie storica coerente in questo modello ` +
@@ -880,10 +890,10 @@ function runAllBacktests() {
     box.style.color = 'var(--orange, #b8860b)';
     const isCustomMF2 = portKey === 'custom' && customPortfolioIsNonBacktestable();
     box.innerHTML = isCustomMF2
-      ? `Il portafoglio custom include <strong>Trend Following / Managed Futures</strong>, <strong>Carry</strong> o <strong>Efficient Core (leva)</strong>, ` +
-        `asset privi di serie storica coerente in questo modello (i dati storici coprono solo azioni, obbligazioni e oro). ` +
-        `Il backtest ignorerebbe la leva e i costi di finanziamento, producendo risultati fuorvianti. ` +
-        `Usa le schede <strong>Simulatore</strong>, <strong>Monte Carlo</strong> o <strong>Frontiera Efficiente</strong>.`
+      ? `Il portafoglio custom include <strong>Trend Following / Managed Futures</strong>, <strong>Carry</strong>, <strong>Fattoriali</strong> (Value, Momentum, ecc.), <strong>Mercati Emergenti</strong> o <strong>Efficient Core (leva)</strong>, ` +
+        `asset privi di una serie storica reale propria in questo modello (i dati storici mensili coprono solo azioni sviluppate, obbligazioni e oro). ` +
+        `Per i fattoriali e gli emergenti il backtest userebbe come proxy la serie delle azioni sviluppate — una storia diversa da quella reale dell'asset — producendo risultati fuorvianti. ` +
+        `Usa le schede <strong>Simulatore</strong>, <strong>Monte Carlo</strong> o <strong>Frontiera Efficiente</strong>, che usano i parametri specifici di ogni asset.`
       : `Il backtest storico non è applicabile a <strong>${lbl}</strong>: ` +
         `usa leva e/o managed futures, asset senza serie storica coerente in questo modello. ` +
         `Usa le schede <strong>Simulatore</strong>, <strong>Monte Carlo</strong> o <strong>Frontiera Efficiente</strong>.`;
