@@ -112,6 +112,13 @@ const PORT = {
     label: '📐 Larry Portfolio',
     desc: 'Ideato da Larry Swedroe. Alta concentrazione su fattori di rischio accademici (small cap value, emerging). Composizione: 15% US Small Cap Value, 7.5% Intl Small Cap Value, 7.5% Emerging Markets, 70% Ob. Breve/Medio Termine. L\'idea: concentrare il rischio solo sull\'azionario ad alto rendimento atteso (small cap value, emerging) ammortizzato da bond a bassa duration. Volatilità portafoglio calcolata ~7.5%/a. Rendimento atteso ~5.8%/a. Beta inflazione calcolato ≈ −0.02: il contributo del bond breve (tassi flottanti) è quasi neutralizzato dalla quota azionaria value.',
     best: .073, normal: .058, worst: .030, vol: .075,
+    // NB: 'normal' (5.8%) è una stima FORWARD-LOOKING conservativa, NON il CAGR storico.
+    // Il CAGR realizzato 1979-2024 con le serie reali (Small Value + Emerging) è ~7.6%,
+    // ma quel periodo è stato eccezionale per il fattore value: proiettarlo nel decumulo
+    // sarebbe imprudente. Lo sconto forward (~1.8pt) è coerente con TUTTI gli altri preset
+    // (eq60 −3.3pt, golden_butterfly −2.8pt, permanent −2.1pt). NON allineare al CAGR
+    // storico: i percorsi che usano le serie reali sono backtest e sequence risk; il
+    // decumulo è parametrico e DEVE restare forward-looking.
     eq: .30, ob: .70, gold: 0, cash: 0,
     realRet: .038, inflBeta: -0.02, fxExp: 0.29, // 30%eq*0.85 + 70%ob*0.05
     breakdown: {
@@ -211,7 +218,7 @@ const ASSET_CLASSES = {
   eq_em: {
     label: 'Azioni Mercati Emergenti', emoji: '🌏', cat: 'eq', isEq: true,
     mu: 0.078, vol: 0.225, inflBeta: 0.35, ter: 0.2, fxExp: 1.0,
-    histCAGR: 0.098, histPeriod: '1988-2024', src: 'DMS Yearbook 2024',
+    histCAGR: 0.098, histPeriod: '1988-2024', src: 'Fama-French Emerging Markets (1989-2024), EUR',
     desc: 'Cina, India, Brasile, Taiwan, Corea del Sud e altri mercati in sviluppo. CAGR dal 1988: ~9.8%/a. Alta volatilità (σ≈22%) e rischio politico/valutario. Premio di crescita economica parzialmente eroso da perdite da valuta e governance societaria più debole.',
   },
   eq_small_value: {
@@ -223,7 +230,7 @@ const ASSET_CLASSES = {
   reits: {
     label: 'Immobiliare Quotato (REITs)', emoji: '🏢', cat: 'eq', isEq: true,
     mu: 0.065, vol: 0.175, inflBeta: 0.20, ter: 0.4, fxExp: 0.8,
-    histCAGR: 0.112, histPeriod: '1972-2024', src: 'Dati storici mercato immobiliare quotato',
+    histCAGR: 0.112, histPeriod: '1972-2024', src: 'FTSE Nareit All Equity REITs (1972-2024), EUR',
     desc: 'Fondi immobiliari quotati su borsa. CAGR 1972-2024: ~11.2%/a. Obbligo di distribuzione ≥90% degli utili → elevata cedola. Copertura parziale dell\'inflazione tramite canoni di affitto indicizzati. Correlazione con azioni ~0.60, parzialmente decorrelante.',
   },
 
@@ -795,6 +802,52 @@ function getCashWeight(port) {
   return m[port] ?? 0;
 }
 
+// Quota Small Cap Value del portafoglio (sottoinsieme della quota azionaria eqW).
+// Questa frazione usa la serie storica REALE (spread Fama-French su mercato) nel
+// bootstrap/backtest, invece del proxy "si comporta come il mercato".
+// Preset: solo 'larry' (15%). Custom: somma degli slot eq_small_value.
+function getSmallValueWeight(port) {
+  if (port === 'custom') return calcCustomParams().scvW || 0;
+  const m = { larry: .15 };
+  return m[port] ?? 0;
+}
+
+// Quota Momentum del portafoglio (sottoinsieme della quota azionaria eqW).
+// Usa il contributo storico REALE β·WML (Fama-French) invece del proxy di mercato.
+// Nessun preset usa il fattore Momentum: solo portafogli custom (slot fat_momentum).
+function getMomentumWeight(port) {
+  if (port === 'custom') return calcCustomParams().momW || 0;
+  return 0;
+}
+
+// Quota REITs del portafoglio (sottoinsieme di eqW). Usa la serie di rendimento
+// REITS reale (asset class con ciclo proprio), non un contributo sul mercato.
+// Nessun preset usa REITs come asset dedicato: solo portafogli custom.
+function getReitsWeight(port) {
+  if (port === 'custom') return calcCustomParams().reitsW || 0;
+  return 0;
+}
+
+// Quota Mercati Emergenti del portafoglio (sottoinsieme di eqW). Usa la serie di
+// rendimento EM reale (asset class con dinamica propria), non un contributo sul mercato.
+// Nessun preset usa EM come asset dedicato: solo portafogli custom.
+function getEmWeight(port) {
+  if (port === 'custom') return calcCustomParams().emW || 0;
+  // Il Larry Portfolio include 7,5% di Mercati Emergenti: usa la serie reale (come lo
+  // Small Value 15%), non il proxy del mercato sviluppato.
+  const m = { larry: .075 };
+  return m[port] ?? 0;
+}
+
+// Quote dei fattori Fama-French 5 (valore/qualità/investment/size), sottoinsiemi di eqW.
+// Ritorna un oggetto {fat_valore, fat_qualita, fat_investment, fat_size}; tutti 0 fuori dal custom.
+// Nessun preset usa questi fattori: solo portafogli custom.
+function getFactorWeights(port) {
+  const empty = { fat_valore: 0, fat_qualita: 0, fat_investment: 0, fat_size: 0, fat_low_vol: 0 };
+  if (port === 'custom') return calcCustomParams().ff5W || empty;
+  return empty;
+}
+
 // ── Beta di crash per categoria di asset (sequence risk) ──────────────────────
 // Quanto ciascuna categoria si muove durante un crash AZIONARIO severo, espresso
 // come frazione del crollo azionario (1.0 = crolla come le azioni; 0 = neutro;
@@ -815,6 +868,70 @@ function getCashWeight(port) {
 // Beta deliberatamente prudenti: migliorano il realismo (commodity e carry NON
 // sono più trattati come rifugi) senza sovrastimare il danno né creare fragilità.
 const CRASH_BETA = { commodity: 0.35, carry: 0.45, trend: -0.20, commCarry: 0.10 };
+
+// ── Beta di crash specifici per fattore/asset class (sequence risk) ───────────
+// Calibrati su evidenza storica reale (FF/NAREIT/AQR 1979-2024, EUR).
+// Esprimono quante volte il β-azionario generico (1.0) subisce quel segmento.
+//   REITs       1.15  → crisi immobiliare 2008: −52% vs −45% mercato; crisi di liquidità
+//   EM          1.20  → crisi asiatica '97, 2008: più volatili e meno liquidi
+//   SCV         1.15  → small cap illiquide, spread bid/ask esplodono in crisi
+//   Momentum    0.75  → regge in crash brusco; MA soffre momentum crash nel rimbalzo
+//                        (viene gestito come "meno difensivo del valore atteso")
+//   Low Vol     0.55  → difensivo certificato: β_mkt=0.70 per costruzione
+//   Qualità     0.65  → bilanci solidi, cash flow stabili → scudo parziale
+//   Valore      1.05  → value trap nei crash; correlato a ciclo economico
+//   Size (SMB)  1.10  → small cap, stesso razionale di SCV senza il value tilt
+//   Investment  0.90  → CMA: aziende conservative, leggermente difensive
+// Nota: i pesi fattoriali sono quote dell'equity totale (cw.eq). La formula
+// sottrae la quota fattoriale dal bucket equity generico e la riassegna col
+// beta corretto, lasciando il totale della quota azionaria invariato.
+const FACTOR_CRASH_BETA = {
+  reits:          1.15,
+  eq_em:          1.20,
+  eq_small_value: 1.15,
+  fat_momentum:   0.75,
+  fat_low_vol:    0.55,
+  fat_qualita:    0.65,
+  fat_valore:     1.05,
+  fat_size:       1.10,
+  fat_investment: 0.90,
+};
+
+// Calcola il crash rate azionario pesato per composizione fattoriale.
+// cw = output di getCrashWeights(); sev = eqCR * severityFactor (già negativo).
+// Restituisce solo la componente azionaria+fattoriale; commodity/carry/trend/bond
+// vengono sommati esternamente come prima.
+function calcFactorCrashRate(cw, sev) {
+  // Quota azionaria generica: togliere le quote fattoriali con beta proprio
+  const scvW   = cw.scvW   || 0;
+  const reitsW = cw.reitsW || 0;
+  const emW    = cw.emW    || 0;
+  const momW   = cw.momW   || 0;
+  const ff5    = cw.ff5W   || {};
+  const valW   = ff5.fat_valore     || 0;
+  const qualW  = ff5.fat_qualita    || 0;
+  const invW   = ff5.fat_investment || 0;
+  const sizeW  = ff5.fat_size       || 0;
+  const lvW    = ff5.fat_low_vol    || 0;
+
+  // Somma di tutte le quote con beta specifico (non devono superare cw.eq)
+  const factorTotal = Math.min(cw.eq,
+    scvW + reitsW + emW + momW + valW + qualW + invW + sizeW + lvW);
+  const genericEqW = Math.max(0, cw.eq - factorTotal);
+
+  return sev * (
+      genericEqW                              * 1.00
+    + scvW   * FACTOR_CRASH_BETA.eq_small_value
+    + reitsW * FACTOR_CRASH_BETA.reits
+    + emW    * FACTOR_CRASH_BETA.eq_em
+    + momW   * FACTOR_CRASH_BETA.fat_momentum
+    + valW   * FACTOR_CRASH_BETA.fat_valore
+    + qualW  * FACTOR_CRASH_BETA.fat_qualita
+    + invW   * FACTOR_CRASH_BETA.fat_investment
+    + sizeW  * FACTOR_CRASH_BETA.fat_size
+    + lvW    * FACTOR_CRASH_BETA.fat_low_vol
+  );
+}
 
 // IRR money-weighted del piano di accumulo fino all'anno targetIdx.
 // data = array di project() con {invested, value}. Flussi: t=0 capitale iniziale,
@@ -887,6 +1004,12 @@ function calcCustomParams() {
   // otherFullW: servono SOLO per modellare il comportamento in crisi (crash beta),
   // non alterano la classificazione fiscale (otherFullW resta invariato).
   let trendW = 0, carryW = 0, commodW = 0, commCarryW = 0;
+  let scvW = 0; // quota Small Cap Value (sottoinsieme di eqW): usa serie storica reale (spread su mercato)
+  let momW = 0; // quota Momentum (sottoinsieme di eqW): usa contributo reale β·WML su mercato
+  let reitsW = 0; // quota REITs (sottoinsieme di eqW): usa serie di rendimento REITS propria (non spread)
+  let emW = 0; // quota Mercati Emergenti (sottoinsieme di eqW): usa serie di rendimento EM propria
+  // Quote dei fattori Fama-French 5 (sottoinsiemi di eqW): usano contributi reali β·fattore.
+  const ff5W = { fat_valore: 0, fat_qualita: 0, fat_investment: 0, fat_size: 0, fat_low_vol: 0 };
   for (const sl of slots) {
     const ac = ASSET_CLASSES[sl.ac];
     if (!ac) continue;
@@ -912,6 +1035,24 @@ function calcCustomParams() {
     else if (ac.isCash) cashW += w;
     else if (ac.cat === 'ob_usa' || ac.cat === 'ob_eu' || ac.cat === 'ob_glob') obW += w; // obblig. governative → 12,5%
     else                otherFullW += w;          // trend/carry/commodities/reit/factor → 26% (redditi diversi)
+    // Small Cap Value: sottoinsieme di eqW (resta in eqW per fisco/categoria),
+    // tracciato a parte per usare la serie storica reale nel bootstrap/backtest.
+    if (sl.ac === 'eq_small_value') scvW += w;
+    if (sl.ac === 'fat_momentum') momW += w;
+    if (sl.ac === 'reits') reitsW += w;
+    if (sl.ac === 'eq_em') emW += w;
+    if (ff5W.hasOwnProperty(sl.ac)) ff5W[sl.ac] += w;
+    // Multi-Fattore: composizione VIVA in 5 fattori reali equipesati (Val+Mom+Qual+LowVol+CMA).
+    // Espanso qui invece di avere una serie propria, così resta sempre coerente coi
+    // singoli fattori (qualunque ricalibrazione futura si propaga automaticamente).
+    if (sl.ac === 'fat_multifat') {
+      const e = w / 5;
+      momW += e;                    // Momentum
+      ff5W.fat_valore     += e;     // Valore
+      ff5W.fat_qualita    += e;     // Qualità
+      ff5W.fat_low_vol    += e;     // Bassa Volatilità
+      ff5W.fat_investment += e;     // Investment (CMA)
+    }
     // Categorizzazione per crash beta (non altera eqW/obW/otherFullW)
     if (ac.cat === 'trend')      trendW  += w;
     else if (sl.ac === 'fat_carry_comm') commCarryW += w; // commodity carry: regge nei risk-off (beta crash basso)
@@ -981,6 +1122,11 @@ function calcCustomParams() {
     eq:   eqW, ob: obW2, gold: goldW, cash: cashW,
     goldW, cashW, otherFullW,
     trendW, carryW, commodW, commCarryW,        // pesi per categoria (modellazione crash/sequence risk)
+    scvW,                                        // quota Small Cap Value (serie storica reale)
+    momW,                                        // quota Momentum (contributo reale β·WML)
+    reitsW,                                      // quota REITs (serie di rendimento propria)
+    emW,                                         // quota Mercati Emergenti (serie propria)
+    ff5W,                                        // quote fattori FF5 (valore/qualità/investment/size)
     realRet:  Math.max(0, muNet - 0.021),
     inflBeta,
     ter:  terW,                    // TER pesato suggerito (ETF tipici)
@@ -1319,14 +1465,16 @@ function project(scenario, withSeq, terOverride = null, portOverride = null) {
     const severityFactor = idx === 0 ? 1.0 : idx === 1 ? 0.65 : 0.45; // diminishing severity
     const hasCrash = getCrashYear(seq.timing, years) >= 0;
     const acw = hasCrash ? getEquityWeight(portKey, age + cy) : 0;
-    // Crash rate per categoria: equity crollo pieno; commodity/carry partecipano
-    // (beta>0); trend fa crisis alpha (beta<0); difensivo (bond/gold/cash) → rally.
+    // Crash rate per categoria: equity con beta fattoriale specifico; commodity/carry
+    // partecipano (beta>0); trend fa crisis alpha (beta<0); difensivo → rally.
+    // calcFactorCrashRate() sostituisce sev*cw.eq con pesi differenziati per asset
+    // (REITs/EM/SCV più profondi; LowVol/Qualità difensivi; Momentum intermedio).
     let crRate;
     if (hasCrash) {
       const cw = getCrashWeights(portKey, age + cy);
       const sev = eqCR * severityFactor;
       crRate =
-          sev * cw.eq
+          calcFactorCrashRate(cw, sev)
         + sev * CRASH_BETA.commodity * cw.commodW
         + sev * CRASH_BETA.carry     * cw.carryW
         + sev * CRASH_BETA.commCarry * (cw.commCarryW || 0)
@@ -1468,11 +1616,11 @@ function runMontecarlo() {
   crashYearsList.forEach((cy, idx) => {
     const sf = idx === 0 ? 1.0 : idx === 1 ? 0.65 : 0.45;
     const cw2 = getEquityWeight(portfolio, age + cy);
-    // Crash rate per categoria (coerente con project)
+    // Crash rate per categoria (coerente con project), con beta fattoriali specifici
     const cwCat = getCrashWeights(portfolio, age + cy);
     const sev2 = eqCR * sf;
     const cr2 =
-        sev2 * cwCat.eq
+        calcFactorCrashRate(cwCat, sev2)
       + sev2 * CRASH_BETA.commodity * cwCat.commodW
       + sev2 * CRASH_BETA.carry     * cwCat.carryW
       + sev2 * CRASH_BETA.commCarry * (cwCat.commCarryW || 0)
@@ -2726,7 +2874,8 @@ function simulateDecumulo(sc) {
       const sf = idx === 0 ? 1.0 : idx === 1 ? 0.65 : 0.45;
       const cw = getCrashWeights(port, decStartAge + cy);
       const sev = eqCRdec * sf;
-      decCrashMap[cy] = sev * cw.eq
+      decCrashMap[cy] =
+          calcFactorCrashRate(cw, sev)
         + sev * CRASH_BETA.commodity * cw.commodW
         + sev * CRASH_BETA.carry     * cw.carryW
         + sev * CRASH_BETA.commCarry * (cw.commCarryW || 0)
@@ -2810,13 +2959,15 @@ function runDecumuloHistorical() {
   const terRateM = ter / 100 / 12;
 
   // Gate: i preset con leva / managed futures (efficient core, return stacking) e i
-  // custom con trend/carry non hanno serie storica coerente in HIST_MONTHLY (solo
-  // azioni/obbligazioni/oro). Simularli falserebbe rischio e decorrelazione.
+  // custom con asset senza serie storica propria in HIST_MONTHLY non sono backtestabili.
+  // HIST_MONTHLY contiene solo 3 colonne: azioni sviluppate (MSCI World), obbligazioni
+  // aggregate e oro. REITs, Small Cap Value, fattoriali, trend/carry, emergenti e
+  // asset a leva verrebbero simulati con proxy scorretti → risultati fuorvianti.
   const DEC_HIST_SKIP = { ec_us_9060: 1, ec_glob_9060: 1, return_stack: 1 };
   const customNonBT = port === 'custom' && typeof customPortfolioIsNonBacktestable === 'function' && customPortfolioIsNonBacktestable();
   if (DEC_HIST_SKIP[port] || customNonBT) {
     const lbl = (typeof getPortLabel === 'function') ? getPortLabel(port) : port;
-    const err = new Error(`Backtest storico non disponibile per "${lbl}": i portafogli con leva (efficient core, return stacking) o con trend following / carry non hanno una serie storica coerente nel dataset 1970-2024 (azioni/obbligazioni/oro). Usa il Monte Carlo Avanzato con un modello parametrico.`);
+    const err = new Error(`Backtest storico non disponibile per "${lbl}": HIST_MONTHLY contiene solo azioni sviluppate (MSCI World), obbligazioni e oro. I portafogli con REITs, Small Cap Value, Fattoriali, Trend Following, Carry, Mercati Emergenti, Efficient Core (leva) o Return Stacking non hanno serie storica mensile propria — simularli userebbe proxy scorretti. Usa il Monte Carlo Avanzato con modello parametrico (Gaussiano, GARCH o Regime-Switching).`);
     err.decHistBlocked = true;
     throw err;
   }

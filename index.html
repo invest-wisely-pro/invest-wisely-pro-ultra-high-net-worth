@@ -105,17 +105,26 @@
     <div class="footer-disclaimer" style="margin-top:10px">
       <strong>Fonte e natura dei dati storici</strong><br>
       I dati storici 1970&ndash;2024 utilizzati nel backtesting e nelle simulazioni Monte Carlo sono
-      <strong>a scopo illustrativo</strong>. I rendimenti annuali sono <strong>ancorati alle serie ufficiali</strong>
-      delle tre asset class &mdash; azioni <strong>MSCI World</strong> (Net Total Return, EUR), obbligazioni
-      <strong>Bloomberg Euro Aggregate</strong> e oro (prezzo in EUR, LBMA) &mdash; e ne riproducono i valori
-      di lungo periodo (CAGR, volatilità) e l'andamento dei principali anni di crisi (1973&ndash;74, 1987,
-      2000&ndash;02, 2008, 2020, 2022). La <strong>granularità mensile</strong> dei singoli mesi è una
-      <strong>ricostruzione</strong> coerente con il rendimento annuo reale, non una serie tick-by-tick certificata.
-      I dati <strong>non provengono da feed su licenza dei fornitori degli indici</strong> e non costituiscono
+      <strong>a scopo illustrativo</strong>. I rendimenti annuali delle tre asset class principali sono
+      <strong>ancorati alle serie ufficiali</strong> &mdash; azioni <strong>MSCI World</strong> (Net Total
+      Return, EUR), obbligazioni <strong>Bloomberg Euro Aggregate</strong> e oro (prezzo in EUR, LBMA) &mdash;
+      e ne riproducono i valori di lungo periodo (CAGR, volatilità) e l'andamento dei principali anni di
+      crisi (1973&ndash;74, 1987, 2000&ndash;02, 2008, 2020, 2022). Gli asset aggiuntivi dispongono di
+      <strong>serie storiche reali dedicate</strong>: i fattori azionari (Small Cap Value, Momentum, Value,
+      Quality, Investment, Size) derivano dalla <strong>Kenneth French Data Library</strong>, la Bassa
+      Volatilità dal dataset <strong>AQR Betting Against Beta</strong>, l'Immobiliare Quotato dall'indice
+      <strong>FTSE Nareit All Equity REITs</strong> e i Mercati Emergenti dai portafogli Fama-French
+      Emerging Markets (dal 1989); tutte convertite in EUR coi cambi ufficiali BCE/FRED.
+      La <strong>granularità mensile</strong> dei singoli mesi è una <strong>ricostruzione</strong> coerente
+      con il rendimento annuo reale, non una serie tick-by-tick certificata. I dati
+      <strong>non provengono da feed su licenza dei fornitori degli indici</strong> e non costituiscono
       una riproduzione ufficiale degli stessi. Per analisi che richiedano dati certificati si rimanda alle
       fonti primarie (<a href="https://www.msci.com" target="_blank" rel="noopener" style="color:var(--blue)">MSCI</a>,
-      Bloomberg, <a href="https://www.lbma.org.uk" target="_blank" rel="noopener" style="color:var(--blue)">LBMA</a>)
-      o a strumenti basati su dati su licenza (es. <a href="https://curvo.eu" target="_blank" rel="noopener" style="color:var(--blue)">Curvo.eu</a>). MSCI, Bloomberg e LBMA sono marchi dei rispettivi proprietari, citati a solo scopo identificativo delle serie di riferimento; nessuna affiliazione o sponsorizzazione è implicita.
+      Bloomberg, <a href="https://www.lbma.org.uk" target="_blank" rel="noopener" style="color:var(--blue)">LBMA</a>,
+      <a href="https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html" target="_blank" rel="noopener" style="color:var(--blue)">Kenneth French Data Library</a>,
+      <a href="https://www.aqr.com/Insights/Datasets" target="_blank" rel="noopener" style="color:var(--blue)">AQR</a>,
+      <a href="https://www.reit.com" target="_blank" rel="noopener" style="color:var(--blue)">Nareit</a>)
+      o a strumenti basati su dati su licenza (es. <a href="https://curvo.eu" target="_blank" rel="noopener" style="color:var(--blue)">Curvo.eu</a>). MSCI, Bloomberg, LBMA, FTSE Nareit e AQR sono marchi dei rispettivi proprietari, citati a solo scopo identificativo delle serie di riferimento; nessuna affiliazione o sponsorizzazione è implicita.
     </div>
     <div class="footer-links">
       <button onclick="showView('privacy')" class="footer-link-btn">🔒 Privacy Policy</button>
@@ -283,7 +292,7 @@
       <h2><span class="num">7</span> Scheda <b>Backtesting Storico</b> 📅</h2>
       <p>Il Backtesting Storico risponde alla domanda <b>"Cosa sarebbe successo se avessi iniziato il mio piano in un anno specifico?"</b> — usando i rendimenti mensili effettivi reali 1970–2024 (non simulazioni parametriche). È la verifica più concreta della robustezza del tuo piano.</p>
       <h3>Come funziona il motore</h3>
-      <p>Il simulatore usa 660 osservazioni mensili (Gen 1970 – Dic 2024) di tre asset class: <b>azioni mercati sviluppati</b> (MSCI World equiv.), <b>obbligazioni aggregate</b> (Bloomberg US Agg equiv.) e <b>oro spot</b> — serie mensile ricostruita: totali annui e mesi-crisi chiave ancorati ai dati reali, distribuzione infra-annuale stimata. I pesi del portafoglio selezionato vengono applicati ai rendimenti mensili di ogni periodo. Il TER viene sottratto mensilmente. Il PAC viene aggiunto a inizio mese prima di applicare il rendimento.</p>
+      <p>Il simulatore usa 660 osservazioni mensili (Gen 1970 – Dic 2024). Le tre asset class di base &mdash; <b>azioni mercati sviluppati</b> (MSCI World equiv.), <b>obbligazioni aggregate</b> (Bloomberg Euro Agg equiv.) e <b>oro spot</b> &mdash; hanno serie mensile ricostruita: totali annui e mesi-crisi chiave ancorati ai dati reali, distribuzione infra-annuale stimata. Gli asset aggiuntivi (fattori azionari Small Cap Value, Momentum, Value, Quality, Investment, Size; Bassa Volatilità; Immobiliare Quotato REITs; Mercati Emergenti) usano <b>serie storiche reali dedicate</b> (Kenneth French Data Library, AQR, FTSE Nareit) convertite in EUR, anziché comportarsi come proxy del mercato sviluppato. I pesi del portafoglio selezionato vengono applicati ai rendimenti mensili di ogni periodo. Il TER viene sottratto mensilmente. Il PAC viene aggiunto a inizio mese prima di applicare il rendimento.</p>
       <h3>Anni di partenza disponibili</h3>
       <ul>
         <li><b>1973 — Stagflazione OPEC</b>: il peggior inizio nella storia moderna. Inflazione al 12%, azioni −48% in 2 anni, oro +162%. Testa la resilienza massima del piano in contesto inflattivo estremo.</li>
