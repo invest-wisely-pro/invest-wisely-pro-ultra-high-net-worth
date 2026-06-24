@@ -430,6 +430,22 @@ function suitePensione() {
       ok(r.pensioneNettaMens < r.pensioneLordaMens, 'Pensione netta < lorda (tasse applicate)');
       ok(r.tassoSost > 0.3 && r.tassoSost < 0.95, 'Tasso sostituzione plausibile (30-95%)', (r.tassoSost*100).toFixed(0)+'%');
       ok(isFinite(r.rendFPMens) && r.rendFPMens >= 0, 'Rendita fondo pensione finita');
+      // 6.d REGRESSIONE: l'ETF nel grafico annuale deve riflettere il prelievo SWR pieno,
+      // NON essere azzerato dal gap residuo (bug: barra verde invisibile malgrado ETF 63%).
+      try {
+        const penWithEtf = Object.assign({}, global.penState, { etfCapital: 1500000, desired: 1500 });
+        Object.assign(global.penState, penWithEtf);
+        const r2 = global.calcPensione();
+        if (r2 && Array.isArray(r2.decData) && r2.decData.length) {
+          const etf0 = r2.decData[0].etfMens;
+          const capEtf = r2.etfCap || penWithEtf.etfCapital;
+          const swrMensAtteso = capEtf * 0.04 / 12;
+          ok(etf0 > swrMensAtteso * 0.5, 'ETF nel grafico riflette il prelievo SWR, non azzerato dal gap', etf0 + '/m (atteso ~' + Math.round(swrMensAtteso) + ')');
+          if (r2.etfPrelievoMens) {
+            ok(Math.abs(etf0 - r2.etfPrelievoMens) / Math.max(1, r2.etfPrelievoMens) < 0.1, 'ETF grafico coerente con barra-riepilogo in alto (entro 10%)', etf0 + ' vs ' + r2.etfPrelievoMens);
+          }
+        }
+      } catch(e) { warn('test coerenza ETF saltato: ' + e.message.slice(0,50)); }
     }
   } else warn('calcPensione non trovata');
 }

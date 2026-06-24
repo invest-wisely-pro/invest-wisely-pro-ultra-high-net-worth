@@ -1622,7 +1622,7 @@
       </div>
       <div class="pblock" style="margin-bottom:10px">
         <div class="plabel"><span>Spesa mensile desiderata in pensione (€ oggi)</span><span class="pval" id="lPenDesired">€2.000</span></div>
-        <input type="range" id="sPenDesired" min="800" max="6000" step="100" value="2000" oninput="penState.desired=+this.value;document.getElementById('lPenDesired').textContent=fmt(+this.value);renderPensione()">
+        <input type="range" id="sPenDesired" min="800" max="6000" step="100" value="2000" oninput="penState.desired=+this.value;document.getElementById('lPenDesired').textContent=fmtFull(+this.value);renderPensione()">
       </div>
       <div class="pblock" style="margin-bottom:10px">
         <div class="plabel"><span>Inflazione attesa</span><span class="pval" id="lPenInfl">2%</span></div>

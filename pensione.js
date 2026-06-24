@@ -302,9 +302,15 @@ function calcPensione() {
     const fabbisognoAnn  = fabbisognoMens * 12;
     const pensNettaY     = pensioneNettaAnn * Math.pow(1 + infl * 0.75, y);
     const rendFPY        = rendFPNetta * Math.pow(1 + fpRet * (1 - aliqFP) * 0.5, y);
-    const etfY           = Math.min(capETFResiduo * swr, Math.max(0, fabbisognoAnn - pensNettaY - rendFPY));
+    // L'ETF genera il suo reddito al prelievo SWR pieno (4% del capitale residuo),
+    // coerentemente con la barra-riepilogo in alto: il grafico risponde a "da dove
+    // arriva il reddito", quindi mostra il reddito PRODOTTO da ogni gamba, non solo
+    // il tappabuchi del fabbisogno. La linea tratteggiata "Fabbisogno reale" resta il
+    // riferimento da confrontare; se le tre gambe la superano, è un surplus reale.
+    const etfY           = capETFResiduo * swr;
     capETFResiduo        = Math.max(0, capETFResiduo * (1 + fpRet * 0.7) - etfY);
     const coperto        = pensNettaY + rendFPY + etfY;
+    // Gap = quota di fabbisogno NON coperta dalla somma delle tre gambe (0 se surplus).
     const gap            = Math.max(0, fabbisognoAnn - coperto);
     decData.push({
       year: y + 1, age: curAge,
