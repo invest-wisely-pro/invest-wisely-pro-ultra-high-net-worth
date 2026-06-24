@@ -971,18 +971,32 @@ function planIRR(data, targetIdx) {
 function getCrashWeights(port, age) {
   let eq, trendW = 0, carryW = 0, commodW = 0, goldW = 0, cashW = 0, commCarryW = 0;
   let obExplicitCustom;
+  // Quote fattoriali (sottoinsiemi di eq) con beta di crash proprio: servono a
+  // calcFactorCrashRate per differenziare il drawdown (REITs/EM più profondi,
+  // LowVol/Qualità difensivi). Senza esporle qui, la differenziazione resta inerte.
+  let scvW = 0, momW = 0, reitsW = 0, emW = 0;
+  let ff5W = { fat_valore: 0, fat_qualita: 0, fat_investment: 0, fat_size: 0, fat_low_vol: 0 };
   if (port === 'custom') {
     const cp = calcCustomParams();
     eq = cp.eq; trendW = cp.trendW || 0; carryW = cp.carryW || 0;
     commodW = cp.commodW || 0; goldW = cp.goldW || 0; cashW = cp.cashW || 0;
     commCarryW = cp.commCarryW || 0;
     obExplicitCustom = cp.ob; // bond notional espanso (include la gamba a leva dei composite)
+    scvW = cp.scvW || 0; momW = cp.momW || 0; reitsW = cp.reitsW || 0; emW = cp.emW || 0;
+    if (cp.ff5W) ff5W = cp.ff5W;
   } else {
     eq = getEquityWeight(port, age);
     goldW = getGoldWeight(port);
     cashW = getCashWeight(port);
     // return_stack ha una quota trend (managed futures) esplicita
     trendW = PORT[port]?.trend || 0;
+    // Preset con asset fattoriali reali (es. Larry: 15% SV + 7.5% EM): deriva le
+    // quote dai getter, così il crash differenziato vale anche per i preset.
+    scvW = (typeof getSmallValueWeight === 'function') ? getSmallValueWeight(port) : 0;
+    momW = (typeof getMomentumWeight === 'function') ? getMomentumWeight(port) : 0;
+    reitsW = (typeof getReitsWeight === 'function') ? getReitsWeight(port) : 0;
+    emW = (typeof getEmWeight === 'function') ? getEmWeight(port) : 0;
+    if (typeof getFactorWeights === 'function') { const fw = getFactorWeights(port); if (fw) ff5W = fw; }
   }
   // Esposizione difensiva: per i portafogli a leva (efficient core, return
   // stacking) usa il peso obbligazionario ESPLICITO (es. 0.60 notional), non il
@@ -990,7 +1004,7 @@ function getCrashWeights(port, age) {
   // il crash agisce sulle esposizioni notional.
   const obExplicit = (port !== 'custom') ? PORT[port]?.ob : obExplicitCustom;
   const defensive = (obExplicit ?? Math.max(0, 1 - eq - trendW - carryW - commodW - commCarryW - goldW - cashW)) + goldW + cashW;
-  return { eq, trendW, carryW, commodW, commCarryW, defensive };
+  return { eq, trendW, carryW, commodW, commCarryW, defensive, scvW, momW, reitsW, emW, ff5W };
 }
 
 // ── Calcola parametri blended del portafoglio custom ──────────

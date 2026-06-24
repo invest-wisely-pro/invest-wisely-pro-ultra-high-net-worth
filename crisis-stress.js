@@ -180,6 +180,18 @@ function simulateCrisisPath(crisis, portKey, capitalEur, pacMonthly) {
   const eqW   = eqAt(0);
   const obW   = Math.max(0, 1 - eqW - goldW - cashW);
 
+  // Pesi fattoriali reali (SV, Momentum, FF5, REITs, EM): così il crisis stress usa
+  // le serie storiche dedicate di questi asset (es. REITs −52% nel 2008, EM nella
+  // crisi asiatica) invece di trattarli come azioni generiche. Coerente con backtest
+  // e sequence risk, che già usano eqReturnWithFactors.
+  const fw = {
+    scvW:   typeof getSmallValueWeight === 'function' ? getSmallValueWeight(portKey) : 0,
+    momW:   typeof getMomentumWeight   === 'function' ? getMomentumWeight(portKey)   : 0,
+    ff5W:   typeof getFactorWeights    === 'function' ? getFactorWeights(portKey)     : null,
+    reitsW: typeof getReitsWeight      === 'function' ? getReitsWeight(portKey)       : 0,
+    emW:    typeof getEmWeight         === 'function' ? getEmWeight(portKey)          : 0,
+  };
+
   const terMonthly = ((state?.ter ?? 0.2) / 100) / 12;
 
   let cumValue = 100; // normalizzato a 100 (per il path % senza PAC)
@@ -203,7 +215,12 @@ function simulateCrisisPath(crisis, portKey, capitalEur, pacMonthly) {
 
     const eqW_m   = eqAt(idx - startIdx);
     const obW_m   = Math.max(0, 1 - eqW_m - goldW - cashW);
-    const portRet = eqW_m * eqRet + obW_m * obRet + goldW * goldRet + cashW * 0.002 - terMonthly;
+    // Quota azionaria con i fattori reali (REITs/EM/fattoriali usano le loro serie
+    // dedicate); fallback a eqW_m*eqRet se l'helper non è disponibile.
+    const eqPart  = (typeof eqReturnWithFactors === 'function')
+      ? eqReturnWithFactors(eqW_m, eqRet, idx, fw)
+      : eqW_m * eqRet;
+    const portRet = eqPart + obW_m * obRet + goldW * goldRet + cashW * 0.002 - terMonthly;
 
     // Valore normalizzato (senza PAC, per il grafico % e il drawdown "puro")
     cumValue *= (1 + portRet);

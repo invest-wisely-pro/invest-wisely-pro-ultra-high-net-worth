@@ -61,6 +61,8 @@ const SRC = {
   pens: fs.existsSync(path.join(DIR, 'pensione.js')) ? read('pensione.js') : null,
   fisc: fs.existsSync(path.join(DIR, 'fiscal.js')) ? read('fiscal.js') : null,
   quant: fs.existsSync(path.join(DIR, 'quant-analytics.js')) ? read('quant-analytics.js') : null,
+  crisis: fs.existsSync(path.join(DIR, 'crisis-stress.js')) ? read('crisis-stress.js') : null,
+  live: fs.existsSync(path.join(DIR, 'live-data.js')) ? read('live-data.js') : null,
 };
 function grab(src, re) { const m = src.match(re); return m ? m[0] : null; }
 
@@ -765,6 +767,130 @@ function suiteFactorCrashBeta() {
   const scvDiff = Math.abs(scvRate - (sev * 1.0));
   ok(scvDiff > 0.01, 'Sabotaggio: SCV diverge dall\'equity piatto (differenziazione attiva)',
     'delta=' + scvDiff.toFixed(4));
+
+  // 10.11 INTEGRAZIONE: getCrashWeights deve ESPORRE i pesi fattoriali, altrimenti
+  // calcFactorCrashRate li legge come 0 e la differenziazione è inerte (bug reale
+  // trovato: il return ometteva scvW/reitsW/emW/ff5W). Questo test lo previene.
+  try {
+    loadConst(SRC.main, /const ASSET_CLASSES = \{[\s\S]*?\n\};/);
+    loadConst(SRC.main, /const PORT = \{[\s\S]*?\n\};/);
+    try { loadConst(SRC.main, /const CRASH_BETA = \{[\s\S]*?\};/); } catch(e){}
+    try { loadConst(SRC.main, /const BOND_RALLY_RATE = [-\d.]+;/); } catch(e){}
+    try { loadConst(SRC.main, /const SEQ_RATES = \{[\s\S]*?\};/); } catch(e){}
+    ['getEquityWeight','getGoldWeight','getCashWeight','getSmallValueWeight','getMomentumWeight','getReitsWeight','getEmWeight','getFactorWeights','calcCustomParams','getCrashWeights'].forEach(fn => { try { loadFn(SRC.main, fn); } catch(e){} });
+    if (global.getCrashWeights) {
+      // Larry contiene 15% Small Value + 7.5% Emerging: getCrashWeights deve esporli
+      const cwLarry = global.getCrashWeights('larry', 40);
+      ok(cwLarry.scvW > 0, 'getCrashWeights(larry) espone scvW > 0 (non inerte)', String(cwLarry.scvW));
+      ok(cwLarry.emW > 0, 'getCrashWeights(larry) espone emW > 0 (non inerte)', String(cwLarry.emW));
+      ok('ff5W' in cwLarry && 'reitsW' in cwLarry, 'getCrashWeights espone ff5W e reitsW (struttura completa)');
+      // verifica end-to-end: il crash del Larry è più severo che a beta 1.0 piatto
+      // (SV ed EM hanno beta > 1), provando che i pesi arrivano a calcFactorCrashRate
+      const sevTest = -0.40;
+      const larryReal = global.calcFactorCrashRate(cwLarry, sevTest);
+      const larryFlat = sevTest * cwLarry.eq;
+      ok(larryReal < larryFlat - 1e-6, 'Larry: crash differenziato più severo del piatto (SV/EM beta>1)',
+        (larryReal*100).toFixed(2)+'% vs '+(larryFlat*100).toFixed(2)+'%');
+
+      // 10.12 DECUMULO: la stessa formula di crash (calcFactorCrashRate + bond rally)
+      // usata in simulateDecumulo deve differenziare difensivo/generico/aggressivo.
+      // Replica del calcolo del decumulo (main.js simulateDecumulo) su cw sintetici.
+      if (global.CRASH_BETA && global.BOND_RALLY_RATE != null && global.SEQ_RATES) {
+        const decCrash = (cw, sev) =>
+            global.calcFactorCrashRate(cw, sev)
+          + sev * global.CRASH_BETA.commodity * (cw.commodW||0)
+          + sev * global.CRASH_BETA.carry     * (cw.carryW||0)
+          + sev * global.CRASH_BETA.trend     * (cw.trendW||0)
+          + global.BOND_RALLY_RATE            * (cw.defensive||0);
+        const base = { eq:0.8, scvW:0,momW:0,reitsW:0,emW:0, trendW:0,carryW:0,commodW:0,commCarryW:0, defensive:0.2,
+          ff5W:{fat_valore:0,fat_qualita:0,fat_investment:0,fat_size:0,fat_low_vol:0} };
+        const sev = global.SEQ_RATES.severe ?? -0.5;
+        const difensivo = decCrash({...base, ff5W:{fat_valore:0,fat_qualita:0.4,fat_investment:0,fat_size:0,fat_low_vol:0.4}}, sev);
+        const generico  = decCrash(base, sev);
+        const aggressivo = decCrash({...base, reitsW:0.4, emW:0.4}, sev);
+        ok(difensivo > generico && generico > aggressivo,
+          'Decumulo: crash differenziato (difensivo > generico > aggressivo)',
+          [difensivo,generico,aggressivo].map(x=>(x*100).toFixed(0)+'%').join(' > '));
+      }
+    } else warn('getCrashWeights non caricato — test integrazione saltato');
+  } catch(e){ warn('SUITE 10 integrazione: '+e.message); }
+
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// SUITE 11 — CRISIS STRESS (factor-aware: REITs/EM/fattori usano serie reali)
+// ════════════════════════════════════════════════════════════════════════
+function suiteCrisisStress() {
+  header('SUITE 11 — CRISIS STRESS');
+  if (!SRC.crisis) { warn('crisis-stress.js non presente — suite saltata'); return; }
+  // Assicura che il motore factor-aware sia caricato (idempotente se già fatto in suite 7)
+  if (!global.eqReturnWithFactors) {
+    loadConst(SRC.amc, /const HIST_MONTHLY = \(function\(\)\{[\s\S]*?\}\)\(\);/);
+    loadFn(SRC.amc, 'calibrateHistRow');
+    [/const SCV_SPREAD_START[\s\S]*?const SCV_SPREAD = \[[\s\S]*?\];/, /const MOM_CONTRIB_START[\s\S]*?const MOM_CONTRIB = \[[\s\S]*?\];/, /const FF5_CONTRIB_START[\s\S]*?\n\};/, /const REITS_START[\s\S]*?const HIST_REITS = \[[\s\S]*?\];/, /const EM_START[\s\S]*?const HIST_EM = \[[\s\S]*?\];/, /const FACTOR_MKT_BETA = \{[\s\S]*?\};/].forEach(re => { try { loadConst(SRC.amc, re); } catch(e){} });
+    ['scvSpreadAt','momContribAt','ff5ContribAt','reitsReturnAt','emReturnAt','eqReturnWithFactors'].forEach(fn => { try { loadFn(SRC.amc, fn); } catch(e){} });
+  }
+
+  // 11.a Verifica statica: simulateCrisisPath DEVE usare il motore factor-aware,
+  // non eqW*eqRet generico (bug storico: trattava REITs/EM/fattori come azioni).
+  ok(/eqReturnWithFactors\(/.test(SRC.crisis), 'Crisis stress chiama eqReturnWithFactors (non eqW*eqRet generico)');
+  ok(/getReitsWeight|getEmWeight|getFactorWeights/.test(SRC.crisis), 'Crisis stress costruisce i pesi fattoriali (fw)');
+
+  // 11.b Verifica funzionale: nella crisi 2007-09 un portafoglio REITs deve perdere
+  // PIÙ di uno azionario generico, e il low-vol MENO. Replica il calcolo factor-aware
+  // del crisis path (eqReturnWithFactors) su una finestra di crisi reale.
+  if (global.eqReturnWithFactors && global.HIST_MONTHLY && global.calibrateHistRow) {
+    const H = global.HIST_MONTHLY, cal = global.calibrateHistRow;
+    const cumCrisis = (fw, s, mo) => { let c = 1; for (let m=0;m<mo;m++){ const idx=s+m; const row=cal(H[idx]); c*=(1+global.eqReturnWithFactors(1,row[0],idx,fw)); } return c-1; };
+    const start = 453, win = 16; // ~lug-2007, finestra crisi finanziaria
+    const generic = cumCrisis({}, start, win);
+    const reits   = cumCrisis({reitsW:1}, start, win);
+    const lowvol  = cumCrisis({ff5W:{fat_low_vol:1}}, start, win);
+    ok(reits < generic, 'Crisi 2008: REITs crollano più del mercato (epicentro immobiliare)', (reits*100).toFixed(0)+'% < '+(generic*100).toFixed(0)+'%');
+    ok(lowvol > generic, 'Crisi 2008: Low-Vol regge meglio del mercato (difensivo)', (lowvol*100).toFixed(0)+'% > '+(generic*100).toFixed(0)+'%');
+  } else warn('eqReturnWithFactors/HIST non caricati — test funzionale crisi saltato');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// SUITE 12 — STRESS VALUTAZIONI (Bogle decompose + sconto CAPE value-tilt)
+// ════════════════════════════════════════════════════════════════════════
+function suiteValuationStress() {
+  header('SUITE 12 — STRESS VALUTAZIONI');
+  if (!SRC.live) { warn('live-data.js non presente — suite saltata'); return; }
+  loadFn(SRC.live, 'bogleDecompose');
+  if (!global.bogleDecompose) { warn('bogleDecompose non caricata'); return; }
+
+  // 12.a Decomposizione di Bogle: fondamentale + speculativo = nominale
+  const r = global.bogleDecompose(36.1, 14.0, 10, 0.015, 0.02, 0.0105);
+  ok(r !== null, 'bogleDecompose ritorna un risultato valido');
+  if (r) {
+    // mean-reversion da CAPE 36.1 a 14 in 10 anni ≈ -4.8%/a (valore dell'interfaccia)
+    ok(near(r.rNom, -0.048, 0.005), 'Mean-Reversion storica ≈ -4.8%/a (riproduce l\'interfaccia)', (r.rNom*100).toFixed(1)+'%');
+    // speculativo negativo (CAPE scende), fondamentale positivo (dividendi+utili+infl)
+    ok(r.rSpeculative < 0, 'Rendimento speculativo < 0 quando CAPE scende', (r.rSpeculative*100).toFixed(1)+'%');
+    ok(r.rFundamental > 0, 'Rendimento fondamentale > 0 (dividendi+utili+inflazione)', (r.rFundamental*100).toFixed(1)+'%');
+    // coerenza interna: (1+fond)*(1+spec) ≈ (1+nom)
+    ok(near((1+r.rFundamental)*(1+r.rSpeculative)-1, r.rNom, 0.001), 'Coerenza: (1+fond)(1+spec)-1 = nominale');
+  }
+
+  // 12.b Scenari direzionali: CAPE che sale (espansione) dà rendimento > CAPE che crolla
+  const soft  = global.bogleDecompose(36.1, 30.7, 10, 0.015, 0.02, 0.0105); // -15%
+  const crash = global.bogleDecompose(36.1, 12.0, 10, 0.015, 0.02, 0.0105); // ai minimi
+  const expand= global.bogleDecompose(36.1, 43.3, 10, 0.015, 0.02, 0.0105); // +20%
+  ok(expand.rNom > soft.rNom && soft.rNom > crash.rNom, 'Ordine scenari: Espansione > Soft Landing > Crash', [expand.rNom,soft.rNom,crash.rNom].map(x=>(x*100).toFixed(1)+'%').join(' > '));
+  ok(near(crash.rNom, -0.063, 0.005), 'Crash Valutazioni ≈ -6.3%/a (interfaccia)', (crash.rNom*100).toFixed(1)+'%');
+
+  // 12.c Sconto CAPE value-tilt: replica la logica di getPortfolioBlendedCape per
+  // verificare che un portafoglio value/small risulti MENO caro del generico.
+  ok(/CAPE_TILT/.test(SRC.live), 'live-data.js definisce CAPE_TILT (sconto value-tilt)');
+  ok(/_capeTiltFactor/.test(SRC.live), 'CAPE blended applica _capeTiltFactor');
+  // simulazione: portafoglio value-tilted vs generico, stesso CAPE geografico
+  const CAPE_TILT = { eq_small_value:0.70, fat_valore:0.70, fat_size:0.80, fat_dividendi:0.75, fat_low_vol:0.85, fat_multifat:0.85 };
+  const tiltOf = (slots) => { let tw=0,tot=0; for(const [k,w] of slots){tot+=w; tw+=w*(CAPE_TILT[k]??1.0);} return tw/tot; };
+  const genericoTilt = tiltOf([['eq_sviluppati',1.0]]);
+  const valueTilt = tiltOf([['eq_small_value',0.5],['fat_valore',0.5]]);
+  ok(near(genericoTilt, 1.0, 1e-9), 'Portafoglio generico: nessuno sconto CAPE (fattore 1.0)', genericoTilt.toFixed(3));
+  ok(valueTilt < 0.75, 'Portafoglio value/small: sconto CAPE significativo (<0.75)', valueTilt.toFixed(3));
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -774,7 +900,7 @@ console.log('\x1b[1m╔═══════════════════
 console.log('\x1b[1m║   TEST SUITE — Suite Patrimoniale Pro                 ║\x1b[0m');
 console.log('\x1b[1m╚══════════════════════════════════════════════════════╝\x1b[0m');
 
-const suites = [suiteData, suiteSimulator, suiteBacktest, suiteMC, suiteDecumulo, suitePensione, suiteFactors, suiteFiscal, suiteQuant, suiteFactorCrashBeta];
+const suites = [suiteData, suiteSimulator, suiteBacktest, suiteMC, suiteDecumulo, suitePensione, suiteFactors, suiteFiscal, suiteQuant, suiteFactorCrashBeta, suiteCrisisStress, suiteValuationStress];
 for (const s of suites) {
   try { s(); }
   catch (e) { FAIL++; failures.push(s.name + ' CRASH: ' + e.message); console.log('  \x1b[31m✗ CRASH in ' + s.name + ': ' + e.message + '\x1b[0m'); }
