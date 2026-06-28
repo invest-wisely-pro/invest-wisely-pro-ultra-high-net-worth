@@ -614,7 +614,8 @@ const INFO_TEXTS = {
       _backdrop.className = 'info-popover-backdrop';
       document.body.appendChild(_backdrop);
       _backdrop.addEventListener('click', closeInfoPopover);
-      _backdrop.addEventListener('touchend', (e) => { e.preventDefault(); closeInfoPopover(); });
+      _backdrop.addEventListener('touchstart', (e) => { e.preventDefault(); closeInfoPopover(); });
+      _backdrop.addEventListener('touchend', (e) => { e.preventDefault(); });
       // Pulsante di chiusura esplicito (touch + click)
       const closeBtn = _popover.querySelector('.info-popover-close');
       closeBtn.addEventListener('click', closeInfoPopover);
@@ -630,7 +631,10 @@ const INFO_TEXTS = {
     _popover.querySelector('.info-popover-title').textContent = info.title;
     _popover.querySelector('.info-popover-text').textContent = info.text;
     _popover.style.display = 'block';
-    if (_backdrop) _backdrop.classList.add('visible');
+    if (_backdrop) {
+      _backdrop.style.pointerEvents = ''; // reset any inline override from close
+      _backdrop.classList.add('visible');
+    }
     _activeBtn = btn;
 
     // Posizionamento smart: sotto il pulsante, con reflow se esce dallo schermo
@@ -641,7 +645,10 @@ const INFO_TEXTS = {
   function closeInfoPopover() {
     if (!_popover) return;
     _popover.classList.remove('visible');
-    if (_backdrop) _backdrop.classList.remove('visible');
+    if (_backdrop) {
+      _backdrop.classList.remove('visible');
+      _backdrop.style.pointerEvents = 'none'; // immediately unblock touches
+    }
     setTimeout(() => {
       if (_popover) _popover.style.display = 'none';
     }, 180);
@@ -1108,9 +1115,10 @@ const INFO_TEXTS = {
   background: rgba(0,0,0,.35);
   z-index: 998;
   opacity: 0;
+  pointer-events: none;
   transition: opacity .18s;
 }
-.info-popover-backdrop.visible { opacity: 1; }
+.info-popover-backdrop.visible { opacity: 1; pointer-events: auto; }
 /* Su mobile: il popover diventa un modale centrato con X e backdrop tappabile.
    Risolve il caso in cui il popover copriva lo schermo senza via di chiusura (Android). */
 @media (max-width: 480px) {

@@ -1023,7 +1023,11 @@ function runAllBacktests() {
   const normalizedDatasets = datasets.map(ds => ({
     ...ds,
     data: ds.data.map((v, i) => i === 0 ? 100 : Math.round(v / ds.data[0] * 100)),
-    label: ds.label + ' (' + summaryRows.find(r => r.year === +ds.label)?.cagr ? '+' + (summaryRows.find(r => r.year === +ds.label).cagr*100).toFixed(1)+'%/a' : '' + ')',
+    label: (() => {
+      const row = summaryRows.find(r => r.year === +ds.label);
+      const cagr = row?.cagr;
+      return ds.label + (cagr != null ? ' (+' + (cagr*100).toFixed(1) + '%/a)' : '');
+    })(),
   }));
   
   if (chartBtComp) { chartBtComp.destroy(); chartBtComp = null; }
