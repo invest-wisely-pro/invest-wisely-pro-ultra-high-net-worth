@@ -2440,6 +2440,125 @@ function _flashOptToast(msg, type) {
   setTimeout(() => { el.style.transition = 'opacity .4s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }, 2800);
 }
 
+
+
+
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// CORRELATION HEATMAP — Matrice di correlazione tra tutte le asset class
+// Legge la CORR_MATRIX già esistente (calibrata su dati 1970-2024, Fama-French).
+// Sotto la heatmap: analisi delle correlazioni del PORTAFOGLIO impostato.
+// ══════════════════════════════════════════════════════════════════════════
+function _corrColor(v) {
+  if (v >= 0) {
+    const t = Math.min(1, v);
+    const r = Math.round(255 + t * (26 - 255));
+    const g = Math.round(255 + t * (115 - 255));
+    const b = Math.round(255 + t * (232 - 255));
+    return `rgb(${r},${g},${b})`;
+  } else {
+    const t = Math.min(1, -v);
+    const r = Math.round(255 + t * (217 - 255));
+    const g = Math.round(255 + t * (48 - 255));
+    const b = Math.round(255 + t * (37 - 255));
+    return `rgb(${r},${g},${b})`;
+  }
+}
+function _corrTextColor(v) {
+  return Math.abs(v) > 0.55 ? '#fff' : '#1f3540';
+}
+function _analyzePortfolioCorr() {
+  let pf = null;
+  try { pf = _getCurrentPortfolioWeights(); } catch (e) { pf = null; }
+  if (!pf || !pf.keys || pf.keys.length === 0) return null;
+  const idx = pf.keys.map(k => AC_KEYS_EF.indexOf(k));
+  const valid = [];
+  pf.keys.forEach((k, i) => {
+    if (idx[i] >= 0 && pf.weights[i] > 0) valid.push({ key: k, w: pf.weights[i], mi: idx[i] });
+  });
+  if (valid.length < 2) return { single: true, label: pf.label, assets: valid.length };
+  let sumW = 0, wCorr = 0;
+  const pairs = [];
+  for (let a = 0; a < valid.length; a++) {
+    for (let b = a + 1; b < valid.length; b++) {
+      const va = valid[a], vb = valid[b];
+      const rho = CORR_MATRIX[va.mi][vb.mi];
+      const wprod = va.w * vb.w;
+      sumW += wprod; wCorr += wprod * rho;
+      pairs.push({ a: va.key, b: vb.key, rho, wprod });
+    }
+  }
+  const avgCorr = sumW > 0 ? wCorr / sumW : 0;
+  pairs.sort((x, y) => x.rho - y.rho);
+  const bestDiv = pairs.slice(0, 3);
+  const worstDiv = pairs.slice(-3).reverse();
+  const divScore = Math.max(0, Math.min(1, (1 - avgCorr) / 1.5));
+  return { single: false, label: pf.label, nAssets: valid.length, avgCorr, bestDiv, worstDiv, divScore };
+}
+function _renderCorrelationView() {
+  const el = document.getElementById('quantCorrelationContent');
+  if (!el) return;
+  const keys = AC_KEYS_EF;
+  const shortLabel = (k) => {
+    const ac = ASSET_CLASSES[k]; let lbl = ac ? ac.label : k;
+    return lbl.length > 22 ? lbl.slice(0, 21) + '…' : lbl;
+  };
+  const catColor = { eq:'#1a73e8', fat:'#6a4a7c', carry:'#00897b', trend:'#5d4037',
+    ob_usa:'#1e8e3e', ob_eu:'#188038', ob_glob:'#0b8043', real:'#e37400', cash:'#9aa0a6' };
+  let thead = '<th class="corr-corner"></th>';
+  keys.forEach((k, j) => {
+    const cat = AC_CAT_EF[k] || 'eq';
+    thead += `<th class="corr-colhdr" title="${ASSET_CLASSES[k] ? ASSET_CLASSES[k].label : k}"><div class="corr-colhdr-inner"><span class="corr-cat-dot" style="background:${catColor[cat]||'#999'}"></span>${j + 1}</div></th>`;
+  });
+  let rows = '';
+  keys.forEach((ki, i) => {
+    const cat = AC_CAT_EF[ki] || 'eq';
+    let cells = `<th class="corr-rowhdr" title="${ASSET_CLASSES[ki] ? ASSET_CLASSES[ki].label : ki}"><span class="corr-cat-dot" style="background:${catColor[cat]||'#999'}"></span><span class="corr-rownum">${i + 1}.</span> ${shortLabel(ki)}</th>`;
+    keys.forEach((kj, j) => {
+      const v = CORR_MATRIX[i][j];
+      const isDiag = i === j;
+      cells += `<td class="corr-cell${isDiag ? ' corr-diag' : ''}" style="background:${isDiag ? '#1f3540' : _corrColor(v)};color:${isDiag ? '#fff' : _corrTextColor(v)}" title="${ASSET_CLASSES[ki]?ASSET_CLASSES[ki].label:ki} ↔ ${ASSET_CLASSES[kj]?ASSET_CLASSES[kj].label:kj}: ρ = ${v.toFixed(2)}">${isDiag ? '1' : v.toFixed(2)}</td>`;
+    });
+    rows += `<tr>${cells}</tr>`;
+  });
+  const legendCats = [['eq','Azioni'],['fat','Fattori (Fama-French)'],['carry','Carry'],['trend','Trend'],['ob_usa','Obblig. USA'],['ob_eu','Obblig. EU'],['ob_glob','Obblig. Globali'],['real','Reali (Oro/Comm.)'],['cash','Liquidità']];
+  const legendHtml = legendCats.map(([c, lbl]) => `<span class="corr-legend-item"><span class="corr-cat-dot" style="background:${catColor[c]}"></span>${lbl}</span>`).join('');
+  const an = _analyzePortfolioCorr();
+  let analysisHtml = '';
+  if (!an) {
+    analysisHtml = `<div class="info-box" style="margin-top:20px">Imposta un portafoglio nel Simulatore (e premi <strong>↩ Importa dal Simulatore</strong>) per vedere l'analisi delle correlazioni della tua allocazione.</div>`;
+  } else if (an.single) {
+    analysisHtml = `<div class="info-box" style="margin-top:20px">Il portafoglio <strong>${an.label}</strong> ha una sola asset class mappata: non ci sono coppie da analizzare.</div>`;
+  } else {
+    const lbl = (k) => ASSET_CLASSES[k] ? ASSET_CLASSES[k].label : k;
+    const corrVerdict = an.avgCorr < 0.3 ? ['Eccellente', 'var(--green)'] : an.avgCorr < 0.5 ? ['Buona', '#1a73e8'] : an.avgCorr < 0.7 ? ['Moderata', 'var(--orange)'] : ['Bassa (asset ridondanti)', 'var(--red)'];
+    const pct = v => (v >= 0 ? '+' : '') + v.toFixed(2);
+    const divPct = Math.round(an.divScore * 100);
+    const bestRows = an.bestDiv.map(p => `<div class="corr-pair-row"><span class="corr-pair-dot" style="background:${_corrColor(p.rho)}"></span><span class="corr-pair-names">${lbl(p.a)} ↔ ${lbl(p.b)}</span><strong style="color:${p.rho<0?'var(--green)':'var(--text)'}">${pct(p.rho)}</strong></div>`).join('');
+    const worstRows = an.worstDiv.map(p => `<div class="corr-pair-row"><span class="corr-pair-dot" style="background:${_corrColor(p.rho)}"></span><span class="corr-pair-names">${lbl(p.a)} ↔ ${lbl(p.b)}</span><strong style="color:${p.rho>0.7?'var(--red)':'var(--text)'}">${pct(p.rho)}</strong></div>`).join('');
+    analysisHtml = `<div class="sec-label" data-info-id="info-quant-corr-pf" style="margin-top:24px;margin-bottom:8px"><svg class="sec-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Analisi del tuo portafoglio — ${an.label} (${an.nAssets} asset class)</div>
+    <div class="corr-analysis-grid">
+      <div class="quant-stat-card" style="border-left:3px solid ${corrVerdict[1]}"><div class="qsc-title">Correlazione media pesata</div><div class="qsc-big" style="color:${corrVerdict[1]}">${an.avgCorr.toFixed(2)}</div><div class="qsc-row"><span>Diversificazione</span><strong style="color:${corrVerdict[1]}">${corrVerdict[0]}</strong></div></div>
+      <div class="quant-stat-card" style="border-left:3px solid #1a73e8"><div class="qsc-title">Punteggio diversificazione</div><div class="qsc-big" style="color:#1a73e8">${divPct}<span style="font-size:14px">/100</span></div><div class="corr-divbar"><span style="width:${divPct}%"></span></div></div>
+    </div>
+    <div class="corr-pairs-wrap">
+      <div class="corr-pairs-col"><div class="corr-pairs-title" style="color:var(--green)">🛡 Coppie più diversificanti (proteggono)</div>${bestRows}</div>
+      <div class="corr-pairs-col"><div class="corr-pairs-title" style="color:var(--red)">⚠ Coppie più ridondanti (si muovono insieme)</div>${worstRows}</div>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--text3);line-height:1.6"><strong>Interpretazione:</strong> la correlazione media pesata (${an.avgCorr.toFixed(2)}) riassume quanto le tue asset class si muovono insieme, tenendo conto dei pesi. Valori bassi o negativi = il portafoglio assorbe meglio gli shock. Le coppie ridondanti suggeriscono dove sostituire un'asset class con una meno correlata.</div>
+    <div class="corr-disclaimer">&#8505;&#65039; Analisi a scopo puramente informativo e divulgativo. Non costituisce raccomandazione, consulenza o sollecitazione di investimento. I dati storici non garantiscono risultati futuri.</div>`;
+  }
+  el.innerHTML = `<div class="sec-label" data-info-id="info-quant-corr" style="margin-bottom:8px"><svg class="sec-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>Matrice di Correlazione — 31 Asset Class</div>
+    <div class="info-box" style="margin-bottom:14px">Correlazione storica (ρ) tra ogni coppia di asset class, calibrata su serie 1970–2024 e premi fattoriali Fama-French. <strong style="color:#1a73e8">Blu</strong> = si muovono insieme. <strong style="color:#d93025">Rosso</strong> = si muovono in opposizione (copertura). Bianco ≈ indipendenti.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:12px;font-size:11px">${legendHtml}</div>
+    <div class="corr-scale"><span>−1.0 copertura</span><span class="corr-scale-bar"></span><span>+1.0 insieme</span></div>
+    <div class="corr-wrap"><table class="corr-table"><thead><tr>${thead}</tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="margin-top:10px;font-size:11px;color:var(--text3);line-height:1.6"><strong>Come leggere:</strong> i numeri da 1 a 31 in alto corrispondono alle righe a sinistra. La diagonale (scura) è sempre 1. Cerca le celle <strong style="color:#d93025">rosse</strong>: proteggono il portafoglio nei ribassi.</div>
+    ${analysisHtml}`;
+}
+window._renderCorrelationView = _renderCorrelationView;
+
 // ── Override switchQuantMode per gestire 'optimizer' ──────────────────────
 window.switchQuantMode = function(mode) {
   _efState.mode = mode;
@@ -2450,6 +2569,7 @@ window.switchQuantMode = function(mode) {
     var:       document.getElementById('quantVaRSection'),
     factor:    document.getElementById('quantFactorSection'),
     optimizer: document.getElementById('quantOptimizerSection'),
+    correlation: document.getElementById('quantCorrelationSection'),
   };
   for (const [k, sec] of Object.entries(sections)) {
     if (sec) sec.style.display = mode === k ? '' : 'none';
@@ -2466,6 +2586,7 @@ window.renderQuantTab = function() {
   else if (_efState.mode === 'var')       _renderVaRView();
   else if (_efState.mode === 'factor')    _renderFactorView();
   else if (_efState.mode === 'optimizer') _renderOptimizerView();
+  else if (_efState.mode === 'correlation') _renderCorrelationView();
 };
 
 // Espone funzioni per debug

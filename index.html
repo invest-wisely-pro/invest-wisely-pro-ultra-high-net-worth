@@ -1864,9 +1864,9 @@
 <!-- ══════════════════════════════════════════════════ TAB: QUANT ANALYTICS -->
 <div class="tab-content" id="tab-quant">
 <div class="sec">
-  <div class="sec-label" data-info-id="info-quant-markowitz">📐 Quant Analytics — Frontiera Efficiente & VaR/CVaR</div>
+  <div class="sec-label" data-info-id="info-quant-markowitz">📐 Quant Analytics — Frontiera Efficiente, VaR/CVaR & Correlazioni</div>
   <div class="info-box" style="margin-bottom:14px">
-    Analisi quantitativa avanzata del portafoglio. Frontiera Efficiente di Markowitz con posizionamento del portafoglio corrente, e misure di rischio professionali (VaR/CVaR) con tre metodi: Gaussiano, t-Student (fat tails), Monte Carlo.
+    Analisi quantitativa avanzata del portafoglio. Frontiera Efficiente di Markowitz con posizionamento del portafoglio corrente, e misure di rischio professionali (VaR/CVaR) con tre metodi: Gaussiano, t-Student (fat tails), Monte Carlo. Il pulsante <strong>Correlazioni</strong> apre la <strong>Matrice di Correlazione</strong> (heatmap) tra tutte le 31 asset class, calibrata su serie 1970&ndash;2024 e premi fattoriali Fama-French: blu = si muovono insieme, rosso = si oppongono (copertura). Sotto la heatmap, una sezione dedicata <strong>analizza il portafoglio impostato</strong> mostrando correlazione media pesata, punteggio di diversificazione e le coppie di asset pi&ugrave; diversificanti o ridondanti. I valori sono a scopo informativo e divulgativo, non costituiscono raccomandazione di investimento.
   </div>
 
   <!-- Selezione modalità -->
@@ -1876,6 +1876,7 @@
   <button class="gbtn" data-qm="var" onclick="switchQuantMode('var')">🎯 VaR / CVaR</button>
   <button class="gbtn" data-qm="factor" onclick="switchQuantMode('factor')">📐 Factor Decomposition</button>
   <button class="gbtn" data-qm="optimizer" onclick="switchQuantMode('optimizer')">⚙️ Optimizer</button>
+      <button class="gbtn" data-qm="correlation" onclick="switchQuantMode('correlation')">Correlazioni</button>
 </div>
 
   <!-- Selettore asset class per la frontiera -->
@@ -1937,6 +1938,7 @@
   <div id="quantOptimizerSection" style="display:none">
     <div id="quantOptimizerContent"></div>
   </div>
+<!-- Sezione Matrice di Correlazione --> <div id="quantCorrelationSection" style="display:none"> <div id="quantCorrelationContent"></div> </div>
 </div><!-- /tab-quant -->
 
 </div><!-- /view-app -->

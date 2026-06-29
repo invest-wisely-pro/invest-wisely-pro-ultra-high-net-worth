@@ -685,7 +685,7 @@ const ECO_SCENARIOS = {
     label: 'Deflazione / Japanification',
     emoji: '🧊',
     desc: 'Inflazione negativa, tassi zero o negativi, crescita stagnante. Scenario Giappone 1990-2020. Le obbligazioni sono le star, le azioni vanno laterali per decenni, l\'oro è inerte, la liquidità perde valore in termini reali.',
-    color: '#0097a7',
+    color: '#1a73e8',
     bg: 'rgba(0,151,167,.08)',
     border: 'rgba(0,151,167,.4)',
     eqMult: 0.5, obMult: 1.2, goldMult: 0.5,
@@ -709,7 +709,7 @@ const ECO_SCENARIOS = {
     label: 'Rialzo Tassi',
     emoji: '📊',
     desc: 'Banche centrali alzano i tassi rapidamente (tipo 2022-2023). Le obbligazioni a lungo termine crollano, le azioni growth soffrono, le obbligazioni brevi e la liquidità rendono di più. Il contesto peggiore per il 60/40 tradizionale.',
-    color: '#00897b',
+    color: '#5d4037',
     bg: 'rgba(0,137,123,.08)',
     border: 'rgba(0,137,123,.4)',
     eqMult: 0.75, obMult: 0.4, goldMult: 0.8,
@@ -4541,9 +4541,25 @@ async function exportExcel() {
           ['Volatilità σ (%/a)', (qVol * 100).toFixed(1) + '%'],
           ['Sharpe ratio (RF=2.5%)', sharpe.toFixed(3)],
           ['TER (%)', qTer.toFixed(2) + '%'],
-          ['', ''],
-          ['── VaR/CVaR (perdita massima attesa in €) ──', ''],
         ];
+        // Diversificazione (da matrice di correlazione) — scopo informativo
+        try {
+          if (typeof _analyzePortfolioCorr === 'function') {
+            const _ca = _analyzePortfolioCorr();
+            if (_ca && !_ca.single && typeof _ca.avgCorr === 'number') {
+              const _verdict = _ca.avgCorr < 0.3 ? 'Eccellente' : _ca.avgCorr < 0.5 ? 'Buona' : _ca.avgCorr < 0.7 ? 'Moderata' : 'Bassa';
+              infoRows.push(['Correlazione media pesata', _ca.avgCorr.toFixed(2) + ' (' + _verdict + ')']);
+              infoRows.push(['Punteggio diversificazione', Math.round(_ca.divScore * 100) + '/100']);
+              if (_ca.bestDiv && _ca.bestDiv[0]) {
+                const _lbl = (k) => (ASSET_CLASSES[k] ? ASSET_CLASSES[k].label : k);
+                const _p = _ca.bestDiv[0];
+                infoRows.push(['Coppia piu diversificante', _lbl(_p.a) + ' / ' + _lbl(_p.b) + ' (rho ' + _p.rho.toFixed(2) + ')']);
+              }
+            }
+          }
+        } catch (e) { /* analisi correlazioni non disponibile */ }
+        infoRows.push(['', '']);
+        infoRows.push(['── VaR/CVaR (perdita massima attesa in €) ──', '']);
         wsQuant = XLSX.utils.aoa_to_sheet([
           ...infoRows.map(r => [r[0], r[1], '', '', '', '', '', '']),
           ['', '', '', '', '', '', '', ''],
@@ -4897,6 +4913,18 @@ async function generatePDF() {
     });
     y = doc.lastAutoTable.finalY + 5;
     narrative(`Descrizione portafoglio. ${portMeta.desc || 'Composizione bilanciata di asset class diversificate.'}`);
+
+    // Diversificazione (da analisi correlazioni) — scopo informativo
+    try {
+      if (typeof _analyzePortfolioCorr === 'function') {
+        const _ca = _analyzePortfolioCorr();
+        if (_ca && !_ca.single && typeof _ca.avgCorr === 'number') {
+          const _verdict = _ca.avgCorr < 0.3 ? 'Eccellente' : _ca.avgCorr < 0.5 ? 'Buona' : _ca.avgCorr < 0.7 ? 'Moderata' : 'Bassa';
+          const _divPct = Math.round(_ca.divScore * 100);
+          narrative(`Diversificazione del portafoglio. Correlazione media pesata tra le asset class: ${_ca.avgCorr.toFixed(2)} (${_verdict}). Punteggio di diversificazione: ${_divPct}/100. Valori piu bassi indicano asset meno correlati, quindi una migliore capacita di assorbire gli shock di mercato. Dato a scopo informativo, non costituisce raccomandazione di investimento.`);
+        }
+      }
+    } catch (e) { /* analisi correlazioni non disponibile, si prosegue */ }
 
     // Allocazione asset (mostra sempre se disponibile)
     if (portMeta.eq != null || portMeta.ob != null || portMeta.gold != null || portMeta.cash != null) {
