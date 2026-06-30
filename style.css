@@ -979,3 +979,6 @@ tbody tr:hover{background:var(--bg2)}
 
 /* cintura di sicurezza: icone heatmap sempre piccole e senza fill */
 #quantCorrelationContent .sec-icon{width:14px!important;height:14px!important;fill:none!important;stroke:currentColor!important;flex-shrink:0}
+
+.corr-roll-btn{font-size:11px;padding:5px 10px;cursor:pointer}
+.corr-roll-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}

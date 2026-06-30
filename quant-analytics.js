@@ -2445,6 +2445,12 @@ function _flashOptToast(msg, type) {
 
 
 
+
+
+
+
+
+
 // ══════════════════════════════════════════════════════════════════════════
 // CORRELATION HEATMAP — Matrice di correlazione tra tutte le asset class
 // Legge la CORR_MATRIX già esistente (calibrata su dati 1970-2024, Fama-French).
@@ -2555,8 +2561,148 @@ function _renderCorrelationView() {
     <div class="corr-scale"><span>−1.0 copertura</span><span class="corr-scale-bar"></span><span>+1.0 insieme</span></div>
     <div class="corr-wrap"><table class="corr-table"><thead><tr>${thead}</tr></thead><tbody>${rows}</tbody></table></div>
     <div style="margin-top:10px;font-size:11px;color:var(--text3);line-height:1.6"><strong>Come leggere:</strong> i numeri da 1 a 31 in alto corrispondono alle righe a sinistra. La diagonale (scura) è sempre 1. Cerca le celle <strong style="color:#d93025">rosse</strong>: proteggono il portafoglio nei ribassi.</div>
+    ${_rollingCorrSectionHTML()}
     ${analysisHtml}`;
+  // disegna il grafico rolling (dopo che il canvas è nel DOM)
+  setTimeout(_drawRollingCorrChart, 30);
 }
+
+// ── Correlazione rolling 36 mesi — serie macro REALI ricostruite dal motore ──
+// Asset con dinamica propria (dati mensili reali in EUR già nel motore):
+//   Azioni (MSCI World), Obbligazioni (Bloomberg Euro Agg), Oro (LBMA),
+//   REITs (NAREIT, dal 1979), Emergenti (Fama-French EM, dal 1989).
+// NB: i fattori di stile (Value, Momentum...) NON sono inclusi qui perché come
+// asset long-only sono dominati dal mercato comune (correlazione ~0.95), il che
+// renderebbe il grafico fuorviante. La loro decorrelazione vera (es. Value-Momentum
+// −0.15) è un fenomeno dei fattori long-short, mostrato nella matrice statica sopra.
+let _rollCorrChart = null;
+const _ROLL_ASSETS = [
+  { key: 'mkt',   label: 'Azioni',        col: 0 },
+  { key: 'bond',  label: 'Obbligazioni',  col: 1 },
+  { key: 'gold',  label: 'Oro',           col: 2 },
+  { key: 'reits', label: 'REITs',         series: 'reits' },
+  { key: 'em',    label: 'Emergenti',     series: 'em' },
+];
+function _rollAssetSeries(a) {
+  const H = HIST_MONTHLY, N = H.length, out = new Array(N);
+  for (let idx = 0; idx < N; idx++) {
+    const mkt = H[idx][0];
+    if (a.col != null) { out[idx] = H[idx][a.col]; continue; }
+    if (a.series === 'reits' && typeof HIST_REITS !== 'undefined' && typeof REITS_START !== 'undefined') {
+      const i = idx - REITS_START; out[idx] = (i >= 0 && i < HIST_REITS.length) ? HIST_REITS[i] : mkt;
+    } else if (a.series === 'em' && typeof HIST_EM !== 'undefined' && typeof EM_START !== 'undefined') {
+      const i = idx - EM_START; out[idx] = (i >= 0 && i < HIST_EM.length) ? HIST_EM[i] : mkt;
+    } else { out[idx] = mkt; }
+  }
+  return out;
+}
+// indice del primo mese con dati reali (per non disegnare il fallback al mercato)
+function _rollAssetStart(a) {
+  if (a.series === 'reits' && typeof REITS_START !== 'undefined') return REITS_START;
+  if (a.series === 'em' && typeof EM_START !== 'undefined') return EM_START;
+  return 0;
+}
+function _rollingCorrPair(sa, sb, win, fromIdx) {
+  const N = sa.length, out = [];
+  for (let t = Math.max(win, fromIdx); t <= N; t++) {
+    let ma = 0, mb = 0;
+    for (let k = t - win; k < t; k++) { ma += sa[k]; mb += sb[k]; }
+    ma /= win; mb /= win;
+    let cov = 0, va = 0, vb = 0;
+    for (let k = t - win; k < t; k++) { const da = sa[k] - ma, db = sb[k] - mb; cov += da * db; va += da * da; vb += db * db; }
+    out.push({ idx: t, rho: (va > 0 && vb > 0) ? cov / Math.sqrt(va * vb) : 0 });
+  }
+  return out;
+}
+// preset di coppie mostrate (default = le 3 più educative)
+const _ROLL_PRESETS = {
+  classic: { label: 'Azioni vs Obbligazioni / Oro', pairs: [['mkt','bond'],['mkt','gold'],['bond','gold']] },
+  risky:   { label: 'Azioni vs Asset rischiosi',     pairs: [['mkt','reits'],['mkt','em'],['reits','em']] },
+  gold:    { label: 'Oro come diversificatore',       pairs: [['mkt','gold'],['bond','gold'],['gold','em']] },
+};
+let _rollPreset = 'classic';
+function _setRollPreset(p) {
+  _rollPreset = p;
+  // aggiorna la classe active sui bottoni (altrimenti il bottone evidenziato
+  // resta quello iniziale anche se il grafico cambia)
+  try {
+    document.querySelectorAll('.corr-roll-btn').forEach(btn => {
+      const onclick = btn.getAttribute('onclick') || '';
+      const isThis = onclick.indexOf("'" + p + "'") >= 0;
+      btn.classList.toggle('active', isThis);
+    });
+  } catch (e) { /* no-op */ }
+  _drawRollingCorrChart();
+}
+window._setRollPreset = _setRollPreset;
+
+function _rollingCorrSectionHTML() {
+  if (typeof HIST_MONTHLY === 'undefined' || !HIST_MONTHLY || HIST_MONTHLY.length < 40) return '';
+  const opts = Object.entries(_ROLL_PRESETS).map(([k, v]) =>
+    `<button class="gbtn corr-roll-btn${k === _rollPreset ? ' active' : ''}" onclick="_setRollPreset('${k}')">${v.label}</button>`).join('');
+  return `
+    <div class="sec-label" data-info-id="info-quant-rollcorr" style="margin-top:24px;margin-bottom:8px"><svg class="sec-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-6 6-4-4-4 4"/></svg>Correlazione Rolling 36 mesi — quando gli asset smettono di proteggersi</div>
+    <div class="info-box" style="margin-bottom:12px">La correlazione storica non è fissa: cambia nel tempo. Questo grafico mostra la correlazione mobile a 36 mesi tra le serie macro reali (Azioni, Obbligazioni, Oro, REITs, Emergenti — dati 1970–2024 in EUR). Quando la linea <strong>Azioni ↔ Obbligazioni</strong> sale sopra lo zero (come nel 2022), significa che azioni e bond scendono <em>insieme</em>: la diversificazione tradizionale smette di funzionare.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${opts}</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:6px"><div style="position:relative;height:300px"><canvas id="quantRollCorrChart"></canvas></div></div>
+    <div class="corr-disclaimer">&#8505;&#65039; Correlazioni mobili calcolate sulle serie storiche reali in EUR (MSCI World, Bloomberg Euro Agg, oro LBMA, FTSE NAREIT REITs dal 1979, Fama-French Emerging Markets dal 1989). I fattori di stile (Value, Momentum...) non sono inclusi perché come asset investibili sono dominati dal mercato comune — la loro decorrelazione è mostrata nella matrice statica sopra. A scopo informativo e divulgativo, non costituisce raccomandazione di investimento.</div>`;
+}
+function _drawRollingCorrChart() {
+  const canvas = document.getElementById('quantRollCorrChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  if (typeof HIST_MONTHLY === 'undefined' || !HIST_MONTHLY || HIST_MONTHLY.length < 40) return;
+  const WIN = 36, startYear = 1970;
+  const byKey = {}; _ROLL_ASSETS.forEach(a => byKey[a.key] = a);
+  const preset = _ROLL_PRESETS[_rollPreset] || _ROLL_PRESETS.classic;
+  const colors = ['#d93025', '#e37400', '#1a73e8', '#1e8e3e', '#6a4a7c'];
+  const datasets = [];
+  let maxLen = 0, globalFrom = Infinity;
+  const series = {};
+  _ROLL_ASSETS.forEach(a => series[a.key] = _rollAssetSeries(a));
+  preset.pairs.forEach((pair, pi) => {
+    const a = byKey[pair[0]], b = byKey[pair[1]];
+    const from = Math.max(_rollAssetStart(a), _rollAssetStart(b));
+    const pts = _rollingCorrPair(series[a.key], series[b.key], WIN, from);
+    if (pts.length > maxLen) maxLen = pts.length;
+    if (pts.length && pts[0].idx < globalFrom) globalFrom = pts[0].idx;
+    datasets.push({ _pts: pts, label: `${a.label} ↔ ${b.label}`,
+      borderColor: colors[pi % colors.length], borderWidth: pi === 0 ? 2 : 1.5,
+      pointRadius: 0, tension: 0.2, fill: false });
+  });
+  // asse X comune: da globalFrom a N. Allineiamo ogni serie a quell'asse.
+  const N = HIST_MONTHLY.length;
+  const labels = [];
+  for (let t = globalFrom; t <= N; t++) labels.push(Math.floor(startYear + t / 12));
+  datasets.forEach(ds => {
+    const map = {}; ds._pts.forEach(p => map[p.idx] = p.rho);
+    ds.data = labels.map((_, i) => { const idx = globalFrom + i; return map[idx] != null ? map[idx] : null; });
+    ds.spanGaps = true; delete ds._pts;
+  });
+  if (_rollCorrChart) { _rollCorrChart.destroy(); _rollCorrChart = null; }
+  const ctx = canvas.getContext('2d');
+  _rollCorrChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, labels: { font: { family: "'DM Sans',sans-serif", size: 11 }, usePointStyle: true } },
+        tooltip: {
+          callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y != null ? c.parsed.y.toFixed(2) : 'n/d'}` },
+          backgroundColor: 'rgba(32,33,36,0.9)', titleColor: '#fff', bodyColor: '#e8eaed', padding: 10, cornerRadius: 8,
+        },
+      },
+      scales: {
+        x: { title: { display: true, text: 'Anno', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { maxTicksLimit: 12, autoSkip: true } },
+        y: { min: -1, max: 1, title: { display: true, text: 'Correlazione (ρ) — finestra 36 mesi', font: { size: 11 } },
+          grid: { color: ctx2 => ctx2.tick.value === 0 ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.05)' },
+          ticks: { stepSize: 0.5 } },
+      },
+    },
+  });
+}
+window._drawRollingCorrChart = _drawRollingCorrChart;
 window._renderCorrelationView = _renderCorrelationView;
 
 // ── Override switchQuantMode per gestire 'optimizer' ──────────────────────
