@@ -687,6 +687,32 @@ function runAdvancedMC() {
       const volBase = getPortfolioVol(portfolio, age);
       const mu_annual = getRate(portfolio,'normal',1,age); // setup (GARCH/regime long-run)
 
+      // ── CACHE PER ANNO (performance Block Bootstrap) ──────────────────────
+      // fw e histMean dipendono solo dai pesi del portafoglio nell'anno y (che varia
+      // col glidepath), NON dalla simulazione i. Calcolarli una volta per anno e
+      // riusarli per tutte le N simulazioni elimina il ricalcolo ridondante di
+      // calcHistMean (660 mesi) che rallentava e bloccava il bootstrap.
+      const _yearCache = {};
+      function _getYearData(y) {
+        if (_yearCache[y]) return _yearCache[y];
+        const eqW_y = getEquityWeight(portfolio, age + y);
+        const goldW_y = getGoldWeight(portfolio);
+        const cashW_y = getCashWeight(portfolio);
+        const obW_y = Math.max(0, 1 - eqW_y - goldW_y - cashW_y);
+        const fw_y = {
+          scvW: (typeof getSmallValueWeight === 'function') ? getSmallValueWeight(portfolio) : 0,
+          momW: (typeof getMomentumWeight === 'function') ? getMomentumWeight(portfolio) : 0,
+          ff5W: (typeof getFactorWeights === 'function') ? getFactorWeights(portfolio) : null,
+          reitsW: (typeof getReitsWeight === 'function') ? getReitsWeight(portfolio) : 0,
+          emW: (typeof getEmWeight === 'function') ? getEmWeight(portfolio) : 0,
+          usaW: (portfolio === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().usaW || 0) : 0,
+          europaW: (portfolio === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().europaW || 0) : 0,
+        };
+        const histMean_y = (typeof calcHistMean === 'function')
+          ? calcHistMean(eqW_y, goldW_y, obW_y, cashW_y, fw_y.scvW, fw_y.momW, fw_y.ff5W) : 0;
+        return (_yearCache[y] = { goldW_y, cashW_y, obW_y, fw_y, histMean_y });
+      }
+
       for (let i = 0; i < N; i++) {
         let cW = w;
         timeSeries[0].push(cW);
@@ -787,18 +813,11 @@ function runAdvancedMC() {
             // Block Bootstrap a 5 anni: campiona blocchi di 60 mesi CONTIGUI (overlapping),
             // così azioni/obbligazioni/oro e inflazione mantengono le correlazioni reali
             // lungo un ciclo intero (es. la stagflazione 1973-77, il bull 1995-99).
-            const goldW_b = getGoldWeight(portfolio);
-            const cashW_b = getCashWeight(portfolio);
-            const fw = {
-              scvW: (typeof getSmallValueWeight === 'function') ? getSmallValueWeight(portfolio) : 0,
-              momW: (typeof getMomentumWeight === 'function') ? getMomentumWeight(portfolio) : 0,
-              ff5W: (typeof getFactorWeights === 'function') ? getFactorWeights(portfolio) : null,
-              reitsW: (typeof getReitsWeight === 'function') ? getReitsWeight(portfolio) : 0,
-              emW: (typeof getEmWeight === 'function') ? getEmWeight(portfolio) : 0,
-              usaW: (portfolio === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().usaW || 0) : 0,
-              europaW: (portfolio === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().europaW || 0) : 0,
-            };
-            const obW_b   = Math.max(0, 1 - eqW - goldW_b - cashW_b);
+            const _yd = _getYearData(y);
+            const goldW_b = _yd.goldW_y;
+            const cashW_b = _yd.cashW_y;
+            const fw = _yd.fw_y;
+            const obW_b = _yd.obW_y;
             const n_hist  = HIST_MONTHLY.length;
             const BLOCK_M = 60; // 5 anni
             // All'inizio del blocco (o quando i 5 anni sono esauriti) pesca un nuovo
@@ -820,22 +839,15 @@ function runAdvancedMC() {
             b5Year++;
             // Stessa correzione di drift del bootstrap a 12 mesi: allinea E[] a PORT.normal
             // senza distorcere la forma (la persistenza del blocco resta preservata).
-            const histMean5 = calcHistMean(eqW, goldW_b, obW_b, cashW_b, fw.scvW, fw.momW, fw.ff5W);
+            const histMean5 = _yd.histMean_y;
             const scaleFactor5 = (1 + muY) / (1 + histMean5);
             r = annR * scaleFactor5 - 1;
           } else { // bootstrap — Block Bootstrap con dati storici reali 1970–2024
-            const goldW_b = getGoldWeight(portfolio);
-            const cashW_b = getCashWeight(portfolio);
-            const fw = {
-              scvW: (typeof getSmallValueWeight === 'function') ? getSmallValueWeight(portfolio) : 0,
-              momW: (typeof getMomentumWeight === 'function') ? getMomentumWeight(portfolio) : 0,
-              ff5W: (typeof getFactorWeights === 'function') ? getFactorWeights(portfolio) : null,
-              reitsW: (typeof getReitsWeight === 'function') ? getReitsWeight(portfolio) : 0,
-              emW: (typeof getEmWeight === 'function') ? getEmWeight(portfolio) : 0,
-              usaW: (portfolio === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().usaW || 0) : 0,
-              europaW: (portfolio === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().europaW || 0) : 0,
-            };
-            const obW_b   = Math.max(0, 1 - eqW - goldW_b - cashW_b);
+            const _yd = _getYearData(y);
+            const goldW_b = _yd.goldW_y;
+            const cashW_b = _yd.cashW_y;
+            const fw = _yd.fw_y;
+            const obW_b = _yd.obW_y;
             // Campiona un blocco di 12 mesi contigui dai dati reali
             const n_hist = HIST_MONTHLY.length;
             const startIdx = Math.floor(Math.random() * (n_hist - 11));
@@ -850,7 +862,7 @@ function runAdvancedMC() {
               annR *= (1 + mR);
             }
             // Correzione drift: allinea E[bootstrap] a PORT.normal senza distorcere la forma
-            const histMean_b = calcHistMean(eqW, goldW_b, obW_b, cashW_b, fw.scvW, fw.momW, fw.ff5W);
+            const histMean_b = _yd.histMean_y;
             // Scala moltiplicativa: r_adj = annR * (1 + target) / (1 + histMean_b) - 1
             const scaleFactor = (1 + muY) / (1 + histMean_b);
             r = annR * scaleFactor - 1;

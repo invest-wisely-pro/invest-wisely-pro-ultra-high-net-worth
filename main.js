@@ -3014,6 +3014,65 @@ function runDecumuloHistorical() {
   const cashW = getCashWeight(port);
   const obW = Math.max(0, 1 - eqW - goldW - cashW);
 
+  // ── SERIE REALI nel decumulo storico (coerenza con backtest/crisis/bootstrap) ──
+  // Preset con realMix (Golden Butterfly, Permanent) → composizione reale per scadenza/regione.
+  // Custom → bond per scadenza (bondMix) e azioni USA/Europa (usaW/europaW) dalle serie reali.
+  // Tutto con fallback difensivo all'aggregato: se un helper non è disponibile, usa row[0/1/2].
+  let _decRealMix = null, _decBondMix = null, _decUsaW = 0, _decEuropaW = 0, _decObWtot = 0, _decObDurK = 1.0;
+  try {
+    if (port !== 'custom' && typeof PORT !== 'undefined' && PORT[port] && PORT[port].realMix) {
+      _decRealMix = PORT[port].realMix;
+    } else if (port === 'custom' && typeof calcCustomParams === 'function') {
+      const _cp = calcCustomParams();
+      _decBondMix = _cp.bondMix || null;
+      _decUsaW = _cp.usaW || 0;
+      _decEuropaW = _cp.europaW || 0;
+      _decObDurK = Math.max(0.5, Math.min(1.8, Math.sqrt((_cp.obVolW || 0.057) / 0.057)));
+      if (_decBondMix) { for (const k in _decBondMix) _decObWtot += _decBondMix[k]; }
+    }
+  } catch (e) { _decRealMix = null; _decBondMix = null; }
+  // Rendimento del portafoglio del mese (indice assoluto) con serie reali; null → usa aggregato.
+  function _decRealMixRet(mi) {
+    if (!_decRealMix) return null;
+    const HH = HIST_MONTHLY[mi]; let r = 0;
+    if (_decRealMix.eqUsa && typeof eqUsaReturnAt === 'function') { const u = eqUsaReturnAt(mi); r += _decRealMix.eqUsa * (u !== null ? u : HH[0]); }
+    if (_decRealMix.eqEuropa && typeof eqEuropeReturnAt === 'function') { const e2 = eqEuropeReturnAt(mi); r += _decRealMix.eqEuropa * (e2 !== null ? e2 : HH[0]); }
+    if (_decRealMix.eqWorld) r += _decRealMix.eqWorld * HH[0];
+    if (_decRealMix.scv) r += _decRealMix.scv * HH[0];
+    if (_decRealMix.em && typeof HIST_EM !== 'undefined') { const ei = mi - (typeof EM_START !== 'undefined' ? EM_START : 234); r += _decRealMix.em * (ei >= 0 && ei < HIST_EM.length ? HIST_EM[ei] : HH[0]); }
+    if (_decRealMix.gold) r += _decRealMix.gold * HH[2];
+    if (_decRealMix.cash) r += _decRealMix.cash * 0.002;
+    if (_decRealMix.bond) { for (const key in _decRealMix.bond) { const w = _decRealMix.bond[key]; const br = (typeof bondSeriesReturnAt === 'function') ? bondSeriesReturnAt(key, mi) : null; r += w * (br !== null ? br : HH[1]); } }
+    return r;
+  }
+  // Rendimento bond del mese per custom (serie reali per scadenza); null → aggregato.
+  function _decBondRet(mi) {
+    if (!_decBondMix || _decObWtot <= 0) return null;
+    let acc = 0;
+    for (const key in _decBondMix) {
+      const w = _decBondMix[key];
+      if (key === '_agg') { acc += w * (0.00466 + _decObDurK * (HIST_MONTHLY[mi][1] - 0.00466)); }
+      else { const br = (typeof bondSeriesReturnAt === 'function') ? bondSeriesReturnAt(key, mi) : null; acc += w * (br !== null ? br : HIST_MONTHLY[mi][1]); }
+    }
+    return acc / _decObWtot;
+  }
+  // Rendimento azionario del mese per custom con quote regionali USA/Europa reali.
+  // eqW è la quota azionaria totale; usaW/europaW sono sotto-quote (pesi sul totale portafoglio).
+  // Ritorna il rendimento della SOLA parte azionaria (da moltiplicare per eqW nel loop).
+  function _decEqRet(mi, eqRetAgg) {
+    if ((_decUsaW <= 0 && _decEuropaW <= 0) || eqW <= 1e-9) return eqRetAgg;
+    // frazioni regionali dentro la quota azionaria
+    const fUsa = Math.min(1, _decUsaW / eqW);
+    const fEu  = Math.min(1, _decEuropaW / eqW);
+    const fWorld = Math.max(0, 1 - fUsa - fEu);
+    let r = fWorld * eqRetAgg;
+    if (fUsa > 0 && typeof eqUsaReturnAt === 'function') { const u = eqUsaReturnAt(mi); r += fUsa * (u !== null ? u : eqRetAgg); }
+    else if (fUsa > 0) r += fUsa * eqRetAgg;
+    if (fEu > 0 && typeof eqEuropeReturnAt === 'function') { const e2 = eqEuropeReturnAt(mi); r += fEu * (e2 !== null ? e2 : eqRetAgg); }
+    else if (fEu > 0) r += fEu * eqRetAgg;
+    return r;
+  }
+
   // Anni di partenza disponibili (servono Y anni di dati dopo)
   const totalYearsAvail = Math.floor(HIST_MONTHLY.length / 12);
   const maxStartYear = 1970 + totalYearsAvail - Y;
@@ -3040,7 +3099,18 @@ function runDecumuloHistorical() {
         const row = calibrateHistRow(HIST_MONTHLY[idx]);
         const eqR = row[0], obR = row[1], goldR = row[2];
         const cashR = 0.002; // ~2.4% annuo cash
-        const portR = eqW*eqR + obW*obR + goldW*goldR + cashW*cashR - terRateM;
+        let portR;
+        const _rmR = _decRealMixRet(idx);
+        if (_rmR !== null) {
+          // Preset con composizione reale (Golden Butterfly, Permanent): rendimento già completo
+          portR = _rmR - terRateM;
+        } else {
+          // Custom o preset standard: azionario regionale + bond per scadenza reali (con fallback)
+          const _eqReg = _decEqRet(idx, eqR);
+          const _obReal = _decBondRet(idx);
+          const _obUse = (_obReal !== null) ? _obReal : obR;
+          portR = eqW*_eqReg + obW*_obUse + goldW*goldR + cashW*cashR - terRateM;
+        }
         // Prelievo a metà mese: cap_dopo = (cap - wd/2)(1+r) - wd/2
         cap = Math.max(0, (cap - monthlyWd/2) * (1 + portR) - monthlyWd/2);
         yearRet *= (1 + portR);
