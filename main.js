@@ -74,6 +74,7 @@ const PORT = {
     desc: 'Ideato da Tyler from Portfolio Charts (2012). Composizione: 20% Az. Large Cap, 20% Az. Small Cap Value, 20% Oro, 20% Ob. Lungo Termine, 20% Ob. Breve Termine. Ottimizzato per massimizzare la peggior performance storica su 30 anni (\'worst case\'). Volatilità molto bassa, ottimo Sharpe ratio storico (1970-2023: ~9.7%/a lordo — gonfiato dal bull market oro anni \'70 e dal bull bond 1980-2020, non ripetibili). Rendimento atteso forward-looking: ~5.2%/a.',
     best: .067, normal: .052, worst: .023, vol: .075,
     eq: .4, ob: .4, gold: .2, cash: 0, realRet: .032, inflBeta: 0.14, fxExp: 0.55,  // 40%eq*0.85 + 20%oro*1.0 + 40%ob*0.05 ≈ 0.56
+    realMix: { eqUsa: 0.20, scv: 0.20, gold: 0.20, bond: { HIST_USB_10Y: 0.20, HIST_USB_2Y: 0.20 } },
     breakdown: {
       'Az. Large Cap (US)': '20%',
       'Az. Small Cap Value': '20%',
@@ -87,6 +88,7 @@ const PORT = {
     desc: 'Ideato da Harry Browne (1981). Composizione: 25% Azioni, 25% Oro, 25% Ob. Lungo Termine, 25% Liquidità. Progettato per funzionare in OGNI regime economico: prosperità (azioni), inflazione (oro), deflazione (obbligazioni), recessione (liquidità). Volatilità storica molto bassa (σ≈7%), rendimento nominale storico 1970-2023: ~8%/a lordo (beneficio del gold rush degli anni \'70 e del bull bond 1980-2020). Rendimento atteso forward-looking: ~4.4%/a. Beta inflazione calcolato ≈ +0.13: oro e liquidità a tasso variabile coprono parzialmente l\'impatto negativo delle obbligazioni lunghe in regime inflattivo.',
     best: .058, normal: .044, worst: .018, vol: .070,
     eq: .25, ob: .25, gold: .25, cash: .25, realRet: .024, inflBeta: 0.13, fxExp: 0.47, // 25%eq*0.85 + 25%oro*1.0 + 25%ob*0.05 + 25%cash*0
+    realMix: { eqWorld: 0.25, gold: 0.25, cash: 0.25, bond: { HIST_USB_10Y: 0.25 } },
     breakdown: {
       'Azioni': '25%',
       'Oro': '25%',
@@ -386,6 +388,12 @@ const ASSET_CLASSES = {
     mu: 0.035, vol: 0.090, inflBeta: -0.30, ter: 0.1, fxExp: 0.0,
     histCAGR: 0.051, histPeriod: '1999-2024', src: 'Banca Centrale Europea',
     desc: 'Governativi area euro 7-10 anni. Duration ~7.5. Forte sensibilità ai tassi BCE. Decorrelazione dall\'azionario in recessione. Correlazione positiva con azioni in stagflazione (perdita doppia — raro ma storicamente osservato negli anni \'70 e nel 2022).',
+  },
+  ob_eu_ult: {
+    label: 'Gov. Euro Ultra-Lungo (20-30a)', emoji: '🇪🇺', cat: 'ob_eu',
+    mu: 0.036, vol: 0.150, inflBeta: -0.45, ter: 0.1, fxExp: 0.0,
+    histCAGR: 0.058, histPeriod: '1999-2024', src: 'Banca Centrale Europea',
+    desc: 'Governativi area euro 20-30 anni (Bund, OAT, BTP a lunghissima scadenza). Duration ~17-19. Volatilità ~15%/a — paragonabile alle azioni. Sensibilità massima ai tassi BCE: −17% circa per ogni +1% di rialzo. Equivalente euro dei Treasury USA ultra-lunghi, senza rischio cambio. Usato come deflation hedge per investitori in euro. Anno 2022: forte ribasso col rialzo tassi BCE.',
   },
 
   // ══════════════════════════════════════════════════════════════
@@ -974,7 +982,7 @@ function getCrashWeights(port, age) {
   // Quote fattoriali (sottoinsiemi di eq) con beta di crash proprio: servono a
   // calcFactorCrashRate per differenziare il drawdown (REITs/EM più profondi,
   // LowVol/Qualità difensivi). Senza esporle qui, la differenziazione resta inerte.
-  let scvW = 0, momW = 0, reitsW = 0, emW = 0;
+  let scvW = 0, momW = 0, reitsW = 0, emW = 0, usaW = 0, europaW = 0;
   let ff5W = { fat_valore: 0, fat_qualita: 0, fat_investment: 0, fat_size: 0, fat_low_vol: 0 };
   if (port === 'custom') {
     const cp = calcCustomParams();
@@ -982,7 +990,7 @@ function getCrashWeights(port, age) {
     commodW = cp.commodW || 0; goldW = cp.goldW || 0; cashW = cp.cashW || 0;
     commCarryW = cp.commCarryW || 0;
     obExplicitCustom = cp.ob; // bond notional espanso (include la gamba a leva dei composite)
-    scvW = cp.scvW || 0; momW = cp.momW || 0; reitsW = cp.reitsW || 0; emW = cp.emW || 0;
+    scvW = cp.scvW || 0; momW = cp.momW || 0; reitsW = cp.reitsW || 0; emW = cp.emW || 0; usaW = cp.usaW || 0; europaW = cp.europaW || 0;
     if (cp.ff5W) ff5W = cp.ff5W;
   } else {
     eq = getEquityWeight(port, age);
@@ -1004,7 +1012,7 @@ function getCrashWeights(port, age) {
   // il crash agisce sulle esposizioni notional.
   const obExplicit = (port !== 'custom') ? PORT[port]?.ob : obExplicitCustom;
   const defensive = (obExplicit ?? Math.max(0, 1 - eq - trendW - carryW - commodW - commCarryW - goldW - cashW)) + goldW + cashW;
-  return { eq, trendW, carryW, commodW, commCarryW, defensive, scvW, momW, reitsW, emW, ff5W };
+  return { eq, trendW, carryW, commodW, commCarryW, defensive, scvW, momW, reitsW, emW, ff5W, usaW, europaW };
 }
 
 // ── Calcola parametri blended del portafoglio custom ──────────
@@ -1018,6 +1026,9 @@ function calcCustomParams() {
   // otherFullW: servono SOLO per modellare il comportamento in crisi (crash beta),
   // non alterano la classificazione fiscale (otherFullW resta invariato).
   let trendW = 0, carryW = 0, commodW = 0, commCarryW = 0;
+  let obVolSum = 0; // somma pesata vol×peso dei bond → volatilità media bond (per scaling duration nel backtest storico)
+  const bondMix = {}; // peso per serie bond reale (per scadenza) → backtest/bootstrap con dati storici veri
+  let usaW = 0, europaW = 0; // quote azionarie regionali (serie reali USA/Europa)
   let scvW = 0; // quota Small Cap Value (sottoinsieme di eqW): usa serie storica reale (spread su mercato)
   let momW = 0; // quota Momentum (sottoinsieme di eqW): usa contributo reale β·WML su mercato
   let reitsW = 0; // quota REITs (sottoinsieme di eqW): usa serie di rendimento REITS propria (non spread)
@@ -1047,7 +1058,12 @@ function calcCustomParams() {
     if (ac.isEq)        eqW   += w;
     else if (ac.isGold) goldW += w;
     else if (ac.isCash) cashW += w;
-    else if (ac.cat === 'ob_usa' || ac.cat === 'ob_eu' || ac.cat === 'ob_glob') obW += w; // obblig. governative → 12,5%
+    else if (ac.cat === 'ob_usa' || ac.cat === 'ob_eu' || ac.cat === 'ob_glob') { obW += w; obVolSum += w * (ac.vol || 0.057); // obblig. governative; vol pesata (fallback duration)
+      // Traccia il peso per serie storica reale per scadenza (backtest/bootstrap usano dati veri)
+      const _BSM = { ob_usa_st:'HIST_USB_2Y', ob_usa_it:'HIST_USB_5Y', ob_usa_lt:'HIST_USB_10Y', ob_usa_ult:'HIST_USB_30Y', ob_eu_st:'HIST_EUB_2Y', ob_eu_it:'HIST_EUB_5Y', ob_eu_lt:'HIST_EUB_10Y', ob_eu_ult:'HIST_EUB_30Y' };
+      const _bs = _BSM[sl.ac];
+      if (_bs) { bondMix[_bs] = (bondMix[_bs] || 0) + w; } else { bondMix._agg = (bondMix._agg || 0) + w; }
+    }
     else                otherFullW += w;          // trend/carry/commodities/reit/factor → 26% (redditi diversi)
     // Small Cap Value: sottoinsieme di eqW (resta in eqW per fisco/categoria),
     // tracciato a parte per usare la serie storica reale nel bootstrap/backtest.
@@ -1055,6 +1071,8 @@ function calcCustomParams() {
     if (sl.ac === 'fat_momentum') momW += w;
     if (sl.ac === 'reits') reitsW += w;
     if (sl.ac === 'eq_em') emW += w;
+    if (sl.ac === 'eq_usa') usaW += w;
+    if (sl.ac === 'eq_europa') europaW += w;
     if (ff5W.hasOwnProperty(sl.ac)) ff5W[sl.ac] += w;
     // Multi-Fattore: composizione VIVA in 5 fattori reali equipesati (Val+Mom+Qual+LowVol+CMA).
     // Espanso qui invece di avere una serie propria, così resta sempre coerente coi
@@ -1134,6 +1152,9 @@ function calcCustomParams() {
     volStress: sigmaStressFx,      // vol in regime di crisi (FX vol amplificata)
     volNoFx: sigma,                // vol senza componente FX (riferimento)
     eq:   eqW, ob: obW2, gold: goldW, cash: cashW,
+    obVolW: obW > 0 ? obVolSum / obW : 0.057,  // volatilità media pesata dei bond (per duration nel backtest)
+    bondMix: bondMix,
+    usaW: usaW, europaW: europaW,  // composizione bond per serie storica reale (per scadenza)
     goldW, cashW, otherFullW,
     trendW, carryW, commodW, commCarryW,        // pesi per categoria (modellazione crash/sequence risk)
     scvW,                                        // quota Small Cap Value (serie storica reale)

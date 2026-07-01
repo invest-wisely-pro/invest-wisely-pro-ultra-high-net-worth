@@ -190,7 +190,25 @@ function simulateCrisisPath(crisis, portKey, capitalEur, pacMonthly) {
     ff5W:   typeof getFactorWeights    === 'function' ? getFactorWeights(portKey)     : null,
     reitsW: typeof getReitsWeight      === 'function' ? getReitsWeight(portKey)       : 0,
     emW:    typeof getEmWeight         === 'function' ? getEmWeight(portKey)          : 0,
+    usaW:   (portKey === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().usaW    || 0) : 0,
+    europaW:(portKey === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().europaW || 0) : 0,
   };
+
+  // Preset con composizione reale (realMix): stessa logica del backtest.
+  let _realMix = null;
+  try { if (portKey !== 'custom' && typeof PORT !== 'undefined' && PORT[portKey] && PORT[portKey].realMix) _realMix = PORT[portKey].realMix; } catch(e){ _realMix = null; }
+  function _realMixRet(mi) {
+    if (!_realMix) return null;
+    const Hm = HIST_MONTHLY[mi]; let r = 0;
+    if (_realMix.eqUsa && typeof eqUsaReturnAt === 'function') { const ur = eqUsaReturnAt(mi); r += _realMix.eqUsa * (ur !== null ? ur : Hm[0]); }
+    if (_realMix.eqEuropa && typeof eqEuropeReturnAt === 'function') { const er2 = eqEuropeReturnAt(mi); r += _realMix.eqEuropa * (er2 !== null ? er2 : Hm[0]); }
+    if (_realMix.eqWorld) r += _realMix.eqWorld * Hm[0];
+    if (_realMix.scv) r += _realMix.scv * Hm[0];
+    if (_realMix.gold) r += _realMix.gold * Hm[2];
+    if (_realMix.cash) r += _realMix.cash * 0.002;
+    if (_realMix.bond) { for (const key in _realMix.bond) { const w=_realMix.bond[key]; const br=(typeof bondSeriesReturnAt==='function')?bondSeriesReturnAt(key, mi):null; r += w * (br!==null?br:Hm[1]); } }
+    return r;
+  }
 
   const terMonthly = ((state?.ter ?? 0.2) / 100) / 12;
 
@@ -210,7 +228,8 @@ function simulateCrisisPath(crisis, portKey, capitalEur, pacMonthly) {
     if (idx >= HIST_MONTHLY.length) break;
     const row = calibrateHistRow(HIST_MONTHLY[idx]);
     const eqRet   = row[0];
-    const obRet   = row[1];
+    const _brCr   = (typeof _mcBondRet === 'function') ? _mcBondRet(idx) : null;
+    const obRet   = (_brCr !== null) ? _brCr : row[1];
     const goldRet = row[2];
 
     const eqW_m   = eqAt(idx - startIdx);
@@ -220,7 +239,8 @@ function simulateCrisisPath(crisis, portKey, capitalEur, pacMonthly) {
     const eqPart  = (typeof eqReturnWithFactors === 'function')
       ? eqReturnWithFactors(eqW_m, eqRet, idx, fw)
       : eqW_m * eqRet;
-    const portRet = eqPart + obW_m * obRet + goldW * goldRet + cashW * 0.002 - terMonthly;
+    const _rmR = _realMixRet(idx);
+    const portRet = (_rmR !== null) ? (_rmR - terMonthly) : (eqPart + obW_m * obRet + goldW * goldRet + cashW * 0.002 - terMonthly);
 
     // Valore normalizzato (senza PAC, per il grafico % e il drawdown "puro")
     cumValue *= (1 + portRet);

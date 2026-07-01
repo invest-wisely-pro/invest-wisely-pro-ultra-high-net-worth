@@ -270,12 +270,83 @@ function simulateBacktest(portKey, startYear, pacMonthly, w0, skipEvents, useCap
     ff5W: (typeof getFactorWeights === 'function') ? getFactorWeights(portKey) : null,
     reitsW: (typeof getReitsWeight === 'function') ? getReitsWeight(portKey) : 0,
     emW: (typeof getEmWeight === 'function') ? getEmWeight(portKey) : 0,
+    usaW: (portKey === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().usaW || 0) : 0,
+    europaW: (portKey === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().europaW || 0) : 0,
   };
   const wAt = (mIdx) => {
     const e = getEquityWeight(portKey, state.age + mIdx / 12);
     return { eqW: e, obW: Math.max(0, 1 - e - goldW - cashW) };
   };
   const { eqW, obW } = wAt(0); // pesi iniziali (per le sezioni informative)
+
+  // ── DURATION dei bond: serie storiche REALI per scadenza (solo custom) ────
+  // I bond per scadenza ora usano serie total-return reali (yield FRED/ECB convertiti):
+  // un Gov breve, intermedio, lungo, ultra-lungo subiscono i drawdown storici VERI
+  // (es. 2022: USA 2Y -4%, 5Y -9%, 10Y -16%, 30Y -32%; 2008 flight-to-quality opposto).
+  // La quota bond senza serie dedicata (globale hedged, inflation-linked) usa l'aggregato
+  // row[1] con scaling per volatilità come fallback. I preset usano sempre l'aggregato.
+  const _BOND_AGG_VOL = 0.057;
+  const _BOND_MEAN_M = 0.00466;
+  let _obDurK = 1.0;            // fallback duration per la quota aggregata
+  let _bondMix = null;         // composizione bond per serie reale
+  let _obWtot = 0;
+  try {
+    if (portKey === 'custom' && typeof calcCustomParams === 'function') {
+      const _cp = calcCustomParams();
+      _obDurK = Math.max(0.5, Math.min(1.8, Math.sqrt((_cp.obVolW || _BOND_AGG_VOL) / _BOND_AGG_VOL)));
+      _bondMix = _cp.bondMix || null;
+      if (_bondMix) { for (const k in _bondMix) _obWtot += _bondMix[k]; }
+    }
+  } catch (e) { _obDurK = 1.0; _bondMix = null; }
+
+  // ── PRESET con composizione reale (realMix): mappa Golden Butterfly, Permanent, ecc.
+  // alle serie storiche reali per scadenza/regione, invece dell'aggregato eq/ob.
+  // Allinea il calcolo storico al breakdown mostrato all'utente. I parametri μ/σ/best/worst
+  // dei preset restano invariati (usati per le proiezioni), qui cambia solo il backtest storico.
+  let _realMix = null;
+  try {
+    if (portKey !== 'custom' && typeof PORT !== 'undefined' && PORT[portKey] && PORT[portKey].realMix) {
+      _realMix = PORT[portKey].realMix;
+    }
+  } catch (e) { _realMix = null; }
+  function _realMixRet(mi) {
+    if (!_realMix) return null;
+    const H = HIST_MONTHLY[mi];
+    let r = 0;
+    // azionario
+    if (_realMix.eqUsa && typeof eqUsaReturnAt === 'function') { const ur = eqUsaReturnAt(mi); r += _realMix.eqUsa * (ur !== null ? ur : H[0]); }
+    if (_realMix.eqEuropa && typeof eqEuropeReturnAt === 'function') { const er2 = eqEuropeReturnAt(mi); r += _realMix.eqEuropa * (er2 !== null ? er2 : H[0]); }
+    if (_realMix.eqWorld) r += _realMix.eqWorld * H[0];
+    if (_realMix.scv) r += _realMix.scv * H[0]; // small value ≈ mercato + premio (semplificato nel backtest)
+    if (_realMix.em && typeof HIST_EM !== 'undefined') { const ei = mi - (typeof EM_START!=='undefined'?EM_START:234); r += _realMix.em * (ei>=0 && ei<HIST_EM.length ? HIST_EM[ei] : H[0]); }
+    // oro, cash
+    if (_realMix.gold) r += _realMix.gold * H[2];
+    if (_realMix.cash) r += _realMix.cash * 0.002;
+    // bond per scadenza
+    if (_realMix.bond) {
+      for (const key in _realMix.bond) {
+        const w = _realMix.bond[key];
+        const br = (typeof bondSeriesReturnAt === 'function') ? bondSeriesReturnAt(key, mi) : null;
+        r += w * (br !== null ? br : H[1]);
+      }
+    }
+    return r;
+  }
+  // Rendimento bond del mese (indice assoluto): media pesata delle serie reali + quota aggregata.
+  function _bondRetReal(mi) {
+    if (!_bondMix || _obWtot <= 0) return null;
+    let acc = 0;
+    for (const key in _bondMix) {
+      const w = _bondMix[key];
+      if (key === '_agg') {
+        acc += w * (_BOND_MEAN_M + _obDurK * (HIST_MONTHLY[mi][1] - _BOND_MEAN_M));
+      } else {
+        const br = (typeof bondSeriesReturnAt === 'function') ? bondSeriesReturnAt(key, mi) : null;
+        acc += w * (br !== null ? br : HIST_MONTHLY[mi][1]);
+      }
+    }
+    return acc / _obWtot;
+  }
 
   const terRate = state.ter / 100 / 12; // mensile
 
@@ -327,7 +398,10 @@ function simulateBacktest(portKey, startYear, pacMonthly, w0, skipEvents, useCap
     const eqAdj = eqRaw >= 0
       ? eqRaw * rf                          // mesi positivi: scala per fattore CAPE
       : eqRaw * (1 + (1 - rf) * 0.15);     // mesi negativi: lieve attenuazione se CAPE basso (mercati economici rimbalzano prima)
-    const obRet   = row[1];
+    // Rendimento bond scalato per duration: cedola fissa + spread amplificato/smorzato
+    const _brReal = _bondRetReal(idx);
+    const obRet   = (_brReal !== null) ? _brReal
+                  : (_obDurK === 1.0) ? row[1] : (_BOND_MEAN_M + _obDurK * (row[1] - _BOND_MEAN_M));
     const goldRet = row[2];
     const cashRet = 0.002;
 
@@ -343,7 +417,13 @@ function simulateBacktest(portKey, startYear, pacMonthly, w0, skipEvents, useCap
     const eqPart = (typeof eqReturnWithFactors === 'function')
       ? eqReturnWithFactors(eqW_m, eqAdj, idx, fw)
       : eqW_m * eqAdj;
-    let portRet = eqPart + obW_m * obRet + goldW * goldRet + cashW * cashRet;
+    let portRet;
+    const _rmRet = _realMixRet(idx);
+    if (_rmRet !== null) {
+      portRet = _rmRet;  // composizione reale del preset (Golden Butterfly, Permanent...)
+    } else {
+      portRet = eqPart + obW_m * obRet + goldW * goldRet + cashW * cashRet;
+    }
     portRet -= terRate;
 
     // PAC mensile — metodo midpoint (coerente con project() nel simulatore principale)

@@ -18,7 +18,7 @@ const AC_KEYS_EF = [
   'fat_size','fat_investment','fat_dividendi','fat_multifat',
   'fat_carry_bond','fat_carry_fx','fat_carry_comm','fat_trend',
   'ob_usa_st','ob_usa_it','ob_usa_lt','ob_usa_ult',
-  'ob_eu_st','ob_eu_it','ob_eu_lt',
+  'ob_eu_st','ob_eu_it','ob_eu_lt','ob_eu_ult',
   'ob_glob_gov','ob_glob_agg','ob_infl',
   'gold','commodities','cash',
 ];
@@ -33,7 +33,7 @@ const AC_CAT_EF = {
   fat_size:'fat', fat_investment:'fat', fat_dividendi:'fat', fat_multifat:'fat',
   fat_carry_bond:'carry', fat_carry_fx:'carry', fat_carry_comm:'carry', fat_trend:'trend',
   ob_usa_st:'ob_usa', ob_usa_it:'ob_usa', ob_usa_lt:'ob_usa', ob_usa_ult:'ob_usa',
-  ob_eu_st:'ob_eu', ob_eu_it:'ob_eu', ob_eu_lt:'ob_eu',
+  ob_eu_st:'ob_eu', ob_eu_it:'ob_eu', ob_eu_lt:'ob_eu', ob_eu_ult:'ob_eu',
   ob_glob_gov:'ob_glob', ob_glob_agg:'ob_glob', ob_infl:'ob_glob',
   gold:'real', commodities:'real', cash:'cash',
 };
@@ -167,6 +167,11 @@ const CORR_MATRIX = (() => {
     ['ob_eu_st','ob_eu_it',           0.70],
     ['ob_eu_st','ob_eu_lt',           0.50],
     ['ob_eu_it','ob_eu_lt',           0.88],
+    ['ob_eu_st','ob_eu_ult',          0.42],
+    ['ob_eu_it','ob_eu_ult',          0.80],
+    ['ob_eu_lt','ob_eu_ult',          0.94],
+    ['eq_sviluppati','ob_eu_ult',     -0.18],
+    ['ob_eu_ult','ob_usa_ult',        0.62],
     ['ob_glob_gov','ob_usa_it',       0.82],
     ['ob_glob_gov','ob_eu_it',        0.74],
     ['ob_glob_agg','ob_glob_gov',     0.85],
@@ -2555,7 +2560,7 @@ function _renderCorrelationView() {
     <div style="margin-top:12px;font-size:11px;color:var(--text3);line-height:1.6"><strong>Interpretazione:</strong> la correlazione media pesata (${an.avgCorr.toFixed(2)}) riassume quanto le tue asset class si muovono insieme, tenendo conto dei pesi. Valori bassi o negativi = il portafoglio assorbe meglio gli shock. Le coppie ridondanti suggeriscono dove sostituire un'asset class con una meno correlata.</div>
     <div class="corr-disclaimer">&#8505;&#65039; Analisi a scopo puramente informativo e divulgativo. Non costituisce raccomandazione, consulenza o sollecitazione di investimento. I dati storici non garantiscono risultati futuri.</div>`;
   }
-  el.innerHTML = `<div class="sec-label" data-info-id="info-quant-corr" style="margin-bottom:8px"><svg class="sec-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>Matrice di Correlazione — 31 Asset Class</div>
+  el.innerHTML = `<div class="sec-label" data-info-id="info-quant-corr" style="margin-bottom:8px"><svg class="sec-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>Matrice di Correlazione — 32 Asset Class</div>
     <div class="info-box" style="margin-bottom:14px">Correlazione storica (ρ) tra ogni coppia di asset class, calibrata su serie 1970–2024 e premi fattoriali Fama-French. <strong style="color:#1a73e8">Blu</strong> = si muovono insieme. <strong style="color:#d93025">Rosso</strong> = si muovono in opposizione (copertura). Bianco ≈ indipendenti.</div>
     <div style="display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:12px;font-size:11px">${legendHtml}</div>
     <div class="corr-scale"><span>−1.0 copertura</span><span class="corr-scale-bar"></span><span>+1.0 insieme</span></div>
