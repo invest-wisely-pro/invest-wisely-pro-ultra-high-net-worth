@@ -119,9 +119,17 @@ function suiteData() {
   ok(N === 660, 'Lunghezza serie = 660 mesi (55 anni)', 'trovati ' + N);
 
   // 1.a Accuratezza vs serie reali EUR (MSCI World Net / Euro Agg / oro EUR)
-  const realEq = {1970:-3.4,1973:-16,1974:-21,1980:26,1987:-2,1990:-16,1994:5,1999:46,2000:-6,2001:-13,2002:-32,2008:-37,2013:21,2018:-4,2020:6,2022:-13,2024:26};
+  // Equity: serie World interamente REALE mese per mese (1970-2000: MSCI World Net EUR
+  // implicito dal backtest Curvo rilordizzato del TER; 2001-2024: MSCI World Net EUR ufficiale).
+  // Il 1973-74 in euro fu molto più severo del ricostruito precedente: World USD -15/-25%
+  // aggravato dal crollo del dollaro (-20% vs DEM nel 1973) → -30/-31% per l'investitore europeo.
+  const realEq = {1970:-3,1973:-30,1974:-31,1980:39,1987:-4,1990:-29,1994:-2,1999:46,2000:-6,2001:-12,2002:-32,2008:-38,2013:21,2018:-4,2020:6,2022:-13,2024:27};
   const realOb = {1976:13,1980:-2.5,1994:-4,2000:6.5,2008:6,2013:-3,2022:-15};
-  const realGd = {1973:68,1979:120,1980:12,2008:9,2013:-31,2020:14,2024:36};
+  // Oro: riferimenti annui dalla serie REALE (XAU/USD Stooq ÷ EUR/USD, convenzione
+  // DEM/EUR-sintetico pre-1999 — la stessa di Curvo/backtest standard). Il vecchio
+  // riferimento 1973:68 rifletteva una ricostruzione di cambio diversa; in DEM/EUR
+  // il 1973 fa ~+48% (oro +73% USD ma dollaro -15/17% vs marco post-Bretton Woods).
+  const realGd = {1973:48,1979:124,1980:27,2008:10,2013:-31,2020:15,2024:36};
   const annual = (c, y) => { let p = 1; for (let m = 0; m < 12; m++) p *= (1 + cal(HM[idx(y)+m])[c]); return (p-1)*100; };
   let tot = 0, n = 0, maxE = 0, maxY = 0;
   for (const [set, col] of [[realEq,0],[realOb,1],[realGd,2]])
@@ -544,10 +552,10 @@ function suiteFactors() {
     ok(reitsCrash < mktCrash, 'REITs: crash 2007-08 più profondo del mercato', (reitsCrash*100).toFixed(0)+'% vs '+(mktCrash*100).toFixed(0)+'%');
   } else warn('REITs: serie/helper non caricati');
 
-  // 7.i Emergenti: colonna indipendente con offset 234 (1989-07) e fallback pre-1989
+  // 7.i Emergenti: colonna indipendente con offset 216 (1988-01) e fallback pre-1988
   if (global.emReturnAt && global.HIST_EM) {
-    ok(global.HIST_EM.length === 426, 'EM: serie 426 mesi (1989-07→2024)', String(global.HIST_EM.length));
-    ok(global.emReturnAt(233) === null && global.emReturnAt(234) !== null, 'EM: offset 234 corretto (null a 233, dato a 234)');
+    ok(global.HIST_EM.length === 444, 'EM: serie 444 mesi (1988-01→2024)', String(global.HIST_EM.length));
+    ok(global.emReturnAt(215) === null && global.emReturnAt(216) !== null, 'EM: offset 216 corretto (null a 215, dato a 216)');
     ok(global.emReturnAt(660) === null, 'EM: null oltre il range (2024-12 = idx 659)');
     // Fallback pre-1989: la quota EM usa il mercato dove non c'è dato
     const rowPre = cal(H[150]);
@@ -560,6 +568,19 @@ function suiteFactors() {
     let cEm=1, cMk=1; for(let m=0;m<18;m++){ const idx=330+m; const row=cal(H[idx]); cEm*=(1+global.eqReturnWithFactors(1,row[0],idx,{emW:1})); cMk*=(1+row[0]); }
     ok((cEm-1) < (cMk-1) - 0.20, 'EM: crisi asiatica 1997-98 molto peggio del mercato', ((cEm-1)*100).toFixed(0)+'% vs '+((cMk-1)*100).toFixed(0)+'%');
   } else warn('EM: serie/helper non caricati');
+
+  // 7.j Gov Globale hedged: serie dedicata reale dal 1985-02 (idx 181), null prima
+  try {
+    loadConst(SRC.amc, /const HIST_GOV_GLOBAL = \[[\s\S]*?\];/);
+    const GG = global.HIST_GOV_GLOBAL;
+    ok(GG.length === 660, 'GovGlob: array 660 slot (null pre-1985)', String(GG.length));
+    ok(GG[180] === null && typeof GG[181] === 'number', 'GovGlob: dati reali da idx 181 (1985-02)');
+    let cGG=1, nGG=0; for(let i=181;i<660;i++){ cGG*=(1+GG[i]); nGG++; }
+    const cagrGG = Math.pow(cGG,12/nGG)-1;
+    ok(cagrGG > 0.03 && cagrGG < 0.08, 'GovGlob: CAGR 1985-2024 3-8%/a', (cagrGG*100).toFixed(2)+'%');
+    let y22=1; for(let i=624;i<636;i++) y22*=(1+GG[i]);
+    ok(y22-1 < -0.08, 'GovGlob: bear 2022 reale (peggio di -8%)', ((y22-1)*100).toFixed(1)+'%');
+  } catch(e){ warn('GovGlob: serie non caricata'); }
 }
 
 // ════════════════════════════════════════════════════════════════════════

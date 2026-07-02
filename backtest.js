@@ -283,7 +283,9 @@ function simulateBacktest(portKey, startYear, pacMonthly, w0, skipEvents, useCap
   // I bond per scadenza ora usano serie total-return reali (yield FRED/ECB convertiti):
   // un Gov breve, intermedio, lungo, ultra-lungo subiscono i drawdown storici VERI
   // (es. 2022: USA 2Y -4%, 5Y -9%, 10Y -16%, 30Y -32%; 2008 flight-to-quality opposto).
-  // La quota bond senza serie dedicata (globale hedged, inflation-linked) usa l'aggregato
+  // FIX 2026-07-04: 'Gov. Globale hedged' ora ha serie dedicata reale (HIST_GOV_GLOBAL, dal 1985-02,
+  // fallback aggregato pre-start via null). La quota bond senza serie dedicata (aggregato globale
+  // hedged, inflation-linked) usa l'aggregato
   // row[1] con scaling per volatilità come fallback. I preset usano sempre l'aggregato.
   const _BOND_AGG_VOL = 0.057;
   const _BOND_MEAN_M = 0.00466;
@@ -318,7 +320,7 @@ function simulateBacktest(portKey, startYear, pacMonthly, w0, skipEvents, useCap
     if (_realMix.eqEuropa && typeof eqEuropeReturnAt === 'function') { const er2 = eqEuropeReturnAt(mi); r += _realMix.eqEuropa * (er2 !== null ? er2 : H[0]); }
     if (_realMix.eqWorld) r += _realMix.eqWorld * H[0];
     if (_realMix.scv) r += _realMix.scv * H[0]; // small value ≈ mercato + premio (semplificato nel backtest)
-    if (_realMix.em && typeof HIST_EM !== 'undefined') { const ei = mi - (typeof EM_START!=='undefined'?EM_START:234); r += _realMix.em * (ei>=0 && ei<HIST_EM.length ? HIST_EM[ei] : H[0]); }
+    if (_realMix.em && typeof HIST_EM !== 'undefined') { const ei = mi - (typeof EM_START!=='undefined'?EM_START:216); r += _realMix.em * (ei>=0 && ei<HIST_EM.length ? HIST_EM[ei] : H[0]); }
     // oro, cash
     if (_realMix.gold) r += _realMix.gold * H[2];
     if (_realMix.cash) r += _realMix.cash * 0.002;

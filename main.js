@@ -404,7 +404,7 @@ const ASSET_CLASSES = {
   ob_glob_gov: {
     label: 'Gov. Globale Intermedio (hedged EUR)', emoji: '🌐', cat: 'ob_glob',
     mu: 0.042, vol: 0.048, inflBeta: -0.12, ter: 0.1, fxExp: 0.0,
-    histCAGR: 0.056, histPeriod: '1990-2024', src: 'Indici governativi globali aggregati',
+    histCAGR: 0.054, histPeriod: '1985-2024', src: 'Gov globale hedged EUR reale (curvo.eu, dal 1985)',
     desc: 'Paniere di titoli di stato dei principali paesi sviluppati (USA ~40%, Europa ~30%, Giappone ~15%, UK ~5%, altri) con duration ~6 anni e copertura valutaria in EUR. Diversifica il rischio di singola curva dei tassi. Rendimento mediano tra USA (~4.1%) ed Euro (~3.1%).',
   },
   ob_glob_agg: {
@@ -1060,7 +1060,7 @@ function calcCustomParams() {
     else if (ac.isCash) cashW += w;
     else if (ac.cat === 'ob_usa' || ac.cat === 'ob_eu' || ac.cat === 'ob_glob') { obW += w; obVolSum += w * (ac.vol || 0.057); // obblig. governative; vol pesata (fallback duration)
       // Traccia il peso per serie storica reale per scadenza (backtest/bootstrap usano dati veri)
-      const _BSM = { ob_usa_st:'HIST_USB_2Y', ob_usa_it:'HIST_USB_5Y', ob_usa_lt:'HIST_USB_10Y', ob_usa_ult:'HIST_USB_30Y', ob_eu_st:'HIST_EUB_2Y', ob_eu_it:'HIST_EUB_5Y', ob_eu_lt:'HIST_EUB_10Y', ob_eu_ult:'HIST_EUB_30Y' };
+      const _BSM = { ob_usa_st:'HIST_USB_2Y', ob_usa_it:'HIST_USB_5Y', ob_usa_lt:'HIST_USB_10Y', ob_usa_ult:'HIST_USB_30Y', ob_eu_st:'HIST_EUB_2Y', ob_eu_it:'HIST_EUB_5Y', ob_eu_lt:'HIST_EUB_10Y', ob_eu_ult:'HIST_EUB_30Y', ob_glob_gov:'HIST_GOV_GLOBAL' };
       const _bs = _BSM[sl.ac];
       if (_bs) { bondMix[_bs] = (bondMix[_bs] || 0) + w; } else { bondMix._agg = (bondMix._agg || 0) + w; }
     }
@@ -3039,7 +3039,7 @@ function runDecumuloHistorical() {
     if (_decRealMix.eqEuropa && typeof eqEuropeReturnAt === 'function') { const e2 = eqEuropeReturnAt(mi); r += _decRealMix.eqEuropa * (e2 !== null ? e2 : HH[0]); }
     if (_decRealMix.eqWorld) r += _decRealMix.eqWorld * HH[0];
     if (_decRealMix.scv) r += _decRealMix.scv * HH[0];
-    if (_decRealMix.em && typeof HIST_EM !== 'undefined') { const ei = mi - (typeof EM_START !== 'undefined' ? EM_START : 234); r += _decRealMix.em * (ei >= 0 && ei < HIST_EM.length ? HIST_EM[ei] : HH[0]); }
+    if (_decRealMix.em && typeof HIST_EM !== 'undefined') { const ei = mi - (typeof EM_START !== 'undefined' ? EM_START : 216); r += _decRealMix.em * (ei >= 0 && ei < HIST_EM.length ? HIST_EM[ei] : HH[0]); }
     if (_decRealMix.gold) r += _decRealMix.gold * HH[2];
     if (_decRealMix.cash) r += _decRealMix.cash * 0.002;
     if (_decRealMix.bond) { for (const key in _decRealMix.bond) { const w = _decRealMix.bond[key]; const br = (typeof bondSeriesReturnAt === 'function') ? bondSeriesReturnAt(key, mi) : null; r += w * (br !== null ? br : HH[1]); } }
