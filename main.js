@@ -194,46 +194,46 @@ const ASSET_CLASSES = {
   // ══════════════════════════════════════════════════════════════
   // AZIONI
   // mu = rendimento nominale forward-looking (10-20a)
-  // vol = volatilità storica annualizzata 1970-2024
+  // vol = volatilità storica annualizzata 1970-2025 (EUR, serie del motore)
   // Fonti: DMS Global Investment Returns Yearbook 2024,
   //        dati storici mercati finanziari (Federal Reserve,
   //        Banche Centrali, letteratura accademica)
   // ══════════════════════════════════════════════════════════════
   eq_sviluppati: {
     label: 'Azioni Mercati Sviluppati', emoji: '🌍', cat: 'eq', isEq: true,
-    mu: 0.067, vol: 0.158, inflBeta: 0.30, ter: 0.2, fxExp: 0.85,
-    histCAGR: 0.102, histPeriod: '1970-2024', src: 'DMS Yearbook 2024',
-    desc: 'Paniere di azioni di paesi sviluppati con composizione geografica ampia (America del Nord, Europa, Pacifico). CAGR storico 10.2%/a. Rendimento atteso forward-looking ~6.7%/a, più conservativo per effetto della mean-reversion delle valutazioni (CAPE elevati nel 2024) e coerente con la media pesata dei componenti (~65-70% USA + Europa + Pacifico).',
+    mu: 0.065, vol: 0.147, inflBeta: 0.30, ter: 0.2, fxExp: 0.85,
+    histCAGR: 0.081, histPeriod: '1970-2025', src: 'MSCI World Net EUR — serie reale del simulatore (curvo.eu)',
+    desc: 'Paniere di azioni di paesi sviluppati con composizione geografica ampia (America del Nord, Europa, Pacifico). CAGR storico in EUR 1970-2025: 8.1%/a (serie MSCI World Net EUR del simulatore — i CAGR in USD della letteratura, ~10%/a, non sono confrontabili per un investitore euro). Rendimento atteso forward-looking ~6.5%/a: più conservativo per mean-reversion delle valutazioni (CAPE USA elevati) e pari alla media pesata dei componenti (~65% USA a 6.3% + Europa a 7.0% + Pacifico).',
   },
   eq_usa: {
     label: 'Azioni USA Large Cap', emoji: '🇺🇸', cat: 'eq', isEq: true,
-    mu: 0.063, vol: 0.155, inflBeta: 0.28, ter: 0.07, fxExp: 1.0,
-    histCAGR: 0.105, histPeriod: '1970-2024', src: 'Dati storici mercato azionario USA',
-    desc: 'Grandi capitalizzazioni americane. CAGR storico 10.5%/a. Valutazioni elevate al 2024 (CAPE ~30-32) comprimono il rendimento atteso a ~7%/a. Massima liquidità e profondità di mercato a livello globale.',
+    mu: 0.063, vol: 0.164, inflBeta: 0.28, ter: 0.07, fxExp: 1.0,
+    histCAGR: 0.089, histPeriod: '1970-2025', src: 'MSCI USA Net EUR — serie reale del simulatore (curvo.eu)',
+    desc: 'Grandi capitalizzazioni americane. CAGR storico in EUR 1970-2025: 8.9%/a — il più alto tra le regioni sviluppate. Il mu forward (6.3%) è però il più basso: le valutazioni elevate (CAPE ~30+) comprimono il rendimento atteso via mean-reversion, ed è per questo che nel caso base gli USA rendono meno del World che li contiene. Nota: la vol in EUR (16.5%) è più alta di quella in USD per l\'esposizione al cambio piena (fxExp 1.0). Massima liquidità e profondità di mercato a livello globale.',
   },
   eq_europa: {
     label: 'Azioni Europa', emoji: '🇪🇺', cat: 'eq', isEq: true,
-    mu: 0.07, vol: 0.170, inflBeta: 0.25, ter: 0.15, fxExp: 0.1,
-    histCAGR: 0.095, histPeriod: '1970-2024', src: 'DMS Yearbook 2024',
-    desc: 'Mercati azionari europei (Germania, Francia, UK, Svizzera, Olanda, Italia ecc.). CAGR storico ~9.5%/a. Valutazioni storicamente più convenienti rispetto agli USA (CAPE ~14-16 in media), ma crescita degli utili inferiore nel lungo periodo.',
+    mu: 0.07, vol: 0.157, inflBeta: 0.25, ter: 0.15, fxExp: 0.1,
+    histCAGR: 0.079, histPeriod: '1970-2025', src: 'MSCI Europe Net EUR — serie reale del simulatore (curvo.eu)',
+    desc: 'Mercati azionari europei (Germania, Francia, UK, Svizzera, Olanda, Italia ecc.). CAGR storico in EUR 1970-2025: 7.9%/a. Per un investitore euro è la regione meno volatile (fxExp 0.1: quasi niente rischio cambio). Valutazioni storicamente più convenienti rispetto agli USA (CAPE ~14-16 in media), ma crescita degli utili inferiore nel lungo periodo.',
   },
   eq_em: {
     label: 'Azioni Mercati Emergenti', emoji: '🌏', cat: 'eq', isEq: true,
-    mu: 0.078, vol: 0.225, inflBeta: 0.35, ter: 0.2, fxExp: 1.0,
-    histCAGR: 0.098, histPeriod: '1988-2024', src: 'Fama-French Emerging Markets (1989-2024), EUR',
-    desc: 'Cina, India, Brasile, Taiwan, Corea del Sud e altri mercati in sviluppo. CAGR dal 1988: ~9.8%/a. Alta volatilità (σ≈22%) e rischio politico/valutario. Premio di crescita economica parzialmente eroso da perdite da valuta e governance societaria più debole.',
+    mu: 0.078, vol: 0.209, inflBeta: 0.35, ter: 0.2, fxExp: 1.0,
+    histCAGR: 0.102, histPeriod: '1988-2025', src: 'MSCI Emerging Markets Net EUR — serie reale del simulatore (curvo.eu)',
+    desc: 'Cina, India, Brasile, Taiwan, Corea del Sud e altri mercati in sviluppo. CAGR in EUR dal 1988: 10.2%/a (serie MSCI EM del simulatore). Alta volatilità (σ≈22%) e rischio politico/valutario. Premio di crescita economica parzialmente eroso da perdite da valuta e governance societaria più debole.',
   },
   eq_small_value: {
     label: 'Azioni Small Cap Value (fattore)', emoji: '📐', cat: 'eq', isEq: true,
-    mu: 0.085, vol: 0.205, inflBeta: 0.25, ter: 0.3, fxExp: 1.0,
-    histCAGR: 0.135, histPeriod: '1970-2024', src: 'Fama-French Data Library',
-    desc: 'Piccole capitalizzazioni a bassa valutazione (P/B basso). Premio documentato da Fama & French (1992, 1993). CAGR US Small Cap Value ~13.5%/a (1970-2024) — fortemente influenzato dagli anni \'70-\'80. Forward-looking più moderato (~8.5%/a) per mean-reversion dei premi di rischio.',
+    mu: 0.085, vol: 0.160, inflBeta: 0.25, ter: 0.3, fxExp: 1.0,
+    histCAGR: 0.123, histPeriod: '1979-2025', src: 'World + spread SCV Fama-French — come simulato dal motore',
+    desc: 'Piccole capitalizzazioni a bassa valutazione (P/B basso). Premio documentato da Fama & French (1992, 1993). CAGR come simulato dal motore (mercato EUR + spread Fama-French, 1979-2025): 12.3%/a. Forward-looking più moderato (~8.5%/a) per mean-reversion dei premi di rischio.',
   },
   reits: {
     label: 'Immobiliare Quotato (REITs)', emoji: '🏢', cat: 'eq', isEq: true,
     mu: 0.065, vol: 0.175, inflBeta: 0.20, ter: 0.4, fxExp: 0.8,
-    histCAGR: 0.112, histPeriod: '1972-2024', src: 'FTSE Nareit All Equity REITs (1972-2024), EUR',
-    desc: 'Fondi immobiliari quotati su borsa. CAGR 1972-2024: ~11.2%/a. Obbligo di distribuzione ≥90% degli utili → elevata cedola. Copertura parziale dell\'inflazione tramite canoni di affitto indicizzati. Correlazione con azioni ~0.60, parzialmente decorrelante.',
+    histCAGR: 0.109, histPeriod: '1979-2024', src: 'FTSE Nareit All Equity REITs EUR — serie reale del simulatore',
+    desc: 'Fondi immobiliari quotati su borsa. CAGR in EUR 1979-2024 (serie del simulatore): 10.9%/a. Obbligo di distribuzione ≥90% degli utili → elevata cedola. Copertura parziale dell\'inflazione tramite canoni di affitto indicizzati. Correlazione con azioni ~0.60, parzialmente decorrelante. Nota: serie storica USA (NAREIT); un paniere REITs sviluppati globali (FTSE EPRA Developed) ha reso meno (~6.6%/a vs ~9.4%/a, 1990-2023).',
   },
 
   // ══════════════════════════════════════════════════════════════
@@ -256,37 +256,37 @@ const ASSET_CLASSES = {
   fat_valore: {
     label: 'Fattore Valore (Value)', emoji: '💎', cat: 'fat', isEq: true,
     mu: 0.072, vol: 0.175, inflBeta: 0.35, ter: 0.3, fxExp: 0.85,
-    histCAGR: 0.105, histPeriod: '1970-2024', src: 'Fama & French (1992, 1993)',
+    histCAGR: 0.110, histPeriod: '1979-2025', src: 'Fama & French (1992,1993) — CAGR come simulato dal motore (World EUR + spread reale)',
     desc: 'Azioni con basse valutazioni (P/B, P/E, EV/EBITDA bassi). CAGR storico long-only ~10.5%/a. Ha sottoperformato il mercato tra 2007 e 2020, recuperando dal 2021. Forward-looking ~7.2%/a. Alta correlazione con azioni cicliche e finanziarie — soffre in recessioni profonde. Correlazione con Momentum ρ≈−0.15: ottima complementarità.',
   },
   fat_momentum: {
     label: 'Fattore Momentum (Prezzo)', emoji: '🚀', cat: 'fat', isEq: true,
     mu: 0.075, vol: 0.195, inflBeta: 0.05, ter: 0.3, fxExp: 0.85,
-    histCAGR: 0.120, histPeriod: '1970-2024', src: 'Jegadeesh & Titman (1993), Carhart (1997)',
+    histCAGR: 0.117, histPeriod: '1979-2025', src: 'Jegadeesh-Titman/Carhart — CAGR come simulato dal motore (World EUR + contributo reale)',
     desc: 'Strategia long sistematica sui vincitori degli ultimi 12-1 mesi. CAGR storico long-only ~12%/a (1970-2024). Rendimento elevato ma con crash risk: drawdown violenti nei mercati a U-turn (es. 2009: −60%). Forward-looking ~7.5%/a. Correlazione con Valore ρ≈−0.15 — principale beneficio del multi-fattore.',
   },
   fat_qualita: {
     label: 'Fattore Qualità / Redditività', emoji: '⭐', cat: 'fat', isEq: true,
     mu: 0.075, vol: 0.150, inflBeta: 0.18, ter: 0.3, fxExp: 0.85,
-    histCAGR: 0.095, histPeriod: '1990-2024', src: 'Novy-Marx (2013), Fama & French (2015)',
+    histCAGR: 0.117, histPeriod: '1979-2025', src: 'Novy-Marx/FF5 — CAGR come simulato dal motore (World EUR + spread reale)',
     desc: 'Aziende con alta redditività operativa, bassa leva finanziaria e stabilità degli utili (RMW: Robust Minus Weak). CAGR storico long-only ~9.5%/a (1990-2024). Carattere difensivo: sovra-performa in crisi, sotto-performa nei rally euforici. Parte del modello accademico a 5 fattori. Forward-looking ~7.5%/a.',
   },
   fat_low_vol: {
     label: 'Fattore Bassa Volatilità (Difensivo)', emoji: '📉', cat: 'fat', isEq: true,
     mu: 0.070, vol: 0.120, inflBeta: 0.12, ter: 0.3, fxExp: 0.85,
-    histCAGR: 0.085, histPeriod: '1970-2024', src: 'Frazzini & Pedersen (2014)',
+    histCAGR: 0.089, histPeriod: '1979-2025', src: 'Frazzini & Pedersen — CAGR come simulato dal motore (World EUR + spread reale)',
     desc: 'Azioni con volatilità storica e beta di mercato bassi (BAB: Betting Against Beta). Anomalia CAPM: il rendimento aggiustato per il rischio supera quello del mercato. CAGR storico ~8.5%/a con σ ~12% (1970-2024). Concentrato in settori difensivi: utilities, consumer staples, healthcare. Forward-looking ~7.0%/a. Ottimo abbinamento con Momentum.',
   },
   fat_size: {
     label: 'Fattore Dimensione (Small Cap)', emoji: '🔬', cat: 'fat', isEq: true,
     mu: 0.075, vol: 0.190, inflBeta: 0.20, ter: 0.25, fxExp: 0.85,
-    histCAGR: 0.095, histPeriod: '1970-2024', src: 'Banz (1981), Fama-French Data Library',
+    histCAGR: 0.104, histPeriod: '1979-2025', src: 'Banz/Fama-French — CAGR come simulato dal motore (World EUR + spread reale)',
     desc: 'Premio di dimensione (SMB: Small Minus Big) — le piccole capitalizzazioni tendono a sovra-performare le grandi nel lungo periodo. CAGR storico ~9.5%/a (1970-2024). Il premio è più robusto nel segmento value. Parzialmente compresso post-pubblicazione accademica. Forward-looking ~7.5%/a. Correlazione con mercato ~0.80.',
   },
   fat_investment: {
     label: 'Fattore Investimento (CMA)', emoji: '🏗️', cat: 'fat', isEq: true,
     mu: 0.072, vol: 0.130, inflBeta: 0.10, ter: 0.35, fxExp: 0.85,
-    histCAGR: 0.080, histPeriod: '1990-2024', src: 'Fama & French (2015)',
+    histCAGR: 0.112, histPeriod: '1979-2025', src: 'Fama & French (2015) — CAGR come simulato dal motore (World EUR + spread reale)',
     desc: 'Aziende con crescita degli attivi bassa (Conservative Minus Aggressive — CMA). Le imprese che investono meno producono rendimenti più alti nel lungo periodo. Parte del modello a 5 fattori (Fama-French 2015). CAGR storico ~8%/a (1990-2024). Carattere difensivo, alta correlazione con Qualità (ρ≈0.40). Forward-looking ~7.2%/a.',
   },
   fat_dividendi: {
@@ -338,7 +338,7 @@ const ASSET_CLASSES = {
   // OBBLIGAZIONARIO GOVERNATIVO USA
   // mu = forward-looking basato sui livelli di yield 2024-2025
   //      normalizzati su orizzonte 10-20a
-  // vol = volatilità storica 1970-2024
+  // vol = volatilità storica 1970-2025
   // Fonte: dati storici Federal Reserve (FRED) e mercato USA
   // ══════════════════════════════════════════════════════════════
   ob_usa_st: {
@@ -410,13 +410,13 @@ const ASSET_CLASSES = {
   ob_glob_agg: {
     label: 'Aggregato Obbligazionario Globale (hedged EUR)', emoji: '🌐', cat: 'ob_glob',
     mu: 0.047, vol: 0.055, inflBeta: -0.08, ter: 0.1, fxExp: 0.0,
-    histCAGR: 0.060, histPeriod: '1990-2024', src: 'Indice aggregato obbligazionario globale',
+    histCAGR: 0.060, histPeriod: '1990-2024', src: 'Global Agg hedged reale dal 2018 (curvo.eu), aggregato EUR prima',
     desc: 'Universo obbligazionario globale aggregato: titoli di stato (~50%), corporate investment grade (~35%), cartolarizzati ABS/MBS (~15%), con copertura valutaria in EUR. Duration ~6.5 anni. Il riferimento per portafogli multi-asset a livello globale.',
   },
   ob_infl: {
     label: 'Obblig. Indicizzate Inflazione', emoji: '🛡️', cat: 'ob_glob',
     mu: 0.042, vol: 0.060, inflBeta: 0.80, ter: 0.15, fxExp: 0.5,
-    histCAGR: 0.050, histPeriod: '1997-2024', src: 'Mercati obbligazioni indicizzate',
+    histCAGR: 0.021, histPeriod: '2005-2024', src: 'Euro Gov Inflation-Linked reale (curvo.eu, dal 2005)',
     desc: 'Titoli di stato indicizzati all\'inflazione (BTPi italiani, Bund indicizzati, OATi francesi, TIPS USA). Il capitale cresce con l\'indice dei prezzi: protezione diretta dall\'inflazione. Rendimento reale garantito se tenuti a scadenza (~1.5-2% reale nel 2024). Volatilità simile alla duration nominale equivalente (~7 anni).',
   },
 
@@ -432,7 +432,7 @@ const ASSET_CLASSES = {
   commodities: {
     label: 'Commodities Diversificate', emoji: '⚡', cat: 'real',
     mu: 0.032, vol: 0.185, inflBeta: 0.65, ter: 0.3, fxExp: 1.0,
-    histCAGR: 0.052, histPeriod: '1970-2024', src: 'Indici commodity diversificati (dati aggregati)',
+    histCAGR: 0.052, histPeriod: '1970-2024', src: 'Bloomberg Commodity EUR reale dal 2005 (curvo.eu), stima aggregata prima',
     desc: 'Paniere diversificato di materie prime: energia ~55%, metalli industriali ~20%, agricoltura ~25%. CAGR storico ~5.2%/a influenzato dagli shock petroliferi degli anni \'70. Rendimento reale di lungo periodo vicino a zero per i costi di roll sui futures. Ottima copertura inflazione a breve termine (β≈0.65).',
   },
   cash: {
@@ -509,7 +509,7 @@ function expandCustomSlots(rawSlotsAll) {
 }
 
 
-// ── Matrice di correlazione per categoria (empirica, 1970-2024) ───────────────
+// ── Matrice di correlazione per categoria (empirica, 1970-2025) ───────────────
 // Categorie:
 //   eq      — azioni pure (plain equity)
 //   fat     — fattori azionari sistematici (Value, Momentum, Quality, LowVol, Size, CMA, Div)
@@ -1060,7 +1060,7 @@ function calcCustomParams() {
     else if (ac.isCash) cashW += w;
     else if (ac.cat === 'ob_usa' || ac.cat === 'ob_eu' || ac.cat === 'ob_glob') { obW += w; obVolSum += w * (ac.vol || 0.057); // obblig. governative; vol pesata (fallback duration)
       // Traccia il peso per serie storica reale per scadenza (backtest/bootstrap usano dati veri)
-      const _BSM = { ob_usa_st:'HIST_USB_2Y', ob_usa_it:'HIST_USB_5Y', ob_usa_lt:'HIST_USB_10Y', ob_usa_ult:'HIST_USB_30Y', ob_eu_st:'HIST_EUB_2Y', ob_eu_it:'HIST_EUB_5Y', ob_eu_lt:'HIST_EUB_10Y', ob_eu_ult:'HIST_EUB_30Y', ob_glob_gov:'HIST_GOV_GLOBAL' };
+      const _BSM = { ob_usa_st:'HIST_USB_2Y', ob_usa_it:'HIST_USB_5Y', ob_usa_lt:'HIST_USB_10Y', ob_usa_ult:'HIST_USB_30Y', ob_eu_st:'HIST_EUB_2Y', ob_eu_it:'HIST_EUB_5Y', ob_eu_lt:'HIST_EUB_10Y', ob_eu_ult:'HIST_EUB_30Y', ob_glob_gov:'HIST_GOV_GLOBAL', ob_glob_agg:'HIST_AGG_GLOBAL', ob_infl:'HIST_INFL_LINKED' };
       const _bs = _BSM[sl.ac];
       if (_bs) { bondMix[_bs] = (bondMix[_bs] || 0) + w; } else { bondMix._agg = (bondMix._agg || 0) + w; }
     }
@@ -3542,7 +3542,7 @@ function renderCustomBuilder() {
       <button class="gbtn" onclick="resetCustomPreset('carry_mix')" title="Carry Bond + FX Carry + Commodity Carry + Azioni + Bond">Carry Mix</button>
     </div>
     <div class="info-box" style="font-size:11.5px">
-      <strong>Dati:</strong> mu = rendimento nominale forward-looking (10-20a), σ = volatilità storica 1970-2024. Fonti: DMS Yearbook 2024, dati Federal Reserve (FRED), Banche Centrali, letteratura accademica (Fama-French, Jegadeesh-Titman, Carhart). La volatilità usa una matrice di correlazione semplificata tra categorie (es. ρ(az,bond)≈−0.05, ρ(az,oro)≈0.05) — risultato più realistico della semplice media ponderata.
+      <strong>Dati:</strong> mu = rendimento nominale forward-looking (10-20a), σ = volatilità storica 1970-2025. Fonti: DMS Yearbook 2024, dati Federal Reserve (FRED), Banche Centrali, letteratura accademica (Fama-French, Jegadeesh-Titman, Carhart). La volatilità usa una matrice di correlazione semplificata tra categorie (es. ρ(az,bond)≈−0.05, ρ(az,oro)≈0.05) — risultato più realistico della semplice media ponderata.
     </div>`;
 }
 
@@ -4965,7 +4965,7 @@ async function generatePDF() {
       '5b. A/B Confronto Portafogli',
       '6.  Scenari Economici Multi-Regime',
       '7.  Sequence of Returns Risk',
-      '7b. Backtesting Storico — Dati Storici 1970-2024',
+      '7b. Backtesting Storico — Dati Storici 1970-2025',
       '7c. Sequence Risk Multiplo — Crash Singolo / Doppio / Triplo',
       '7d. Stress Test Macro Storici — Path Mensile Ricostruito (6 crisi)',
       '7e. Piano di Decumulo (Strategia Prelievi)',
@@ -5196,9 +5196,9 @@ async function generatePDF() {
           student: 'Il modello t-Student introduce le "code grasse" (fat tails): eventi estremi piu frequenti di quanto preveda la distribuzione normale. Cattura meglio i crash improvvisi che la gaussiana standard tende a sottostimare.',
           garch: 'Il modello GARCH simula la volatilita variabile nel tempo: i periodi turbolenti tendono a raggrupparsi (volatility clustering), come osservato nei mercati reali. Dopo un grande movimento ne seguono altri, in entrambe le direzioni.',
           regime: 'Il modello Regime-Switching alterna stati di mercato distinti (calmo / turbolento) con probabilita di transizione calibrate, riproducendo l\'alternanza storica tra fasi tranquille e fasi di crisi.',
-          bootstrap: 'Il Block Bootstrap campiona blocchi di 12 mesi contigui dai rendimenti storici reali 1970-2024 (azioni MSCI World Net EUR, obbligazioni Euro Aggregate, oro in EUR). I crash storici (1973, 1987, 2000-02, 2008-09, 2022) entrano nella simulazione con la loro sequenza reale, senza alcuna assunzione sulla forma della distribuzione. E il modello piu fedele alla storia per portafogli con azioni e oro.',
+          bootstrap: 'Il Block Bootstrap campiona blocchi di 12 mesi contigui dai rendimenti storici reali 1970-2025 (azioni MSCI World Net EUR, obbligazioni Euro Aggregate, oro in EUR). I crash storici (1973, 1987, 2000-02, 2008-09, 2022) entrano nella simulazione con la loro sequenza reale, senza alcuna assunzione sulla forma della distribuzione. E il modello piu fedele alla storia per portafogli con azioni e oro.',
           gaussian: 'Il modello gaussiano standard assume rendimenti distribuiti normalmente attorno alla media attesa.',
-          bootstrap5y: 'Il Block Bootstrap a 5 anni campiona blocchi di 60 mesi contigui dai dati storici reali 1970-2024, preservando la persistenza pluriennale: le correlazioni tra asset e con l\'inflazione restano quelle realmente osservate lungo un ciclo intero (un crash e il suo recupero arrivano agganciati, come nella storia). E il campione piu fedele del rischio di sequenza reale su orizzonti lunghi.'
+          bootstrap5y: 'Il Block Bootstrap a 5 anni campiona blocchi di 60 mesi contigui dai dati storici reali 1970-2025, preservando la persistenza pluriennale: le correlazioni tra asset e con l\'inflazione restano quelle realmente osservate lungo un ciclo intero (un crash e il suo recupero arrivano agganciati, come nella storia). E il campione piu fedele del rischio di sequenza reale su orizzonti lunghi.'
         };
         const mdl = adv.model || 'student';
         chkPB(40);
@@ -5352,9 +5352,9 @@ async function generatePDF() {
 
     // ─────────── 7b. BACKTESTING STORICO ───────────
     doc.addPage(); pN++; y = 20; miniHdr();
-    sHdr('7b — Backtesting Storico — Dati Storici 1970-2024', [0, 150, 167]);
+    sHdr('7b — Backtesting Storico — Dati Storici 1970-2025', [0, 150, 167]);
     narrative(
-      'Il backtesting usa 660 rendimenti mensili storici 1970-2024, ancorati anno per anno alle serie ufficiali in EUR (azioni MSCI World Net EUR, obbligazioni Euro Aggregate, oro LBMA); la granularita mensile e una ricostruzione coerente con il totale annuo reale. ' +
+      'Il backtesting usa 672 rendimenti mensili storici 1970-2025 REALI in EUR (azioni MSCI World Net EUR, obbligazioni Euro Aggregate, oro EUR): sono le serie mensili vere degli indici, non ricostruzioni. ' +
       'Il portafoglio e il PAC mensile attuali del simulatore vengono applicati a 10 periodi storici diversi, includendo le correlazioni dinamiche: ' +
       'in anni di drawdown azionario > 15% le correlazioni tra asset class si alzano verso la matrice di stress, come osservato empiricamente. ' +
       'Il CAGR nominale include dividendi e cedole (total return). Le ultime osservazioni disponibili coprono fino a dicembre 2024.'
@@ -5462,7 +5462,7 @@ async function generatePDF() {
     // ─────────── 7d. STRESS TEST MACRO STORICI ───────────
     sHdr('7d \u2014 Stress Test Macro Storici \u2014 Path Mensile Ricostruito', [183, 28, 28]);
     narrative(
-      'Simulazione del percorso mensile preciso del portafoglio attuale durante le 6 principali crisi macro 1970-2024. ' +
+      'Simulazione del percorso mensile preciso del portafoglio attuale durante le 6 principali crisi macro 1970-2025, sulle serie mensili reali degli indici. ' +
       'A differenza del backtesting PAC (piani con versamenti), questa analisi usa uno snapshot del capitale iniziale senza contributi aggiuntivi. ' +
       'I rendimenti mensili provengono da HIST_MONTHLY (ancorati a MSCI World Net EUR, Bloomberg Euro Aggregate, oro LBMA in EUR). TER applicato mensilmente. ' +
       'I pesi sono quelli attuali: Az.' + Math.round(getEquityWeight(btPortKeyPDF, age)*100) + '% ' +
@@ -5701,7 +5701,7 @@ async function generatePDF() {
     // ─────────── 8b. DECUMULO STORICO (Trinity-style) ───────────
     try {
       const dh = runDecumuloHistorical();
-      sHdr('8c — Decumulo su Sequenze Storiche Reali (1970-2024)', [255, 152, 0]);
+      sHdr('8c — Decumulo su Sequenze Storiche Reali (1970-2025)', [255, 152, 0]);
       narrative(
         'Test di robustezza piu severo del Monte Carlo: ripercorre il piano di prelievo su tutti gli anni di partenza disponibili ' +
         'usando i rendimenti mensili storici REALI calibrati e l\'inflazione effettiva di ogni anno. Incorpora oil shock 1973, ' +
@@ -6213,7 +6213,7 @@ async function generatePDF() {
       '(3) La fiscalita e modellata in modo semplificato: non include imposta di bollo, eventuali aliquote estere, o regimi previdenziali specifici. ' +
       '(4) L\'inflazione e applicata in modo uniforme; la realta puo includere shock localizzati su specifiche categorie di spesa. ' +
       '(5) I costi di ribilanciamento, spread e commissioni di trading non sono inclusi. ' +
-      '(6) I dati storici 1970-2024 hanno totali annuali ancorati alle serie ufficiali in EUR (MSCI World Net EUR, Bloomberg Euro Aggregate, oro LBMA), ma la granularita mensile e una ricostruzione illustrativa, non una serie certificata dai fornitori degli indici.'
+      '(6) I dati storici 1970-2025 sono le serie mensili reali degli indici in EUR (MSCI World Net EUR e regioni, Bloomberg, oro, EM, gov globale, linker, aggregato globale, commodities), verificate mese per mese contro le fonti; l\'inflazione per i valori reali e quella euro (CPI Germania pre-1999 + HICP area euro). Le curve obbligazionarie per scadenza e i fattori sono derivati da dati istituzionali/accademici reali (FRED, Bundesbank, Kenneth French, AQR).'
     );
     const discFull = doc.splitTextToSize(
       'AVVERTENZA IMPORTANTE — Questo report ha finalita esclusivamente educative e informative. Non costituisce consulenza finanziaria, di investimento, fiscale o legale, ne sollecitazione all\'acquisto/vendita di strumenti finanziari. I rendimenti, le proiezioni e le simulazioni sono ipotetici e basati su assunzioni semplificate: NON rappresentano una garanzia di risultati futuri. I rendimenti passati non sono indicativi di quelli futuri. Gli investimenti comportano rischi, inclusa la perdita totale o parziale del capitale. Prima di investire, consultare un consulente finanziario indipendente abilitato (in Italia: iscritto all\'albo OCF) e leggere attentamente i KIID/KID degli strumenti considerati. L\'autore e i fornitori del software declinano ogni responsabilita per decisioni assunte sulla base del presente documento.',

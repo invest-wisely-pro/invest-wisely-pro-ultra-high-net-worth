@@ -86,14 +86,26 @@ const BT_PERIODS = {
   2019: { label: '2019 \u2192 Inflazione & tassi (crisi 2022)', color: '#00897b', bg: 'rgba(0,137,123,.08)', context: 'Inizio nel 2019: si accumula capitale, poi il 2022 unico nella storia \u2014 azioni \u221220% E obbligazioni \u221215% contemporaneamente. Il 60/40 perde \u221217%: il peggior anno dal 1937 per portafogli bilanciati. Lo stress test colpisce il capitale formato.', crisis: [2022] },
 };
 
-// Inflazione storica annua (CPI USA approssimato) per periodo, per deflatare
+// Inflazione storica annua per deflatare — FIX 2026-07-04: sostituito il CPI USA
+// (valuta sbagliata per serie rendimenti in EUR) con la serie coerente con la
+// convenzione delle serie Curvo: CPI GERMANIA 1970-1998 (le serie EUR pre-euro sono
+// in DEM-sintetico: l'inflazione tedesca e' il deflatore della valuta in cui i
+// rendimenti sono espressi) + AREA EURO 1999-2024 (dall'introduzione dell'euro).
+// Fonte: World Bank via FRED (FPCPITOTLZGDEU 1970-98, FPCPITOTLZGEMU 1999-2024),
+// scaricate e verificate il 2026-07-04. NON usato l'aggregato EMU pre-1999: include
+// le inflazioni in lire/pesetas/franchi (1974: 14.7%), valute che si svalutavano
+// contro il DEM — deflazionare rendimenti DEM-based con quelle inflazioni
+// sovrastimerebbe l'erosione reale. Effetto principale: anni '70-'80 con inflazione
+// molto piu' bassa del CPI USA (1974: 7.0 vs 11.0; 1979: 4.0 vs 11.3; 1980: 5.4 vs
+// 13.5) -> i rendimenti REALI storici di quel periodo salgono; 2022: 8.5 vs 8.0.
+// 2025: 2.1 = media dei tassi mensili HICP area euro pubblicati da Eurostat.
 const HIST_INFLATION = {
-  1970:5.7,1971:4.4,1972:3.2,1973:6.2,1974:11.0,1975:9.1,1976:5.8,1977:6.5,1978:7.6,1979:11.3,
-  1980:13.5,1981:10.3,1982:6.2,1983:3.2,1984:4.3,1985:3.6,1986:1.9,1987:3.6,1988:4.1,1989:4.8,
-  1990:5.4,1991:4.2,1992:3.0,1993:3.0,1994:2.6,1995:2.8,1996:3.0,1997:2.3,1998:1.6,1999:2.2,
-  2000:3.4,2001:2.8,2002:1.6,2003:2.3,2004:2.7,2005:3.4,2006:3.2,2007:2.8,2008:3.8,2009:-0.4,
-  2010:1.6,2011:3.2,2012:2.1,2013:1.5,2014:1.6,2015:0.1,2016:1.3,2017:2.1,2018:2.4,2019:1.8,
-  2020:1.2,2021:4.7,2022:8.0,2023:4.1,2024:2.9,
+  1970:3.5,1971:5.2,1972:5.5,1973:7.0,1974:7.0,1975:5.9,1976:4.2,1977:3.7,1978:2.7,1979:4.0,
+  1980:5.4,1981:6.3,1982:5.2,1983:3.3,1984:2.4,1985:2.1,1986:-0.1,1987:0.2,1988:1.3,1989:2.8,
+  1990:2.7,1991:4.0,1992:5.1,1993:4.5,1994:2.7,1995:1.7,1996:1.4,1997:1.9,1998:0.9,1999:1.9,
+  2000:2.9,2001:2.9,2002:2.3,2003:2.1,2004:2.2,2005:2.5,2006:2.7,2007:2.5,2008:4.1,2009:0.4,
+  2010:1.5,2011:3.3,2012:2.5,2013:1.3,2014:0.2,2015:-0.1,2016:0.2,2017:1.4,2018:1.7,2019:1.4,
+  2020:0.2,2021:2.5,2022:8.5,2023:5.8,2024:2.2,2025:2.1,
 };
 
 // Stato Backtesting
@@ -272,10 +284,11 @@ function simulateBacktest(portKey, startYear, pacMonthly, w0, skipEvents, useCap
     emW: (typeof getEmWeight === 'function') ? getEmWeight(portKey) : 0,
     usaW: (portKey === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().usaW || 0) : 0,
     europaW: (portKey === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().europaW || 0) : 0,
+    commW:   (portKey === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().commodW || 0) : 0,
   };
   const wAt = (mIdx) => {
     const e = getEquityWeight(portKey, state.age + mIdx / 12);
-    return { eqW: e, obW: Math.max(0, 1 - e - goldW - cashW) };
+    return { eqW: e, obW: Math.max(0, 1 - e - goldW - cashW - (fw.commW || 0)) };
   };
   const { eqW, obW } = wAt(0); // pesi iniziali (per le sezioni informative)
 
@@ -283,9 +296,10 @@ function simulateBacktest(portKey, startYear, pacMonthly, w0, skipEvents, useCap
   // I bond per scadenza ora usano serie total-return reali (yield FRED/ECB convertiti):
   // un Gov breve, intermedio, lungo, ultra-lungo subiscono i drawdown storici VERI
   // (es. 2022: USA 2Y -4%, 5Y -9%, 10Y -16%, 30Y -32%; 2008 flight-to-quality opposto).
-  // FIX 2026-07-04: 'Gov. Globale hedged' ora ha serie dedicata reale (HIST_GOV_GLOBAL, dal 1985-02,
-  // fallback aggregato pre-start via null). La quota bond senza serie dedicata (aggregato globale
-  // hedged, inflation-linked) usa l'aggregato
+  // FIX 2026-07-04: 'Gov. Globale hedged' (HIST_GOV_GLOBAL, dal 1985-02), 'Inflation-Linked'
+  // (HIST_INFL_LINKED, dal 2005-12) e 'Aggregato Globale hedged' (HIST_AGG_GLOBAL, dal 2017-12)
+  // hanno serie dedicate reali con fallback aggregato pre-start via null. La quota bond residua
+  // senza serie dedicata usa l'aggregato
   // row[1] con scaling per volatilità come fallback. I preset usano sempre l'aggregato.
   const _BOND_AGG_VOL = 0.057;
   const _BOND_MEAN_M = 0.00466;

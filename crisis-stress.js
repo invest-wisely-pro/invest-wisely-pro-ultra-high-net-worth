@@ -192,6 +192,7 @@ function simulateCrisisPath(crisis, portKey, capitalEur, pacMonthly) {
     emW:    typeof getEmWeight         === 'function' ? getEmWeight(portKey)          : 0,
     usaW:   (portKey === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().usaW    || 0) : 0,
     europaW:(portKey === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().europaW || 0) : 0,
+    commW:  (portKey === 'custom' && typeof calcCustomParams === 'function') ? (calcCustomParams().commodW || 0) : 0,
   };
 
   // Preset con composizione reale (realMix): stessa logica del backtest.
@@ -233,7 +234,7 @@ function simulateCrisisPath(crisis, portKey, capitalEur, pacMonthly) {
     const goldRet = row[2];
 
     const eqW_m   = eqAt(idx - startIdx);
-    const obW_m   = Math.max(0, 1 - eqW_m - goldW - cashW);
+    const obW_m   = Math.max(0, 1 - eqW_m - goldW - cashW - (fw.commW || 0));
     // Quota azionaria con i fattori reali (REITs/EM/fattoriali usano le loro serie
     // dedicate); fallback a eqW_m*eqRet se l'helper non è disponibile.
     const eqPart  = (typeof eqReturnWithFactors === 'function')

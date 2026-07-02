@@ -104,19 +104,26 @@
     </div>
     <div class="footer-disclaimer" style="margin-top:10px">
       <strong>Fonte e natura dei dati storici</strong><br>
-      I dati storici 1970&ndash;2024 utilizzati nel backtesting e nelle simulazioni Monte Carlo sono
-      <strong>a scopo illustrativo</strong>. I rendimenti annuali delle tre asset class principali sono
-      <strong>ancorati alle serie ufficiali</strong> &mdash; azioni <strong>MSCI World</strong> (Net Total
-      Return, EUR), obbligazioni <strong>Bloomberg Euro Aggregate</strong> e oro (serie mensile reale del prezzo spot in euro: XAU/USD convertito col cambio, convenzione DEM/EUR-sintetico prima del 1999, la stessa dei principali strumenti di backtest europei; il periodo 1971-1998 &egrave; stato validato contro il fixing ufficiale dell'oro della Borsa di Francoforte pubblicato dalla Bundesbank, con scostamento medio di livello ~1%) &mdash;
-      e ne riproducono i valori di lungo periodo (CAGR, volatilità) e l'andamento dei principali anni di
-      crisi (1973&ndash;74, 1987, 2000&ndash;02, 2008, 2020, 2022). Gli asset aggiuntivi dispongono di
-      <strong>serie storiche reali dedicate</strong>: i fattori azionari (Small Cap Value, Momentum, Value,
-      Quality, Investment, Size) derivano dalla <strong>Kenneth French Data Library</strong>, la Bassa
-      Volatilità dal dataset <strong>AQR Betting Against Beta</strong>, l'Immobiliare Quotato dall'indice
-      <strong>FTSE Nareit All Equity REITs</strong> e i Mercati Emergenti dai portafogli Fama-French
-      Emerging Markets (dal 1989); tutte convertite in EUR coi cambi ufficiali BCE/FRED.
-      La <strong>granularità mensile</strong> dei singoli mesi è una <strong>ricostruzione</strong> coerente
-      con il rendimento annuo reale, non una serie tick-by-tick certificata. I dati
+      I dati storici 1970&ndash;2025 (672 osservazioni mensili) utilizzati nel backtesting e nelle
+      simulazioni Monte Carlo sono forniti <strong>a scopo educativo e illustrativo</strong>.
+      Le asset class principali usano le <strong>serie mensili reali degli indici in EUR, mese per mese</strong>
+      (non ricostruzioni): azioni <strong>MSCI World, MSCI USA e MSCI Europe</strong> (Net Total Return, EUR),
+      <strong>MSCI Emerging Markets</strong> (dalla base ufficiale dell'indice, dic 1987),
+      obbligazioni <strong>Bloomberg Euro Aggregate</strong> (microstruttura mensile reale dal 2009,
+      ricostruzione ancorata ai totali annui prima) e oro in EUR (convenzione DEM/EUR-sintetico prima
+      del 1999, la stessa dei principali strumenti di backtest europei); le serie sono state verificate
+      mese per mese contro gli export di riferimento e sugli anni di crisi noti (1973&ndash;74, 1987,
+      2000&ndash;02, 2008, 2020, 2022, e il 2025 reale incluso). Serie storiche reali dedicate anche per:
+      <strong>governativo globale hedged EUR</strong> (dal 1985), <strong>obbligazioni indicizzate
+      all'inflazione</strong> (dal 2005), <strong>aggregato obbligazionario globale hedged</strong> (dal 2018)
+      e <strong>commodities Bloomberg Commodity</strong> (dal 2005), ciascuna con fallback dichiarato prima
+      della propria data di inizio. I fattori azionari (Small Cap Value, Momentum, Value, Quality,
+      Investment, Size) derivano dalla <strong>Kenneth French Data Library</strong>, la Bassa Volatilità dal
+      dataset <strong>AQR Betting Against Beta</strong>, l'Immobiliare Quotato dall'indice
+      <strong>FTSE Nareit All Equity REITs</strong> (dal 1979); convertiti in EUR coi cambi ufficiali
+      BCE/FRED. L'<strong>inflazione</strong> usata per i valori reali &egrave; quella <strong>euro</strong>:
+      CPI Germania fino al 1998 (coerente con la convenzione DEM delle serie pre-euro) e area euro dal
+      1999 (fonte World Bank/Eurostat via FRED) &mdash; non il CPI USA. I dati
       <strong>non provengono da feed su licenza dei fornitori degli indici</strong> e non costituiscono
       una riproduzione ufficiale degli stessi. Per analisi che richiedano dati certificati si rimanda alle
       fonti primarie (<a href="https://www.msci.com" target="_blank" rel="noopener" style="color:var(--blue)">MSCI</a>,
@@ -124,7 +131,7 @@
       <a href="https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html" target="_blank" rel="noopener" style="color:var(--blue)">Kenneth French Data Library</a>,
       <a href="https://www.aqr.com/Insights/Datasets" target="_blank" rel="noopener" style="color:var(--blue)">AQR</a>,
       <a href="https://www.reit.com" target="_blank" rel="noopener" style="color:var(--blue)">Nareit</a>)
-      o a strumenti basati su dati su licenza (es. <a href="https://curvo.eu" target="_blank" rel="noopener" style="color:var(--blue)">Curvo.eu</a>). MSCI, Bloomberg, LBMA, FTSE Nareit e AQR sono marchi dei rispettivi proprietari, citati a solo scopo identificativo delle serie di riferimento; nessuna affiliazione o sponsorizzazione è implicita.
+      o a strumenti basati su dati su licenza (es. <a href="https://curvo.eu" target="_blank" rel="noopener" style="color:var(--blue)">Curvo.eu</a>). MSCI, Bloomberg, LBMA, FTSE Nareit e AQR sono marchi dei rispettivi proprietari, citati a solo scopo identificativo delle serie di riferimento; nessuna affiliazione o sponsorizzazione &egrave; implicita.
     </div>
     <div class="footer-links">
       <button onclick="showView('privacy')" class="footer-link-btn">🔒 Privacy Policy</button>

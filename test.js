@@ -116,7 +116,7 @@ function suiteData() {
   const HM = global.HIST_MONTHLY, cal = global.calibrateHistRow;
   const N = HM.length, idx = y => (y - 1970) * 12;
 
-  ok(N === 660, 'Lunghezza serie = 660 mesi (55 anni)', 'trovati ' + N);
+  ok(N === 672, 'Lunghezza serie = 672 mesi (56 anni, 1970-2025)', 'trovati ' + N);
 
   // 1.a Accuratezza vs serie reali EUR (MSCI World Net / Euro Agg / oro EUR)
   // Equity: serie World interamente REALE mese per mese (1970-2000: MSCI World Net EUR
@@ -554,9 +554,9 @@ function suiteFactors() {
 
   // 7.i Emergenti: colonna indipendente con offset 216 (1988-01) e fallback pre-1988
   if (global.emReturnAt && global.HIST_EM) {
-    ok(global.HIST_EM.length === 444, 'EM: serie 444 mesi (1988-01→2024)', String(global.HIST_EM.length));
+    ok(global.HIST_EM.length === 456, 'EM: serie 456 mesi (1988-01→2025)', String(global.HIST_EM.length));
     ok(global.emReturnAt(215) === null && global.emReturnAt(216) !== null, 'EM: offset 216 corretto (null a 215, dato a 216)');
-    ok(global.emReturnAt(660) === null, 'EM: null oltre il range (2024-12 = idx 659)');
+    ok(global.emReturnAt(672) === null, 'EM: null oltre il range (2025-12 = idx 671)');
     // Fallback pre-1989: la quota EM usa il mercato dove non c'è dato
     const rowPre = cal(H[150]);
     const emPre = global.eqReturnWithFactors(1, rowPre[0], 150, {emW:1});
@@ -573,14 +573,43 @@ function suiteFactors() {
   try {
     loadConst(SRC.amc, /const HIST_GOV_GLOBAL = \[[\s\S]*?\];/);
     const GG = global.HIST_GOV_GLOBAL;
-    ok(GG.length === 660, 'GovGlob: array 660 slot (null pre-1985)', String(GG.length));
+    ok(GG.length === 672, 'GovGlob: array 672 slot (null pre-1985)', String(GG.length));
     ok(GG[180] === null && typeof GG[181] === 'number', 'GovGlob: dati reali da idx 181 (1985-02)');
-    let cGG=1, nGG=0; for(let i=181;i<660;i++){ cGG*=(1+GG[i]); nGG++; }
+    let cGG=1, nGG=0; for(let i=181;i<GG.length;i++){ cGG*=(1+GG[i]); nGG++; }
     const cagrGG = Math.pow(cGG,12/nGG)-1;
-    ok(cagrGG > 0.03 && cagrGG < 0.08, 'GovGlob: CAGR 1985-2024 3-8%/a', (cagrGG*100).toFixed(2)+'%');
+    ok(cagrGG > 0.03 && cagrGG < 0.08, 'GovGlob: CAGR 1985-2025 3-8%/a', (cagrGG*100).toFixed(2)+'%');
     let y22=1; for(let i=624;i<636;i++) y22*=(1+GG[i]);
     ok(y22-1 < -0.08, 'GovGlob: bear 2022 reale (peggio di -8%)', ((y22-1)*100).toFixed(1)+'%');
   } catch(e){ warn('GovGlob: serie non caricata'); }
+
+  // 7.k Inflation-Linked e Aggregato Globale hedged: serie dedicate reali (FIX ter)
+  try {
+    loadConst(SRC.amc, /const HIST_INFL_LINKED = \[[\s\S]*?\];/);
+    loadConst(SRC.amc, /const HIST_AGG_GLOBAL = \[[\s\S]*?\];/);
+    const IL = global.HIST_INFL_LINKED, AG = global.HIST_AGG_GLOBAL;
+    ok(IL.length === 672 && IL[430] === null && typeof IL[431] === 'number', 'InflLinked: dati reali da idx 431 (2005-12)');
+    let y08=1; for(let i=456;i<468;i++) y08*=(1+IL[i]);
+    ok(y08-1 > 0, 'InflLinked: 2008 positivo (i linker tennero)', ((y08-1)*100).toFixed(1)+'%');
+    let il22=1; for(let i=624;i<636;i++) il22*=(1+IL[i]);
+    ok(il22-1 < -0.03, 'InflLinked: 2022 negativo reale', ((il22-1)*100).toFixed(1)+'%');
+    ok(AG.length === 672 && AG[574] === null && typeof AG[575] === 'number', 'AggGlobal: dati reali da idx 575 (2017-12)');
+    let ag22=1; for(let i=624;i<636;i++) ag22*=(1+AG[i]);
+    ok(ag22-1 < -0.10, 'AggGlobal: bear 2022 reale (peggio di -10%)', ((ag22-1)*100).toFixed(1)+'%');
+  } catch(e){ warn('InflLinked/AggGlobal: serie non caricate'); }
+
+  // 7.l Commodities: serie reale Bloomberg Commodity EUR dal 2005-04 (offset 423)
+  try {
+    loadConst(SRC.amc, /const HIST_COMMODITIES = \[[\s\S]*?\];/);
+    loadFn(SRC.amc, 'commReturnAt');
+    global.COMM_START = 423;
+    const CO = global.HIST_COMMODITIES;
+    ok(CO.length === 249, 'Commodities: serie 249 mesi (2005-04→2025)', String(CO.length));
+    ok(global.commReturnAt(422) === null && global.commReturnAt(423) !== null, 'Commodities: offset 423 corretto');
+    let c22=1; for(let i=624-423;i<636-423;i++) c22*=(1+CO[i]);
+    ok(c22-1 > 0.15, 'Commodities: 2022 fortemente positivo (protezione inflazione reale)', ((c22-1)*100).toFixed(1)+'%');
+    let c08=1; for(let i=456-423;i<468-423;i++) c08*=(1+CO[i]);
+    ok(c08-1 < -0.20, 'Commodities: crash 2008 reale', ((c08-1)*100).toFixed(1)+'%');
+  } catch(e){ warn('Commodities: serie non caricata'); }
 }
 
 // ════════════════════════════════════════════════════════════════════════

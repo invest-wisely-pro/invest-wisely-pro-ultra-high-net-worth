@@ -2587,6 +2587,7 @@ const _ROLL_ASSETS = [
   { key: 'gold',  label: 'Oro',           col: 2 },
   { key: 'reits', label: 'REITs',         series: 'reits' },
   { key: 'em',    label: 'Emergenti',     series: 'em' },
+  { key: 'comm',  label: 'Commodities',   series: 'comm' },
 ];
 function _rollAssetSeries(a) {
   const H = HIST_MONTHLY, N = H.length, out = new Array(N);
@@ -2597,6 +2598,8 @@ function _rollAssetSeries(a) {
       const i = idx - REITS_START; out[idx] = (i >= 0 && i < HIST_REITS.length) ? HIST_REITS[i] : mkt;
     } else if (a.series === 'em' && typeof HIST_EM !== 'undefined' && typeof EM_START !== 'undefined') {
       const i = idx - EM_START; out[idx] = (i >= 0 && i < HIST_EM.length) ? HIST_EM[i] : mkt;
+    } else if (a.series === 'comm' && typeof HIST_COMMODITIES !== 'undefined' && typeof COMM_START !== 'undefined') {
+      const i = idx - COMM_START; out[idx] = (i >= 0 && i < HIST_COMMODITIES.length) ? HIST_COMMODITIES[i] : mkt;
     } else { out[idx] = mkt; }
   }
   return out;
@@ -2605,6 +2608,7 @@ function _rollAssetSeries(a) {
 function _rollAssetStart(a) {
   if (a.series === 'reits' && typeof REITS_START !== 'undefined') return REITS_START;
   if (a.series === 'em' && typeof EM_START !== 'undefined') return EM_START;
+  if (a.series === 'comm' && typeof COMM_START !== 'undefined') return COMM_START;
   return 0;
 }
 function _rollingCorrPair(sa, sb, win, fromIdx) {
