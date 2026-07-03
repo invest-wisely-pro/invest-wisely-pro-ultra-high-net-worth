@@ -422,7 +422,15 @@ function getCurrentPortfolioPoint(ter) {
   // Forward/Storico — invece di usare PORT.normal/PORT.vol congelati (che davano
   // sempre lo stesso Sharpe, scollegato dalla scheda Optimizer).
   if (key !== 'custom') {
-    const comp = PRESET_COMPOSITION[key];
+    let comp = PRESET_COMPOSITION[key];
+    // FIX 2026-07-04: lifecycle non è in PRESET_COMPOSITION (pesi dipendenti dall'età)
+    // e prima cadeva sul fallback PORT (privo di vol/normal statici) → punto null,
+    // nessun ▲ sul grafico EF. Ora la composizione è costruita all'età corrente,
+    // in coerenza con _portfolioToAssetClasses() della scheda Fattori.
+    if (!comp && key === 'lifecycle') {
+      const eW = typeof getLCWeight === 'function' ? getLCWeight(state.age) : 0.5;
+      comp = { eq_sviluppati: eW, ob_glob_agg: 1 - eW };
+    }
     if (comp) {
       const keys = Object.keys(comp);
       const rawW = keys.map(k => comp[k]);
@@ -1562,7 +1570,7 @@ function _renderFactorView() {
       RMW=${(FACTOR_PREMIA.RMW*100).toFixed(1)}% ·
       CMA=${(FACTOR_PREMIA.CMA*100).toFixed(1)}% ·
       MOM=${(FACTOR_PREMIA.MOM*100).toFixed(1)}%
-      <br><span style="font-size:11px">Calibrati su Fama-French Data Library 1970-2024, scontati per affollamento post-pubblicazione e mean-reversion.</span>
+      <br><span style="font-size:11px">Calibrati su Fama-French Data Library 1970-2025, scontati per affollamento post-pubblicazione e mean-reversion.</span>
     </div>
 
     <!-- Note interpretative -->
@@ -2011,7 +2019,7 @@ function _renderOptimizerView() {
             <button class="gbtn ${_optState.returnBasis === 'historical' ? 'a-blue' : ''}"
               onclick="optSetReturnBasis('historical')" style="flex:1;padding:8px;font-size:11.5px">
               <strong>Storici</strong>
-              <div style="font-size:10px;color:var(--text3);font-weight:400;margin-top:2px">CAGR 1970-2024</div>
+              <div style="font-size:10px;color:var(--text3);font-weight:400;margin-top:2px">CAGR 1970-2025</div>
             </button>
           </div>
           <div style="font-size:10.5px;color:var(--text3);margin-top:6px;line-height:1.5">
@@ -2033,7 +2041,7 @@ function _renderOptimizerView() {
     <div id="optResultContainer"></div>
 
     <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:14px;margin-top:16px;font-size:12px;color:var(--text3);line-height:1.7">
-      <strong>Metodologia:</strong> 8.000 portafogli casuali Dirichlet che rispettano i vincoli, seguiti da 300 iterazioni di local search adattiva (random perturbation greedy). Per Risk Parity: iterazione fixed-point con damping 0.5 e proiezione sui vincoli (max 300 iter). Rendimenti attesi e covarianze basati su dati storici 1970-2024 calibrati. Il risultato è ottimale dato il modello statistico — la realtà può differire (instabilità di Markowitz, errore di stima sui rendimenti attesi).
+      <strong>Metodologia:</strong> 8.000 portafogli casuali Dirichlet che rispettano i vincoli, seguiti da 300 iterazioni di local search adattiva (random perturbation greedy). Per Risk Parity: iterazione fixed-point con damping 0.5 e proiezione sui vincoli (max 300 iter). Rendimenti attesi e covarianze basati su dati storici 1970-2025 calibrati. Il risultato è ottimale dato il modello statistico — la realtà può differire (instabilità di Markowitz, errore di stima sui rendimenti attesi).
     </div>
   `;
 
@@ -2651,7 +2659,7 @@ function _rollingCorrSectionHTML() {
     `<button class="gbtn corr-roll-btn${k === _rollPreset ? ' active' : ''}" onclick="_setRollPreset('${k}')">${v.label}</button>`).join('');
   return `
     <div class="sec-label" data-info-id="info-quant-rollcorr" style="margin-top:24px;margin-bottom:8px"><svg class="sec-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-6 6-4-4-4 4"/></svg>Correlazione Rolling 36 mesi — quando gli asset smettono di proteggersi</div>
-    <div class="info-box" style="margin-bottom:12px">La correlazione storica non è fissa: cambia nel tempo. Questo grafico mostra la correlazione mobile a 36 mesi tra le serie macro reali (Azioni, Obbligazioni, Oro, REITs, Emergenti — dati 1970–2024 in EUR). Quando la linea <strong>Azioni ↔ Obbligazioni</strong> sale sopra lo zero (come nel 2022), significa che azioni e bond scendono <em>insieme</em>: la diversificazione tradizionale smette di funzionare.</div>
+    <div class="info-box" style="margin-bottom:12px">La correlazione storica non è fissa: cambia nel tempo. Questo grafico mostra la correlazione mobile a 36 mesi tra le serie macro reali (Azioni, Obbligazioni, Oro, REITs, Emergenti — dati 1970–2025 in EUR). Quando la linea <strong>Azioni ↔ Obbligazioni</strong> sale sopra lo zero (come nel 2022), significa che azioni e bond scendono <em>insieme</em>: la diversificazione tradizionale smette di funzionare.</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${opts}</div>
     <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:6px"><div style="position:relative;height:300px"><canvas id="quantRollCorrChart"></canvas></div></div>
     <div class="corr-disclaimer">&#8505;&#65039; Correlazioni mobili calcolate sulle serie storiche reali in EUR (MSCI World, Bloomberg Euro Agg, oro LBMA, FTSE NAREIT REITs dal 1979, Fama-French Emerging Markets dal 1989). I fattori di stile (Value, Momentum...) non sono inclusi perché come asset investibili sono dominati dal mercato comune — la loro decorrelazione è mostrata nella matrice statica sopra. A scopo informativo e divulgativo, non costituisce raccomandazione di investimento.</div>`;

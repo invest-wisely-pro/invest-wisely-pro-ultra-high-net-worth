@@ -1518,7 +1518,15 @@ function project(scenario, withSeq, terOverride = null, portOverride = null) {
     } else {
       crRate = 0;
     }
-    const cuf = acw > 0 ? Math.pow(Math.pow(1 / (1 + eqCR * severityFactor), 1 / RECOVERY_YEARS), RECOVERY_CATCHUP) : 1;
+    // FIX 2026-07-04: il catch-up di recovery era calcolato sul crash EQUITY PIENO
+    // (eqCR*sf) qualunque fosse il mix: per portafogli a bassa quota azionaria il
+    // danno effettivo (crRate, attenuato da difensivi in rally) era piccolo ma il
+    // rimbalzo quinquennale restava dimensionato sul -20/-35/-50% pieno → per
+    // eq30/GB/All-Seasons un crash 'severe' finiva MEGLIO di uno 'mild' (monotonia
+    // severita' invertita). Ora il portafoglio recupera la frazione RECOVERY_CATCHUP
+    // del danno che HA SUBITO (crRate mix-aware); se crRate>=0 (quota difensiva in
+    // rally domina) non c'e' nulla da recuperare -> cuf=1.
+    const cuf = (acw > 0 && crRate < 0) ? Math.pow(Math.pow(1 / (1 + crRate), 1 / RECOVERY_YEARS), RECOVERY_CATCHUP) : 1;
     crashMap[cy] = { rate: crRate, cuf, acw, severityFactor };
   });
 
@@ -1546,11 +1554,12 @@ function project(scenario, withSeq, terOverride = null, portOverride = null) {
       r = crashInfo.rate - dynPenalty;
     } else if (inRecovery) {
       const cy = inRecovery;
+      // FIX 2026-07-04: cuf ora e' mix-aware (v. costruzione crashMap) -> il rimbalzo
+      // si applica all'intero portafoglio; baseR e' gia' scenario- e mix-dipendente.
+      // Il vecchio split eq/ob applicava il catch-up equity pieno alla quota azionaria,
+      // sovradimensionando il rimbalzo dei portafogli bilanciati.
       const baseR = getRate(portKey, scenario, y, age);
-      const rebEqR = (1 + baseR) * crashMap[cy].cuf - 1;
-      const cEqW = getEquityWeight(portKey, age + y);
-      const rebObR = scenario === 'best' ? .04 : scenario === 'normal' ? .03 : .01;
-      r = rebEqR * cEqW + rebObR * (1 - cEqW);
+      r = (1 + baseR) * crashMap[cy].cuf - 1;
       isRebound = true;
     } else {
       r = getRate(portKey, scenario, y, age);
@@ -1644,7 +1653,7 @@ function runMontecarlo() {
   const acw = crashYear > 0 ? getEquityWeight(portfolio, age + crashYear) : 0;
   const eqCR = SEQ_RATES[seq.severity] ?? -0.35;
   const acr = eqCR * acw + BOND_RALLY_RATE * (1 - acw);
-  const cuf = acw > 0 ? Math.pow(Math.pow(1 / (1 + eqCR), 1 / RECOVERY_YEARS), RECOVERY_CATCHUP) : 1;
+  const cuf = (acw > 0 && acr < 0) ? Math.pow(Math.pow(1 / (1 + acr), 1 / RECOVERY_YEARS), RECOVERY_CATCHUP) : 1; // FIX 2026-07-04: mix-aware (v. project)
   
   // Build crash map for multi-crash
   const crashMap = {};
@@ -1661,7 +1670,7 @@ function runMontecarlo() {
       + sev2 * CRASH_BETA.commCarry * (cwCat.commCarryW || 0)
       + sev2 * CRASH_BETA.trend     * cwCat.trendW
       + BOND_RALLY_RATE             * cwCat.defensive;
-    const cuf2 = cw2 > 0 ? Math.pow(Math.pow(1 / (1 + eqCR * sf), 1 / RECOVERY_YEARS), RECOVERY_CATCHUP) : 1;
+    const cuf2 = (cw2 > 0 && cr2 < 0) ? Math.pow(Math.pow(1 / (1 + cr2), 1 / RECOVERY_YEARS), RECOVERY_CATCHUP) : 1; // FIX 2026-07-04: mix-aware (v. project)
     crashMap[cy] = { rate: cr2, cuf: cuf2, acw: cw2, sf };
   });
 
@@ -1685,19 +1694,11 @@ function runMontecarlo() {
         const cy = inRecovery;
         // FIX #S1: usa getRate() per il rendimento corretto del portafoglio scelto
         // invece del 7% hardcoded — coerente con project() deterministico
+        // FIX 2026-07-04: cuf mix-aware applicato all'intero portafoglio (coerente
+        // con project); sostituisce lo split eq/ob (FIX #S1/#MC1) che sovradimensionava
+        // il rimbalzo dei bilanciati e invertiva la monotonia di severita'.
         const baseR = getRate(portfolio, 'normal', y, age);
-        const boR   = (1 + baseR) * crashMap[cy].cuf - 1;
-        const cEqW  = getEquityWeight(portfolio, curAge);
-        // Rendimento bond in recovery: derivato dal rendimento base del portafoglio.
-        // FIX #MC1: clamp bidirezionale [-5%, +15%] per evitare valori anomali
-        // quando cEqW → 0 (portafogli quasi-obbligazionari: divisione per valore piccolo)
-        // o quando baseR è negativo in scenario pessimistico.
-        // Se cEqW = 0 (ob100) → usa baseR direttamente come rebObR.
-        const obBaseR = cEqW > 0.01
-          ? Math.max(-0.05, Math.min(0.15, baseR * (1 - cEqW) / cEqW))
-          : baseR;
-        const rebObR  = obBaseR;
-        r = boR * cEqW + rebObR * (1 - cEqW);
+        r = (1 + baseR) * crashMap[cy].cuf - 1;
       } else {
         // Gaussiano log-normale corretto: per ottenere CAGR medio = μ_geometrico
         // occorre campionare dalla media ARITMETICA = μ + σ²/2 (correzione di Itō).
@@ -4852,8 +4853,13 @@ async function generatePDF() {
       doc.setTextColor(0, 0, 0);
     };
     const chkPB = (n = 18) => { if (y + n > 275) { doc.addPage(); pN++; y = 20; miniHdr(); } };
+    const _secPages = []; // [titolo, pagina] di ogni sezione — per l'indice two-pass
     const sHdr = (t, col = BLU) => {
-      chkPB(14); doc.setFillColor(...col); doc.rect(ML, y, CW, 7.5, 'F');
+      chkPB(14);
+      // pagina REALE dal motore jsPDF: il contatore manuale pN va fuori sincrono
+      // quando autoTable inserisce page-break automatici nelle tabelle lunghe
+      _secPages.push({ t: String(t), p: (doc.internal.getCurrentPageInfo ? doc.internal.getCurrentPageInfo().pageNumber : pN) });
+      doc.setFillColor(...col); doc.rect(ML, y, CW, 7.5, 'F');
       doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...WHT);
       doc.text(pdfSafe(String(t)).toUpperCase(), ML + 3, y + 5.3); y += 11;
       doc.setTextColor(0, 0, 0);
@@ -4954,34 +4960,24 @@ async function generatePDF() {
       (crossAge ? `Il punto di crossover (rendita netta annua >= PAC) viene raggiunto a ${crossAge} anni.` : `Nell'orizzonte analizzato non si raggiunge il punto di crossover rendita >= PAC.`)
     );
 
-    // Indice del documento
-    subHdr('Indice del Report');
-    const toc = [
-      '1.  Configurazione del Piano',
-      '2.  Metodologia di Calcolo',
-      '3.  Proiezioni Multi-Scenario (Base / Best / Worst)',
-      '4.  Evoluzione Patrimoniale Anno per Anno',
-      '5.  Distribuzione Monte Carlo (1.000 simulazioni)',
-      '5b. A/B Confronto Portafogli',
-      '6.  Scenari Economici Multi-Regime',
-      '7.  Sequence of Returns Risk',
-      '7b. Backtesting Storico — Dati Storici 1970-2025',
-      '7c. Sequence Risk Multiplo — Crash Singolo / Doppio / Triplo',
-      '7d. Stress Test Macro Storici — Path Mensile Ricostruito (6 crisi)',
-      '7e. Piano di Decumulo (Strategia Prelievi)',
-      '8.  Fiscalita, Costi e Erosione Reale',
-      '8b. Analisi Fiscalita IT Comparata (4 Regimi)',
-      ...(window.liveMarketData?.cape_sp500 ? ['8c. Valutazioni Live & Stress Test CAPE (Bogle)'] : []),
-      '9.  Glossario dei Termini Tecnici',
-      '10. Note Legali e Limiti del Modello',
-    ];
-    doc.setFontSize(8.7); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 64, 67);
-    toc.forEach(l => { chkPB(5); doc.text(pdfSafe(l), ML + 4, y); y += 4.6; });
-    doc.setTextColor(0,0,0); y += 2;
+    // FIX 2026-07-04: l'indice statico era disallineato dalle sezioni reali (voci 7e/8c
+    // errate, 5c/8c/8d/8g assenti). Ora l'indice e' generato a fine documento (pagina 2,
+    // two-pass via insertPage) dai titoli REALI registrati da sHdr, con numeri di pagina:
+    // coerenza garantita per costruzione anche quando le sezioni condizionali cambiano.
+    doc.setFontSize(8.7); doc.setFont('helvetica', 'italic'); doc.setTextColor(95, 99, 104);
+    doc.text(pdfSafe('Indice completo del report a pagina 2.'), ML, y); y += 6;
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(0,0,0);
 
     callout('AVVISO LEGALE',
       'Documento a finalita esclusivamente informative ed educative. Non costituisce consulenza finanziaria, fiscale o legale, ne sollecitazione all\'investimento. Le proiezioni sono basate su ipotesi semplificate e NON garantiscono rendimenti futuri. I rendimenti passati non sono indicativi di quelli futuri. Prima di qualsiasi decisione, consulta un consulente finanziario indipendente abilitato.',
       ORG
+    );
+
+    callout('COME LEGGERE QUESTO REPORT (3 regole)',
+      '1) Il numero che conta e\' il VALORE REALE NETTO (potere d\'acquisto di oggi, dopo tasse e inflazione), non il nominale lordo che appare piu\' grande. ' +
+      '2) Il futuro non e\' un numero ma un intervallo: la forchetta Monte Carlo p10-p90 (sez. 5) misura l\'incertezza, e nessuno scenario e\' una previsione. ' +
+      '3) Se leggi una sola pagina, leggi la \'Lettura Ragionata dei Tuoi Risultati\' in fondo al report: interpreta questi numeri in linguaggio semplice, e il Glossario (sez. 9) spiega ogni termine tecnico.',
+      TEAL
     );
 
     // ─────────── 1. CONFIGURAZIONE ───────────
@@ -5460,11 +5456,11 @@ async function generatePDF() {
     );
 
     // ─────────── 7d. STRESS TEST MACRO STORICI ───────────
-    sHdr('7d \u2014 Stress Test Macro Storici \u2014 Path Mensile Ricostruito', [183, 28, 28]);
+    sHdr('7d \u2014 Stress Test Macro Storici \u2014 Path Mensile Reale (6 crisi)', [183, 28, 28]);
     narrative(
       'Simulazione del percorso mensile preciso del portafoglio attuale durante le 6 principali crisi macro 1970-2025, sulle serie mensili reali degli indici. ' +
       'A differenza del backtesting PAC (piani con versamenti), questa analisi usa uno snapshot del capitale iniziale senza contributi aggiuntivi. ' +
-      'I rendimenti mensili provengono da HIST_MONTHLY (ancorati a MSCI World Net EUR, Bloomberg Euro Aggregate, oro LBMA in EUR). TER applicato mensilmente. ' +
+      'I rendimenti mensili sono le serie reali degli indici in EUR (MSCI World Net, Bloomberg Euro Aggregate, oro), mese per mese. TER applicato mensilmente. ' +
       'I pesi sono quelli attuali: Az.' + Math.round(getEquityWeight(btPortKeyPDF, age)*100) + '% ' +
       'Ob.' + Math.round(Math.max(0, 1 - getEquityWeight(btPortKeyPDF,age) - getGoldWeight(btPortKeyPDF) - getCashWeight(btPortKeyPDF))*100) + '% ' +
       'Au.' + Math.round(getGoldWeight(btPortKeyPDF)*100) + '% ' +
@@ -6230,6 +6226,31 @@ async function generatePDF() {
     doc.setFontSize(7.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(...GRAY);
     doc.text(pdfSafe(`Report generato da Suite Patrimoniale Pro v3 — ${new Date().toISOString().slice(0, 10)} — Pagine totali: ${pN}`), ML, Math.min(y, 285));
 
+    // ── Indice reale two-pass (pagina 2) + numerazione pagine ──────────────
+    doc.insertPage(2); doc.setPage(2);
+    let _ty = 24;
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(...DARK);
+    doc.text('Indice del Report', ML, _ty); _ty += 3;
+    doc.setDrawColor(...BLU); doc.setLineWidth(0.5); doc.line(ML, _ty, ML + 42, _ty); _ty += 7;
+    doc.setFontSize(8.7); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 64, 67);
+    _secPages.forEach(sec => {
+      if (_ty > 278) return; // guardia: l'indice resta in una pagina
+      const pg = sec.p >= 2 ? sec.p + 1 : sec.p; // insertPage(2) shifta le pagine successive
+      const lbl = pdfSafe(sec.t);
+      doc.text(lbl, ML + 2, _ty);
+      doc.text(String(pg), ML + CW - 2, _ty, { align: 'right' });
+      const _x0 = ML + 4 + doc.getTextWidth(lbl), _x1 = ML + CW - 9;
+      if (_x1 > _x0) { doc.setLineDashPattern([0.4, 1.3], 0); doc.setDrawColor(185, 190, 195); doc.setLineWidth(0.2); doc.line(_x0, _ty - 1, _x1, _ty - 1); doc.setLineDashPattern([], 0); }
+      _ty += 5.1;
+    });
+    doc.setTextColor(0, 0, 0); doc.setDrawColor(0);
+    const _totP = doc.getNumberOfPages();
+    for (let _i = 1; _i <= _totP; _i++) {
+      doc.setPage(_i);
+      doc.setFontSize(7.3); doc.setFont('helvetica', 'normal'); doc.setTextColor(150, 153, 156);
+      doc.text('Pagina ' + _i + ' di ' + _totP, ML + CW, 291.5, { align: 'right' });
+    }
+    doc.setTextColor(0, 0, 0);
     doc.save(`report-patrimoniale-pro-${age}-${endAge}anni.pdf`);
     btn.textContent = '✅ Scaricato!';
     setTimeout(() => { btn.textContent = '📄 Scarica Report PDF'; btn.disabled = false; }, 3000);

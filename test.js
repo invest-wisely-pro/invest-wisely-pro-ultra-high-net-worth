@@ -610,6 +610,16 @@ function suiteFactors() {
     let c08=1; for(let i=456-423;i<468-423;i++) c08*=(1+CO[i]);
     ok(c08-1 < -0.20, 'Commodities: crash 2008 reale', ((c08-1)*100).toFixed(1)+'%');
   } catch(e){ warn('Commodities: serie non caricata'); }
+
+  // 7.m Coefficienti trasformazione INPS = DM 20-22/11/2024 (biennio 2025-26)
+  try {
+    const penSrc = fs.readFileSync(path.join(__dirname, 'pensione.js'), 'utf8');
+    eval(penSrc.match(/const COEFF_TRASF = \{[\s\S]*?\};/)[0].replace('const ','global.'));
+    const OFF_DM = {57:0.04204,58:0.04308,59:0.04419,60:0.04536,61:0.04661,62:0.04795,63:0.04936,64:0.05088,65:0.05250,66:0.05423,67:0.05608,68:0.05808,69:0.06024,70:0.06258,71:0.06510};
+    let allC = true;
+    for (const a in OFF_DM) if (Math.abs(global.COEFF_TRASF[a] - OFF_DM[a]) > 1e-9) allC = false;
+    ok(allC, 'INPS: 15 coefficienti trasformazione = tabella ufficiale DM biennio 2025-26');
+  } catch(e){ warn('INPS coeff: non verificabili — ' + e.message.slice(0,40)); }
 }
 
 // ════════════════════════════════════════════════════════════════════════

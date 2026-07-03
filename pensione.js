@@ -39,6 +39,12 @@ let chartPenFisc = null;
 let chartRispFisc = null;
 
 // ── Coefficienti di trasformazione INPS — biennio 2025/2026 ──
+// FIX 2026-07-04: verificati TUTTI i 15 valori contro il DM Lavoro/MEF 20-22
+// novembre 2024 (n. 436/2024, revisione biennale ex L.335/1995 Tab.A): le età
+// 68/69/70 riportavano 5.821/6.042/6.272 (valori errati); i valori ufficiali
+// sono 5.808/6.024/6.258, coerenti col reciproco dei divisori del decreto
+// (1/17.218, 1/16.600, 1/15.980). Gli altri 12 valori erano già esatti.
+// Vigente a lug 2026: il decreto del biennio 2027-28 arriverà a fine 2026.
 // Fonte: DM 436/2024 (Min. Lavoro, 20/11/2024), in vigore dal 1°/1/2025.
 // Valori ufficiali verificati per le età 57-67 e 71. Le età 68-69-70
 // (assenti nelle fonti testuali consultate) sono interpolate
@@ -47,8 +53,8 @@ let chartRispFisc = null;
 const COEFF_TRASF = {
   57: 0.04204, 58: 0.04308, 59: 0.04419, 60: 0.04536,
   61: 0.04661, 62: 0.04795, 63: 0.04936, 64: 0.05088,
-  65: 0.05250, 66: 0.05423, 67: 0.05608, 68: 0.05821,
-  69: 0.06042, 70: 0.06272, 71: 0.06510,
+  65: 0.05250, 66: 0.05423, 67: 0.05608, 68: 0.05808,
+  69: 0.06024, 70: 0.06258, 71: 0.06510,
 };
 
 function getCoeffTrasf(age) {
@@ -358,7 +364,14 @@ function calcPensione() {
 }
 
 // ── IRPEF scaglioni 2025 ──────────────────────────────────────
-function calcIRPEF(reddito) {
+// FIX 2026-07-04: la detrazione usata era una formula da LAVORO DIPENDENTE
+// (1955+1190x(55000-R)/47000): per una pensione di 28k dava 2.639 euro di
+// detrazione contro i 700 della detrazione REDDITI DA PENSIONE (art.13 c.3
+// TUIR, vigente 2025-26) -> pensione netta gonfiata fino a ~2k/anno.
+// Ora: detrazione pensionati corretta (no-tax area ~8.500) e parametro 'detr'
+// perche' l'aliquota media per la tassazione separata del TFR va calcolata
+// per legge sugli scaglioni SENZA detrazioni.
+function calcIRPEF(reddito, detr = 'pensione') {
   const scaglioni = [
     { max: 28000,    aliq: 0.23 },
     { max: 50000,    aliq: 0.35 },
@@ -370,7 +383,13 @@ function calcIRPEF(reddito) {
     imposta += (Math.min(reddito, max) - prev) * aliq;
     prev = max;
   }
-  const detrazione = reddito <= 8000 ? reddito : reddito <= 55000 ? Math.max(0, 1955 + 1190 * (55000 - reddito) / 47000) : 0;
+  let detrazione = 0;
+  if (detr === 'pensione') {
+    detrazione = reddito <= 8500 ? 1955
+      : reddito <= 28000 ? 700 + 1255 * (28000 - reddito) / 19500
+      : reddito <= 50000 ? 700 * (50000 - reddito) / 22000
+      : 0;
+  }
   return Math.max(0, imposta - detrazione);
 }
 
@@ -794,7 +813,7 @@ function renderPenFiscComp(r) {
   if (tfrAnnuoMedio > 0) {
     const revAzienda = 0.015 + 0.75 * penState.infl;          // rivalutazione legale TFR
     // Aliquota media IRPEF per tassazione separata (proxy: IRPEF media sulla RAL)
-    const aliqMediaTFR = Math.min(0.43, Math.max(0.23, calcIRPEF(penState.ral) / penState.ral));
+    const aliqMediaTFR = Math.min(0.43, Math.max(0.23, calcIRPEF(penState.ral, 'nessuna') / penState.ral)); // tassazione separata TFR: aliquota media SENZA detrazioni
     let capTfrAzienda = 0, capTfrFondo = 0;
     for (let y = 0; y < yearsToRet; y++) {
       capTfrAzienda = capTfrAzienda * (1 + revAzienda)     + tfrAnnuoMedio;
