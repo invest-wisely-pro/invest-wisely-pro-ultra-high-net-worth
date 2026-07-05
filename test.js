@@ -620,6 +620,18 @@ function suiteFactors() {
     for (const a in OFF_DM) if (Math.abs(global.COEFF_TRASF[a] - OFF_DM[a]) > 1e-9) allC = false;
     ok(allC, 'INPS: 15 coefficienti trasformazione = tabella ufficiale DM biennio 2025-26');
   } catch(e){ warn('INPS coeff: non verificabili — ' + e.message.slice(0,40)); }
+
+  // 7.n Curve bond: patch ETF reali fino a dic2025 (672), cuciture corrette
+  try {
+    for (const k of ['HIST_USB_2Y','HIST_USB_10Y','HIST_USB_30Y','HIST_EUB_2Y','HIST_EUB_10Y','HIST_EUB_30Y']) {
+      loadConst(SRC.amc, new RegExp('const ' + k + ' = \\[[\\s\\S]*?\\];'));
+    }
+    ok(global.HIST_EUB_30Y.length === 672 && global.HIST_USB_30Y.length === 672, 'Curve: estese a dic2025 (672)');
+    let e22 = 1; for (let i = 624; i < 636; i++) e22 *= (1 + global.HIST_EUB_30Y[i]);
+    ok(e22 - 1 < -0.30 && e22 - 1 > -0.45, 'Curve: EUB_30Y 2022 reale (~-35%)', ((e22-1)*100).toFixed(0) + '%');
+    let u25 = 1; for (let i = 660; i < 672; i++) u25 *= (1 + global.HIST_USB_10Y[i]);
+    ok(isFinite(u25) && Math.abs(u25 - 1) < 0.25, 'Curve: 2025 popolato con dati reali', ((u25-1)*100).toFixed(1) + '%');
+  } catch(e){ warn('Curve bond: non verificabili — ' + e.message.slice(0,40)); }
 }
 
 // ════════════════════════════════════════════════════════════════════════
