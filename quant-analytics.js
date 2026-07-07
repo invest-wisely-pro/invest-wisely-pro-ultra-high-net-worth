@@ -5,7 +5,7 @@
 
 // ════════════════════════════════════════════════════════════════════════════
 // 1. MATRICE DI CORRELAZIONE STORICA
-// Calibrata su dati mensili 1970-2024. Fonte: DMS Yearbook 2024,
+// Calibrata su dati mensili 1970-2025. Fonte: DMS Yearbook 2024,
 // Federal Reserve FRED, letteratura accademica.
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -38,7 +38,7 @@ const AC_CAT_EF = {
   gold:'real', commodities:'real', cash:'cash',
 };
 
-// Correlazione BASE tra categorie (calibrata su dati mensili 1970-2024 e
+// Correlazione BASE tra categorie (calibrata su dati mensili 1970-2025 e
 // letteratura). Simmetrica: l'ordine delle chiavi non conta (gestito in lookup).
 const CAT_CORR_BASE = {
   'eq|eq':0.75, 'eq|fat':0.78, 'eq|carry':0.12, 'eq|trend':-0.05,
@@ -894,8 +894,16 @@ function lerp(a,b,t) { return a+(b-a)*t; }
 function _updateFrontierStats(curr, maxS, minV) {
   const el = document.getElementById('quantFrontierStats');
   if (!el) return;
-  const fmt = v => v != null ? (v*100).toFixed(1)+'%' : '—';
-  const fmtS = v => v != null ? v.toFixed(2) : '—';
+  // FIX 2026-07-04: precisione adattiva. Se Max Sharpe e Min Varianza sono vicini
+  // (asset molto correlati o universo difensivo), arrotondare a 1 decimale li faceva
+  // apparire IDENTICI (es. 4,48% e 4,27% → entrambi "4,4%"; Sharpe 0,705 e 0,662 →
+  // "0,69") pur essendo due portafogli distinti nel grafico. Ora: quando i punti sono
+  // ravvicinati si mostrano 2 decimali per le percentuali e 3 per lo Sharpe.
+  const _muClose  = (maxS && minV) && Math.abs((maxS.mu||0)-(minV.mu||0)) < 0.005;
+  const _volClose = (maxS && minV) && Math.abs((maxS.vol||0)-(minV.vol||0)) < 0.005;
+  const _shpClose = (maxS && minV) && Math.abs((maxS.sharpe||0)-(minV.sharpe||0)) < 0.05;
+  const fmt  = v => v != null ? (v*100).toFixed(_muClose||_volClose ? 2 : 1)+'%' : '—';
+  const fmtS = v => v != null ? v.toFixed(_shpClose ? 3 : 2) : '—';
   const portLabel = state.portfolio==='custom' ? 'Custom' : (PORT[state.portfolio]?.label||state.portfolio);
 
   el.innerHTML = `
@@ -1185,7 +1193,7 @@ function _populateAssetSelector() {
 // ════════════════════════════════════════════════════════════════════════════
 
 // Premi fattoriali forward-looking annualizzati (decimali, es. 0.055 = 5.5%/a)
-// Calibrati su Fama-French Data Library 1970-2024, scontati per:
+// Calibrati su Fama-French Data Library 1970-2025, scontati per:
 //   - Affollamento post-pubblicazione accademica
 //   - Mean-reversion dei premi di rischio
 // Fonti: Fama-French (1992, 1993, 2015), Carhart (1997), DMS Yearbook 2024
@@ -1200,7 +1208,7 @@ const FACTOR_PREMIA = {
 };
 
 // Loadings fattoriali per asset class — stimati da letteratura accademica
-// e regressioni FF su dati mensili 1970-2024.
+// e regressioni FF su dati mensili 1970-2025.
 const FACTOR_LOADINGS = {
   // ── Azionari plain ──────────────────────────────────────────────────
   eq_sviluppati:   { MKT: 1.00, SMB:  0.05, HML: -0.05, RMW:  0.05, CMA:  0.00, MOM:  0.00 },
@@ -2409,11 +2417,11 @@ function _renderOptCharts(allocRows, rc) {
 // ── Applica portafoglio ottimale al simulatore (custom) ───────────────────
 window.optApplyToSimulator = function() {
   if (!_optState.result) return;
-  // Se l'ottimizzazione è su base STORICA, il rendimento mostrato (CAGR 1970-2024)
+  // Se l'ottimizzazione è su base STORICA, il rendimento mostrato (CAGR 1970-2025)
   // è più alto di quello che userà il Simulatore (forward-looking, più prudente).
   // Avvisiamo l'utente così il calo del rendimento atteso è atteso, non una sorpresa.
   const histWarn = (_optState.returnBasis === 'historical')
-    ? '\n\nNOTA: hai ottimizzato sui rendimenti STORICI (CAGR 1970-2024). Il Simulatore ricalcolerà il portafoglio con i rendimenti FORWARD-LOOKING (più prudenti), quindi il rendimento atteso mostrato sarà più basso di quello dell\'optimizer. I pesi restano identici; cambia solo l\'ipotesi di rendimento, in coerenza con tutto il resto del Simulatore.'
+    ? '\n\nNOTA: hai ottimizzato sui rendimenti STORICI (CAGR 1970-2025). Il Simulatore ricalcolerà il portafoglio con i rendimenti FORWARD-LOOKING (più prudenti), quindi il rendimento atteso mostrato sarà più basso di quello dell\'optimizer. I pesi restano identici; cambia solo l\'ipotesi di rendimento, in coerenza con tutto il resto del Simulatore.'
     : '';
   if (!confirm('Sostituire il portafoglio Custom corrente con l\'allocazione ottimizzata? Questa azione è irreversibile (puoi salvare lo stato attuale prima dal pannello Scenari Salvati).' + histWarn)) return;
   // Costruisci slots custom
@@ -2466,7 +2474,7 @@ function _flashOptToast(msg, type) {
 
 // ══════════════════════════════════════════════════════════════════════════
 // CORRELATION HEATMAP — Matrice di correlazione tra tutte le asset class
-// Legge la CORR_MATRIX già esistente (calibrata su dati 1970-2024, Fama-French).
+// Legge la CORR_MATRIX già esistente (calibrata su dati 1970-2025, Fama-French).
 // Sotto la heatmap: analisi delle correlazioni del PORTAFOGLIO impostato.
 // ══════════════════════════════════════════════════════════════════════════
 function _corrColor(v) {

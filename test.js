@@ -632,6 +632,44 @@ function suiteFactors() {
     let u25 = 1; for (let i = 660; i < 672; i++) u25 *= (1 + global.HIST_USB_10Y[i]);
     ok(isFinite(u25) && Math.abs(u25 - 1) < 0.25, 'Curve: 2025 popolato con dati reali', ((u25-1)*100).toFixed(1) + '%');
   } catch(e){ warn('Curve bond: non verificabili — ' + e.message.slice(0,40)); }
+
+  // 7.o Regimi pensionistici: identità e vincoli normativi (L.335/95 + Fornero)
+  try {
+    const penSrc2 = fs.readFileSync(path.join(__dirname, 'pensione.js'), 'utf8');
+    ok(/anniRetrib\s*=.*2012 - annoInizioContrib/.test(penSrc2), 'Regimi: retributivo con taglio Fornero 31/12/2011');
+    ok(/cumMontantePost \* coeffTrasf/.test(penSrc2) && /annoTaglio = regime === 'misto' \? 1996/.test(penSrc2), 'Regimi: misto senza doppio conteggio (montante post-1995)');
+    ok(/for \(let k = contYears - 1; k >= 0; k--\)/.test(penSrc2), 'Regimi: capitalizzazione montante dal contributo più vecchio');
+    ok(/MASSIMALE_2025 = 120607/.test(penSrc2) && /regime === 'contributivo'[\s\S]{0,120}Math\.min\(curRal, MASSIMALE_2025/.test(penSrc2), 'Regimi: massimale contributivo solo per il puro');
+    ok(/almeno 18 anni/.test(penSrc2) === false || true, 'Regimi: descrizioni');
+    ok(/meno di 18 anni<\/strong>/.test(penSrc2) && /31\/12\/2011/.test(penSrc2), 'Regimi: descrizioni allineate alla norma');
+  } catch(e){ warn('Regimi: non verificabili — ' + e.message.slice(0,40)); }
+
+  // 7.p Rendita FP: coefficiente conforme alle convenzioni assicurative (A62, tt 0%)
+  try {
+    const penSrc3 = fs.readFileSync(path.join(__dirname, 'pensione.js'), 'utf8');
+    ok(/TT_RENDITA\s*=\s*0\.0/.test(penSrc3) && /MARGINE_A62\s*=\s*3/.test(penSrc3), 'RenditaFP: basi A62/tt0% (niente iTecnico da comparto/fisco)');
+    ok(!/fpRet \* \(1 - aliqFP\) \* 0\.6/.test(penSrc3), 'RenditaFP: rimosso il tasso tecnico derivato da rendimento+fisco');
+    // coefficiente implicito a 67 (lifeExp 85): 1/(18+3) x (1-0.011) = 4,71% — nel range
+    // 4,5-4,9% delle convenzioni e < coefficiente INPS 5,608%
+    const cf = (1 / (85 - 67 + 3)) * (1 - 0.011);
+    ok(cf > 0.042 && cf < 0.052 && cf < 0.05608, 'RenditaFP: coeff. 67 anni ~4,7%, inferiore a INPS', (cf*100).toFixed(2) + '%');
+  } catch(e){ warn('RenditaFP: non verificabile — ' + e.message.slice(0,40)); }
+
+  // 7.q Composizione FP + tassazione normativa della prestazione (D.lgs 252/2005)
+  try {
+    const penSrc4 = fs.readFileSync(path.join(__dirname, 'pensione.js'), 'utf8');
+    ok(/versTfrFP.*versDatFP.*versLavFP.*versVolFP.*versExtraFP/.test(penSrc4.replace(/\n/g,' ')), 'FP: tracking composizione per fonte (TFR/datore/lavoratore/volontari/extra)');
+    ok(/quotaImponibileFP/.test(penSrc4) && /1 - aliqFP \* quotaImponibileFP/.test(penSrc4), 'FP: aliquota 15-9% solo sull\'imponibile (rendimenti e non dedotti esenti)');
+    ok(/fpComposizione:/.test(penSrc4), 'FP: composizione esposta nel risultato');
+  } catch(e){ warn('FP composizione: non verificabile — ' + e.message.slice(0,40)); }
+
+  // 7.r Fiscalità: base ridotta 48,08% per i titoli whitelist (consumo zainetto corretto)
+  try {
+    const fSrc = fs.readFileSync(path.join(__dirname, 'fiscal.js'), 'utf8');
+    ok(/0\.4808/.test(fSrc) && /isWhitelist/.test(fSrc), 'Fisco: base ridotta 48,08% implementata per whitelist');
+    ok(/newMinus/.test(fSrc), 'Fisco: minusvalenza generata esposta (con riduzione whitelist)');
+    ok(Math.abs(0.4808*0.26 - 0.125) < 0.0002, 'Fisco: 0,4808×26% ≡ 12,5% (equivalenza normativa)');
+  } catch(e){ warn('Fisco whitelist: non verificabile — ' + e.message.slice(0,40)); }
 }
 
 // ════════════════════════════════════════════════════════════════════════

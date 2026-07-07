@@ -175,7 +175,16 @@ function calcTaxOnSell(sellAmount, currentPrice, lots, method, regime, strumento
 
   const grossGain = sellAmount - costBasis;
   const isGain = grossGain > 0;
-  let taxableGain = Math.max(0, grossGain);
+  // FIX 2026-07-04 — titoli di Stato/whitelist: la via normativa esatta (art. 68 c.7
+  // TUIR + DL 66/2014) e' BASE RIDOTTA al 48,08% tassata al 26% (0,4808×26% = 12,5004%).
+  // Senza zainetto l'imposta e' identica al "12,5% pieno", ma con lo zainetto cambia il
+  // CONSUMO: si compensa la base ridotta, non la plus piena — prima il modello bruciava
+  // quasi il doppio delle minusvalenze del dovuto sulle vendite BTP. Stessa riduzione
+  // per le minus GENERATE da titoli whitelist (entrano in zainetto al 48,08%).
+  const isWhitelist = strumento === 'btp';
+  const aliqCalc = isWhitelist ? 26 : actualAliq;
+  let taxableGain = Math.max(0, grossGain) * (isWhitelist ? 0.4808 : 1);
+  const newMinus = grossGain < 0 ? Math.round(Math.abs(grossGain) * (isWhitelist ? 0.4808 : 1)) : 0;
 
   // Utilizzo zainetto fiscale (solo se regime dichiarativo o strumento compensabile)
   // La compensabilita' dipende dalla CATEGORIA DI REDDITO dello strumento, non dal regime:
@@ -193,11 +202,11 @@ function calcTaxOnSell(sellAmount, currentPrice, lots, method, regime, strumento
     taxableGain -= minusUsed;
   }
 
-  const tax = taxableGain * (actualAliq / 100);
+  const tax = taxableGain * (aliqCalc / 100);
   const netProceeds = sellAmount - tax;
   const effectiveRate = sellAmount > 0 ? tax / sellAmount * 100 : 0;
 
-  return { sellAmount, costBasis: Math.round(costBasis), grossGain: Math.round(grossGain), taxableGain: Math.round(taxableGain), tax: Math.round(tax), netProceeds: Math.round(netProceeds), effectiveRate, minusUsed: Math.round(minusUsed), canUseMinus, aliq: actualAliq, method };
+  return { sellAmount, costBasis: Math.round(costBasis), grossGain: Math.round(grossGain), taxableGain: Math.round(taxableGain), tax: Math.round(tax), netProceeds: Math.round(netProceeds), effectiveRate, minusUsed: Math.round(minusUsed), canUseMinus, aliq: isWhitelist ? aliqOb : actualAliq, aliqApplicata: aliqCalc, baseRidotta48: isWhitelist, newMinus, method };
 }
 
 function renderFiscale() {
@@ -258,7 +267,9 @@ function renderFiscale() {
         <div class="mcard"><div class="ml">Imposta dovuta (${taxResult.aliq}%)</div><div class="mv" style="color:var(--red)">${fmtFull(taxResult.tax)}</div></div>
         <div class="mcard"><div class="ml">Netto incassato</div><div class="mv" style="color:var(--green)">${fmtFull(taxResult.netProceeds)}</div></div>
         <div class="mcard"><div class="ml">Aliquota effettiva</div><div class="mv" style="color:var(--text)">${taxResult.effectiveRate.toFixed(1)}%</div></div>
-        ${taxResult.minusUsed>0?`<div class="mcard"><div class="ml">Minus utilizzate</div><div class="mv" style="color:var(--green)">−${fmtFull(taxResult.minusUsed)}</div><div class="ms">dallo zainetto</div></div>`:''}
+        ${taxResult.minusUsed>0?`<div class="mcard"><div class="ml">Minus utilizzate</div><div class="mv" style="color:var(--green)">−${fmtFull(taxResult.minusUsed)}</div><div class="ms">dallo zainetto${taxResult.baseRidotta48?' (su base 48,08%)':''}</div></div>`:''}
+        ${taxResult.newMinus>0?`<div class="mcard"><div class="ml">Minusvalenza generata</div><div class="mv" style="color:var(--orange)">${fmtFull(taxResult.newMinus)}</div><div class="ms">→ zainetto, scade il 4° anno succ.${taxResult.baseRidotta48?' · ridotta al 48,08% (whitelist)':''}</div></div>`:''}
+        ${taxResult.baseRidotta48&&taxResult.taxableGain>0?`<div class="mcard"><div class="ml">Base imponibile ridotta</div><div class="mv" style="color:var(--blue)">48,08%</div><div class="ms">×26% = 12,5% eff. (whitelist)</div></div>`:''}
       </div>
       ${!taxResult.canUseMinus&&regime==='amministrato'&&strDesc.compensabile===false?`<div style="padding:10px 14px;background:var(--orange-dim);border:1px solid rgba(227,116,0,.3);border-radius:var(--radius-sm);font-size:12.5px;color:var(--orange)">⚠️ In regime amministrato con ${strDesc.label}, le minusvalenze pregresse <strong>non possono</strong> essere utilizzate in compensazione. Passare al regime dichiarativo per ottimizzare il carico fiscale.</div>`:''}`;
   }
