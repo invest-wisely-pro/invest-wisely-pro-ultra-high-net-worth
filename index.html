@@ -288,7 +288,7 @@
         <li><b>t di Student (ν=4, fat tail)</b> — distribuzioni a <i>code grasse</i>: crash del −20/−40% accadono 3–5× più spesso rispetto alla gaussiana. Curtosi elevata. <b>Raccomandato per la pianificazione conservativa.</b></li>
         <li><b>GARCH(1,1) — volatility clustering</b> — la volatilità non è costante ma si autoalimenta: un mese volatile tende a essere seguito da un altro volatile. I parametri α=0,09, β=0,90 sono calibrati su equity globale. Il fan chart si allarga e restringe nel tempo invece di essere monotonicamente crescente.</li>
         <li><b>Regime-Switching (Hamilton 1989)</b> — il mercato alterna stati latenti Bull (μ=+1,2%/m, σ=3,5%) e Bear (μ=−1,8%/m, σ=7%). La matrice di transizione P(Bull→Bull)=97%, P(Bear→Bull)=20% cattura la persistenza dei trend. I crash prolungati emergono naturalmente senza impostare il Sequence Risk manualmente.</li>
-        <li><b>Block Bootstrap — Serie Storica (1970–2024)</b> — campiona blocchi da 660 osservazioni mensili storiche — serie mensile ricostruita: totali annui e mesi-crisi chiave reali: le azioni mondiali usano la serie mensile <b>effettiva</b> del MSCI World Net in euro su tutto il periodo (1970&ndash;2000 dalla ricostruzione Curvo/IWDA al lordo del TER; dal 2001 il dato MSCI ufficiale). Obbligazioni Bloomberg Euro Aggregate e oro spot in euro (validato Bundesbank); inflazione CPI USA da FRED. I blocchi di 12 mesi preservano l'autocorrelazione seriale (volatility clustering, momentum). Non assume nessuna distribuzione parametrica: i crash storici (1973, 1987, 2000, 2008, 2022) entrano direttamente nella simulazione con la loro frequenza reale. È il modello più accurato per portafogli con componente azionaria e oro.</li>
+        <li><b>Block Bootstrap — Serie Storica (1970–2025)</b> — campiona blocchi da 672 osservazioni mensili storiche — serie mensile ricostruita: totali annui e mesi-crisi chiave reali: le azioni mondiali usano la serie mensile <b>effettiva</b> del MSCI World Net in euro su tutto il periodo (1970&ndash;2000 dalla ricostruzione Curvo/IWDA al lordo del TER; dal 2001 il dato MSCI ufficiale). Obbligazioni Bloomberg Euro Aggregate e oro spot in euro (validato Bundesbank); inflazione CPI USA da FRED. I blocchi di 12 mesi preservano l'autocorrelazione seriale (volatility clustering, momentum). Non assume nessuna distribuzione parametrica: i crash storici (1973, 1987, 2000, 2008, 2022) entrano direttamente nella simulazione con la loro frequenza reale. È il modello più accurato per portafogli con componente azionaria e oro.</li>
 
       </ul>
       <div class="guide-impact"><b>Come leggere i risultati:</b> confronta il P10 del Gaussiano con quello del Regime-Switching — la differenza mostra quanto la tua pianificazione dipende dall'assunzione di normalità. Il Regime-Switching e il t-Student producono code più pesanti perché modellano crash più frequenti e prolungati.</div>
@@ -299,7 +299,7 @@
       <h2><span class="num">7</span> Scheda <b>Backtesting Storico</b> 📅</h2>
       <p>Il Backtesting Storico risponde alla domanda <b>"Cosa sarebbe successo se avessi iniziato il mio piano in un anno specifico?"</b> — usando i rendimenti mensili effettivi reali 1970–2024 (non simulazioni parametriche). È la verifica più concreta della robustezza del tuo piano.</p>
       <h3>Come funziona il motore</h3>
-      <p>Il simulatore usa 660 osservazioni mensili (Gen 1970 – Dic 2024). Le tre asset class di base &mdash; <b>azioni mercati sviluppati</b> (MSCI World equiv.), <b>obbligazioni aggregate</b> (Bloomberg Euro Agg equiv.) e <b>oro spot</b> &mdash; hanno serie mensile ricostruita: totali annui e mesi-crisi chiave reali (azioni mondiali mensili effettive su tutto il periodo 1970-2024, v. sopra). Gli asset aggiuntivi (fattori azionari Small Cap Value, Momentum, Value, Quality, Investment, Size; Bassa Volatilità; Immobiliare Quotato REITs; Mercati Emergenti) usano <b>serie storiche reali dedicate</b> (Kenneth French Data Library, AQR, FTSE Nareit) convertite in EUR, anziché comportarsi come proxy del mercato sviluppato. I pesi del portafoglio selezionato vengono applicati ai rendimenti mensili di ogni periodo. Il TER viene sottratto mensilmente. Il PAC viene aggiunto a inizio mese prima di applicare il rendimento.</p>
+      <p>Il simulatore usa 672 osservazioni mensili (Gen 1970 – Dic 2025). Le tre asset class di base &mdash; <b>azioni mercati sviluppati</b> (MSCI World equiv.), <b>obbligazioni aggregate</b> (Bloomberg Euro Agg equiv.) e <b>oro spot</b> &mdash; hanno serie mensile ricostruita: totali annui e mesi-crisi chiave reali (azioni mondiali mensili effettive su tutto il periodo 1970-2025, v. sopra). Gli asset aggiuntivi (fattori azionari Small Cap Value, Momentum, Value, Quality, Investment, Size; Bassa Volatilità; Immobiliare Quotato REITs; Mercati Emergenti) usano <b>serie storiche reali dedicate</b> (Kenneth French Data Library, AQR, FTSE Nareit) convertite in EUR, anziché comportarsi come proxy del mercato sviluppato. I pesi del portafoglio selezionato vengono applicati ai rendimenti mensili di ogni periodo. Il TER viene sottratto mensilmente. Il PAC viene aggiunto a inizio mese prima di applicare il rendimento.</p>
       <h3>Anni di partenza disponibili</h3>
       <ul>
         <li><b>1973 — Stagflazione OPEC</b>: il peggior inizio nella storia moderna. Inflazione al 12%, azioni −48% in 2 anni, oro +162%. Testa la resilienza massima del piano in contesto inflattivo estremo.</li>
@@ -523,7 +523,7 @@
         <li><b>▼ Punto verde</b> — portafoglio Minima Varianza: volatilità più bassa possibile tra le combinazioni disponibili.</li>
         <li><b>▲ Triangolo rosso</b> — il tuo portafoglio corrente. Se è sotto la curva, esiste un'allocazione più efficiente con lo stesso rischio e rendimento superiore.</li>
       </ul>
-      <p>Le statistiche comparative mostrano rendimento atteso, volatilità e Sharpe ratio dei tre punti a confronto. La matrice di correlazione usata è calibrata su dati storici 1970-2024 (32×32 asset class).</p>
+      <p>Le statistiche comparative mostrano rendimento atteso, volatilità e Sharpe ratio dei tre punti a confronto. La matrice di correlazione usata è calibrata su dati storici 1970-2025 (32×32 asset class).</p>
       <div class="guide-callout"><b>Nota metodologica:</b> i rendimenti attesi sono forward-looking conservativi — non storici. Piccole variazioni negli input possono spostare significativamente il portafoglio ottimale (instabilità di Markowitz). Usare come guida qualitativa, non come prescrizione assoluta.</div>
 
       <h3>🎯 VaR / CVaR</h3>
@@ -672,11 +672,11 @@
 <div class="header">
   <h1>Simulatore Patrimoniale <span class="beta-badge">BETA 1 · 100M</span></h1>
   <span class="sub">Edizione Capitali Elevati (fino a €100M) · GARCH · Fiscalità IT Completa · Backtesting Storico</span>
-  <div class="badge">PRO SUITE</div>
+  <div class="badge">PRO SUITE</div><button onclick="confirmResetAll()" title="Cancella tutti i dati inseriti e riparte da zero (gli scenari salvati esplicitamente NON vengono toccati)" style="margin-left:auto;padding:6px 12px;font-size:11.5px;font-family:'DM Mono',monospace;border:1px solid var(--border2);border-radius:6px;background:var(--bg);color:var(--text3);cursor:pointer;white-space:nowrap">↺ Ricomincia da zero</button>
 </div>
 
 <div class="tab-nav">
-  <button class="tab-btn active" data-tab="main" onclick="switchTab('main')">Simulatore</button>
+  <button class="tab-btn active" data-tab="main" onclick="switchTab('main')">Simulatore <span style="opacity:.6;font-weight:400">(Accumulo)</span></button>
   <button class="tab-btn" data-tab="scenarios" onclick="switchTab('scenarios')">Scenari Economici</button>
   <button class="tab-btn" data-tab="ab" onclick="switchTab('ab')">A/B Confronto</button>
   <button class="tab-btn" data-tab="mc" onclick="switchTab('mc')">Prob. Successo</button>
@@ -705,7 +705,7 @@
     <div class="pblock"><div class="plabel"><span>PAC mensile (base)</span><span class="pval" id="lP">€0/m</span></div><input type="range" id="sP" min="0" max="100000" step="250" value="0"><div class="range-hints"><span>€0</span><span>€100.000</span></div></div>
     <div class="pblock"><div class="plabel"><span>Età iniziale</span><span class="pval" id="lA">0 anni</span></div><input type="range" id="sA" min="0" max="80" step="1" value="0"><div class="range-hints"><span>0</span><span>80</span></div></div>
     <div class="pblock"><div class="plabel"><span>Orizzonte temporale</span><span class="pval" id="lY">35 anni</span></div><input type="range" id="sY" min="1" max="50" step="1" value="35"><div class="range-hints"><span>1 anno</span><span>50 anni</span></div></div>
-    <div class="pblock"><div class="plabel"><span class="opt-tooltip-wrap">💎 Soglia Optionality <span class="opt-tooltip-icon">?<span class="opt-tooltip-bubble"><strong style="color:var(--blue)">Cos'è la Soglia di Optionality?</strong><br>Livello patrimoniale a cui il portafoglio ti dà <em>opzioni di vita reali</em> — part-time, sabbatico, cambio carriera — prima della libertà finanziaria totale (FIRE). Distinta dal FIRE (100% copertura): questa è il punto di <strong>"abbastanza per avere scelta"</strong>. Il grafico mostra la linea tratteggiata per vedere quando ogni scenario la raggiunge.</span></span></span><span class="pval" id="lO">€450.000</span></div><input type="range" id="sO" min="50000" max="3000000" step="25000" value="450000"><div class="range-hints"><span>€50k</span><span>€3M</span></div></div>
+    <div class="pblock"><div class="plabel"><span class="opt-tooltip-wrap">💎 Soglia Optionality <span class="opt-tooltip-icon">?<span class="opt-tooltip-bubble"><strong style="color:var(--blue)">Cos'è la Soglia di Optionality?</strong><br>Livello patrimoniale a cui il portafoglio ti dà <em>opzioni di vita reali</em> — part-time, sabbatico, cambio carriera — prima della libertà finanziaria totale (FIRE). Distinta dal FIRE (100% copertura): questa è il punto di <strong>"abbastanza per avere scelta"</strong>. Il grafico mostra la linea tratteggiata per vedere quando ogni scenario la raggiunge. <em>È solo un riferimento visivo sul grafico: non entra in nessun calcolo del piano.</em></span></span></span><span class="pval" id="lO">€450.000</span></div><input type="range" id="sO" min="50000" max="3000000" step="25000" value="450000"><div class="range-hints"><span>€50k</span><span>€3M</span></div></div>
     <div class="pblock"><div class="plabel"><span>TER ETF <span class="ter-badge">💸 costo fondo</span></span><span class="pval" id="lTer">0.20%</span></div><input type="range" id="sTer" min="0" max="2.0" step="0.05" value="0.20"><div class="range-hints"><span>0%</span><span>2.0%</span></div></div>
     <div class="pblock"><div class="plabel"><span>Tasse Azionario</span><span class="pval" id="lTeq">26.0%</span></div><input type="range" id="sTeq" min="0" max="40" step="0.5" value="26.0"><div class="range-hints"><span>0%</span><span>40%</span></div></div>
     <div class="pblock"><div class="plabel"><span>Tasse Obbligaz. (Gov.)</span><span class="pval" id="lTob">12.5%</span></div><input type="range" id="sTob" min="0" max="40" step="0.5" value="12.5"><div class="range-hints"><span>0%</span><span>40%</span></div></div>
@@ -1136,7 +1136,7 @@
     <div class="pblock"><div class="plabel"><span>Indicizzazione prelievo/anno</span><span class="pval" id="lMcI">2.0%</span></div><input type="range" id="sMcI" min="0" max="5" step="0.5" value="2.0"><div class="range-hints"><span>0%</span><span>5%/anno</span></div></div>
     <div style="display:flex;align-items:flex-end"><button class="gbtn a-blue" onclick="runSuccessMC()" style="padding:10px 20px;font-size:13.5px;font-weight:600;width:100%">🎯 Calcola Probabilità</button></div>
   </div>
-  <div class="info-box">💡 <strong>Come funziona:</strong> 1.000 percorsi <strong>Monte Carlo parametrico</strong> con rendimento atteso e volatilità del portafoglio selezionato — coerente con gli scenari Base / Ottimistico / Pessimistico. Accumulo per <span id="mcAccYears">35</span> anni, poi prelievo annuale rivalutato per l'inflazione impostata. Fallisce se il portafoglio arriva a zero. <em>Per analisi non-gaussiana usa la scheda "Monte Carlo Avanzato".</em></div>
+  <div class="info-box">💡 <strong>Come funziona:</strong> 1.000 percorsi <strong>Monte Carlo parametrico</strong> con rendimento atteso e volatilità del portafoglio selezionato — coerente con gli scenari Base / Ottimistico / Pessimistico. Accumulo per <span id="mcAccYears">35</span> anni, poi prelievo annuale rivalutato per l'inflazione impostata. Fallisce se il portafoglio arriva a zero. Questo modello usa un <strong>random walk gaussiano puro</strong> (nessuna mean-reversion, nessun regime di mercato): tende a essere più severo di un bootstrap su dati storici reali, specie se sommato a stress manuali (es. crisi multiple). È una scelta prudenziale voluta, non un errore. <em>Per un modello alternativo (storico, GARCH, regime-switching) usa la scheda "Monte Carlo Avanzato".</em></div>
 </div>
 <div id="mc-success-result"><div class="info-box" style="text-align:center;padding:32px;color:var(--text3)">Clicca "Calcola" per eseguire la simulazione.</div></div>
 </div><!-- /tab-mc -->
@@ -1149,6 +1149,12 @@
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
     <button class="gbtn a-blue" onclick="importFromSim()" style="padding:8px 16px;font-size:13px;font-weight:600">⬇️ Importa dal Simulatore</button>
     <span id="importStatus" style="font-size:12px;color:var(--text3)">Usa parametri manuali oppure importa il valore finale simulato</span>
+  </div>
+  <div style="margin:0 0 14px;padding:12px 14px;background:rgba(30,142,62,.06);border:1px solid rgba(30,142,62,.25);border-radius:var(--radius-sm)">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
+      <input type="checkbox" id="decPensionChk" onchange="toggleDecPensionLink(this.checked)"> 🏛 Includi la pensione (INPS + Fondo Pensione) dalla scheda Piano Pensione
+    </label>
+    <div id="decPensionInfo" style="font-size:12px;line-height:1.55;margin-top:6px;color:var(--text3)"></div>
   </div>
   <div class="grid-2" style="margin-bottom:16px">
     <div class="pblock"><div class="plabel"><span>Patrimonio iniziale decumulo</span><span class="pval" id="lDecStart">€500.000</span></div><input type="range" id="sDecStart" min="0" max="100000000" step="100000" value="500000"><div class="range-hints"><span>€0</span><span>€100M</span></div></div>
@@ -1233,14 +1239,14 @@
 <div class="chart-wrap"><canvas id="chDec"></canvas></div>
 <div class="sec">
   <div class="sec-label">Tabella Anno per Anno — Scenario Base</div>
-  <div class="tbl-outer"><table><thead><tr><th style="text-align:left">Anno</th><th>Valore Inizio</th><th>Rendimento</th><th>Prelievo Lordo</th><th>Imposta</th><th>Netto Ricevuto</th><th>Valore Fine</th><th>Tasso Prelievo</th><th>Note</th></tr></thead><tbody id="dec-table"></tbody></table></div>
+  <div class="tbl-outer"><table><thead><tr><th style="text-align:left">Anno</th><th>Valore Inizio</th><th>Rendimento</th><th title="Tasso di rendimento netto realizzato nell'anno">Rend. %</th><th title="Pensione netta INPS + rendita Fondo Pensione, se collegata">Pensione</th><th>Prelievo Lordo</th><th>Imposta</th><th>Netto Ricevuto</th><th>Valore Fine</th><th>Tasso Prelievo</th><th>Note</th></tr></thead><tbody id="dec-table"></tbody></table></div>
 </div>
 
 <!-- ═══════ DECUMULO STORICO REALE ═══════ -->
 <details class="adv-section-wrap">
-<summary class="adv-section-summary"><svg class="adv-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg><svg class="sec-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg><span>Sequenze Storiche Reali 1970–2024</span><span class="adv-badge">Avanzato</span></summary>
+<summary class="adv-section-summary"><svg class="adv-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg><svg class="sec-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg><span>Sequenze Storiche Reali 1970–2025</span><span class="adv-badge">Avanzato</span></summary>
 <div class="sec" style="background:linear-gradient(135deg,#fff8e1 0%,#fff3e0 100%);border:1.5px solid var(--amber)">
-  <div class="sec-label" data-info-id="info-decumulo-storico">📅 Decumulo su Sequenze Storiche Reali (1970-2024)</div>
+  <div class="sec-label" data-info-id="info-decumulo-storico">📅 Decumulo su Sequenze Storiche Reali (1970-2025)</div>
   <div style="font-size:12.5px;color:var(--text2);line-height:1.6;margin-bottom:12px">
     <strong>"Cosa sarebbe successo se fossi andato in pensione nel <em>year</em>?"</strong> — esegue il piano di decumulazione su <strong>tutti gli anni di partenza disponibili</strong> usando rendimenti mensili storici reali (calibrati) e inflazione storica effettiva. È il test più severo del sequence risk: incorpora oil shock 1973, stagflazione, dot-com bust, GFC, COVID, inflazione 2022.
   </div>
@@ -1522,7 +1528,7 @@
     </div>
     <div class="pblock">
       <div class="plabel" style="margin-bottom:8px"><span>PAC mensile (importato dal Simulatore)</span></div>
-      <button class="gbtn a-blue" onclick="importFiscFromSim()" style="padding:9px 16px;font-weight:600">⬇️ Importa dati dal Simulatore</button>
+      <button class="gbtn a-blue" onclick="importFiscFromSim()" style="padding:11px 20px;font-weight:700;font-size:13.5px;box-shadow:0 2px 8px rgba(26,115,232,.25)">⬇️ Importa capitale, PAC e anni dal Simulatore</button>
       <div id="fiscImportStatus" style="font-size:12px;color:var(--text3);margin-top:6px">Non ancora importato</div>
     </div>
   </div>
@@ -1573,10 +1579,18 @@
 <!-- ══════════════════════════════════════════════════════ TAB: PIANO PENSIONE -->
 <div class="tab-content" id="tab-pensione">
 <div class="sec">
-  <div class="sec-label" data-info-id="info-pensione-acc">👴 Piano Pensionistico Integrato — INPS + Fondo Pensione + ETF</div>
+  <div class="sec-label" data-info-id="info-pensione-acc">👴 Piano Pensionistico Integrato — INPS + Fondo Pensione + ETF <button onclick="if(window.confirm('Azzerare tutti i valori della scheda Pensione e tornare ai default?'))resetPensione()" title="Ripristina i valori di default di questa scheda" style="margin-left:auto;padding:4px 10px;font-size:10.5px;font-family:'DM Mono',monospace;font-weight:400;text-transform:none;letter-spacing:normal;border:1px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text3);cursor:pointer;white-space:nowrap">↺ Reset scheda</button></div>
   <div class="info-box" style="margin-bottom:14px">
     Stima la tua <strong>pensione pubblica INPS</strong> (regime contributivo/misto/retributivo), affiancala a un <strong>fondo pensione</strong> (con deducibilità fiscale e TFR) e al <strong>capitale ETF</strong> accumulato nel Simulatore. Verifica se i tre pilastri coprono la spesa desiderata in pensione e ottimizza il versamento al fondo.
+  <br><br><em>Nota: questa stima (INPS + Fondo Pensione) è calcolata separatamente e non confluisce automaticamente nei grafici della scheda Decumulo — se vuoi il quadro combinato ETF + pensione, confronta i risultati dei due tab.</em></div>
+
+<div class="pdf-section" style="margin-top:0;margin-bottom:14px;padding:18px 20px">
+  <div class="pdf-section-text"><h3>📄 Report Pensione</h3><p>PDF dedicato a questa scheda: pensione INPS, Fondo Pensione con composizione del montante, e copertura combinata delle tre fonti.</p></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-left:auto">
+    <button class="pdf-btn" id="penPdfBtn" onclick="generatePensionePDF()"><span>📄</span> Scarica Report Pensione PDF</button>
   </div>
+</div>
+
 
   <div class="grid-2" style="margin-bottom:16px">
     <div>
@@ -1670,6 +1684,11 @@
       <div class="pblock" style="margin-bottom:10px">
         <div class="plabel"><span>Inflazione attesa</span><span class="pval" id="lPenInfl">2%</span></div>
         <input type="range" id="sPenInfl" min="0" max="6" step="0.25" value="2" oninput="penState.infl=+this.value/100;document.getElementById('lPenInfl').textContent=this.value+'%';renderPensione()">
+      </div>
+      <div class="pblock" style="margin-bottom:10px">
+        <div class="plabel"><span>Crescita reale RAL attesa</span><span class="pval" id="lPenRalG">0.5%/a</span></div>
+        <input type="range" id="sPenRalG" min="0" max="3" step="0.25" value="0.5" oninput="penState.ralGrowth=+this.value/100;document.getElementById('lPenRalG').textContent=this.value+'%/a';renderPensione()">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Crescita oltre l'inflazione. Pubblico impiego o carriera stabile: 0-0,5%. Carriera privata con avanzamenti: 1-2%.</div>
       </div>
       <div style="margin-top:14px">
         <button class="gbtn a-blue" onclick="importPenFromSim()" style="padding:9px 16px;font-weight:600;width:100%">⬇️ Importa età e capitale ETF dal Simulatore</button>
@@ -1914,7 +1933,7 @@
 
     <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:14px;margin-top:14px;font-size:12px;color:var(--text3);line-height:1.7">
       <strong>Come leggere il grafico:</strong> ogni punto sulla curva blu rappresenta un portafoglio ottimale (minima volatilità per quel livello di rendimento) costruito combinando le asset class selezionate. Il portafoglio Max Sharpe massimizza il rendimento per unità di rischio (tasso risk-free: 2.5%). Il triangolo rosso mostra dove si posiziona il tuo portafoglio attuale — se è sotto la curva, esiste un'allocazione più efficiente con lo stesso rischio e rendimento più alto (o stesso rendimento con rischio minore).<br>
-      <strong>Nota metodologica:</strong> rendimenti attesi e correlazioni basati su dati storici 1970-2024 calibrati con stime forward-looking. I risultati dipendono dalla stima degli input — piccole variazioni nei rendimenti attesi possono spostare il portafoglio ottimale significativamente (instabilità di Markowitz). Usare come guida qualitativa, non come prescrizione assoluta.
+      <strong>Nota metodologica:</strong> rendimenti attesi e correlazioni basati su dati storici 1970-2025 calibrati con stime forward-looking. I risultati dipendono dalla stima degli input — piccole variazioni nei rendimenti attesi possono spostare il portafoglio ottimale significativamente (instabilità di Markowitz). Usare come guida qualitativa, non come prescrizione assoluta.
     </div>
   </div>
 

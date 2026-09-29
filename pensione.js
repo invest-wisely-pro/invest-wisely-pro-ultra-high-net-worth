@@ -9,15 +9,21 @@ let penState = {
   lifeExp:    85,
   contYears:  10,      // anni contributi già versati
   ral:        35000,   // RAL attuale lordo annuo
-  ralGrowth:  0.015,   // crescita reale RAL annua
+  ralGrowth:  0.005,   // crescita reale RAL annua (default prudenziale: 0,5%/a.
+                        // L'1,5%/a tradizionale riflette carriere private con scatti/promozioni
+                        // frequenti; nel pubblico impiego le progressioni economiche orizzontali
+                        // sono pluriennali e vincolate da risorse contrattuali limitate, quindi
+                        // una crescita reale più contenuta è l'ipotesi di base più prudente.
+                        // Modificabile dal cursore "Crescita reale RAL attesa" nella scheda.)
   aliqCont:   0.33,    // aliquota contributiva IVS (dip. priv. = 33%)
   montante:   0,       // montante contributivo già accumulato
   desired:    2000,    // spesa mensile desiderata in pensione (€ oggi)
   infl:       0.02,    // inflazione attesa
   pil:        0.010,   // rivalutazione montante INPS: PIL reale medio di lungo
                // periodo (scenario RGS ~1,0%/a). NB: volutamente DISACCOPPIATO
-               // dalla crescita RAL individuale (1,5%): assumere che il montante
-               // si rivaluti quanto i salari gonfia il tasso di sostituzione.
+               // dalla crescita RAL individuale (ralGrowth, sotto): il montante
+               // si rivaluta secondo il PIL per legge, indipendentemente da
+               // quanto cresce lo stipendio del singolo lavoratore.
   coeffDecl:  0.003,   // declino annuo del coeff. di trasformazione (revisioni biennali ISTAT)
   fpVers:     100,     // versamento mensile fondo pensione (quota lavoratore)
   fpRet:      0.04,    // rendimento annuo fondo pensione (lordo)
@@ -33,6 +39,44 @@ let penState = {
   etfCapital: 0,       // capitale ETF stimato al pensionamento
   etfRet:     0.05,    // rendimento annuo NETTO del portafoglio del Simulatore (default ~bilanciato; aggiornato su importa)
 };
+// Snapshot dei default catturato subito dopo la dichiarazione, PRIMA di qualsiasi
+// modifica dell'utente. penState non e' persistito su localStorage (vive solo in
+// memoria di sessione), quindi non serve pulire nulla su disco: basta ripristinare
+// i campi e ri-renderizzare. Nessuna struttura annidata in penState -> shallow
+// clone (JSON round-trip) e' sicuro e non lascia riferimenti condivisi.
+const _PEN_DEFAULTS = JSON.parse(JSON.stringify(penState));
+function resetPensione() {
+  Object.keys(penState).forEach(k => delete penState[k]);
+  Object.assign(penState, JSON.parse(JSON.stringify(_PEN_DEFAULTS)));
+  syncPenControls();
+  try { renderPensione(); } catch (e) {}
+}
+// Riallinea TUTTI i controlli della scheda (cursori, etichette, pulsanti) a penState.
+// Senza questo, dopo un reset i valori interni tornavano ai default ma i cursori
+// restavano nelle vecchie posizioni, con etichette diverse dai numeri usati nei calcoli.
+// Campo, eventuale scala /100 e formato dell'etichetta vengono letti dall'handler
+// inline del cursore stesso: restano definiti in un solo posto (l'HTML).
+function syncPenControls() {
+  const tab = document.getElementById('tab-pensione');
+  if (!tab) return;
+  tab.querySelectorAll('input[type="range"]').forEach(el => {
+    const h = el.getAttribute('oninput') || '';
+    const m = h.match(/^penState\.(\w+)=\+this\.value(\/100)?;(.*);renderPensione\(\)$/);
+    if (!m || !(m[1] in penState)) return;
+    el.value = Math.round(penState[m[1]] * (m[2] ? 100 : 1) * 1e6) / 1e6;
+    try { new Function(m[3]).call(el); } catch (e) {}
+  });
+  const setBtn = (gid, attr, val) => {
+    const g = document.getElementById(gid); if (!g) return;
+    g.querySelectorAll('.gbtn').forEach(x => x.classList.toggle('a-blue', x.getAttribute(attr) === val));
+  };
+  setBtn('penRegimeBtns', 'data-reg', penState.regime);
+  setBtn('penTFRBtns', 'data-tfr', penState.tfrSi ? 'si' : 'no');
+  setBtn('penNegozialeBtns', 'data-neg', penState.isNegoziale ? 'si' : 'no');
+  const rd = document.getElementById('penRegimeDesc');
+  if (rd && typeof PEN_REGIME_DESC !== 'undefined') rd.innerHTML = PEN_REGIME_DESC[penState.regime] || '';
+}
+window.resetPensione = resetPensione;
 
 let chartPen     = null;
 let chartPenFisc = null;
@@ -552,6 +596,221 @@ function importPenFromSim() {
 }
 
 // ── Render principale ─────────────────────────────────────
+// ── Report PDF verticale — solo scheda Pensione ─────────────────────────
+// Report focalizzato (3-4 pagine) sui tre pilastri previdenziali: INPS, Fondo
+// Pensione, capitale ETF. Riusa lo stesso stile visivo del report generale
+// (palette, font, autoTable) ma con helper locali proprie: il generatore
+// generale ha sHdr/narrative/callout dichiarate nel suo scope privato, non
+// riutilizzabili da qui.
+async function generatePensionePDF() {
+  const btn = document.getElementById('penPdfBtn');
+  const originalLabel = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Generazione...'; }
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const _autoTable = doc.autoTable.bind(doc);
+    const safeCell = (c) => (c == null ? '' : (typeof c === 'object' && 'content' in c)
+      ? { ...c, content: pdfSafe(String(c.content)) }
+      : pdfSafe(String(c)));
+    const safeRows = (rows) => Array.isArray(rows) ? rows.map(r => Array.isArray(r) ? r.map(safeCell) : r) : rows;
+    doc.autoTable = (opts) => {
+      const o = { ...opts };
+      if (o.head) o.head = safeRows(o.head);
+      if (o.body) o.body = safeRows(o.body);
+      if (o.foot) o.foot = safeRows(o.foot);
+      o.margin = Object.assign({ top: 20 }, o.margin || {});
+      return _autoTable(o);
+    };
+
+    const BLU = [26, 115, 232], GRN = [30, 142, 62], ORG = [227, 116, 0], PUR = [147, 52, 230];
+    const GRAY = [95, 99, 104], LBG = [248, 249, 250], WHT = [255, 255, 255], DARK = [32, 33, 36];
+    const W = 210, H = 297, ML = 14, MR = 14, CW = W - ML - MR;
+    let y = 0, pN = 1;
+
+    const miniHdr = (pg, tot) => {
+      doc.setFillColor(...LBG); doc.rect(0, 0, W, 13, 'F');
+      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...GRAY);
+      doc.text(pdfSafe('Report Pensione — Suite Patrimoniale Pro — Documento informativo, non consulenza fiscale/previdenziale'), ML, 8.5);
+      doc.text(`Pag. ${pg} di ${tot}`, W - MR, 8.5, { align: 'right' });
+      doc.setDrawColor(210, 210, 210); doc.line(ML, 12.5, W - MR, 12.5);
+      doc.setTextColor(0, 0, 0);
+    };
+    const chkPB = (n = 18) => { if (y + n > 275) { doc.addPage(); y = 20; } };
+    const sHdr = (t, col = BLU) => {
+      chkPB(14);
+      doc.setFillColor(...col); doc.rect(ML, y, CW, 7.5, 'F');
+      doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...WHT);
+      doc.text(pdfSafe(String(t)).toUpperCase(), ML + 3, y + 5.3); y += 11;
+      doc.setTextColor(0, 0, 0);
+    };
+    const narrative = (txt, indent = 0) => {
+      doc.setFontSize(8.7); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 64, 67);
+      const lines = doc.splitTextToSize(pdfSafe(txt), CW - indent);
+      chkPB(lines.length * 4.4 + 3);
+      doc.text(lines, ML + indent, y);
+      y += lines.length * 4.4 + 3;
+      doc.setTextColor(0, 0, 0);
+    };
+    const callout = (title, body, col = BLU) => {
+      doc.setFontSize(8.7); doc.setFont('helvetica', 'normal');
+      const lines = doc.splitTextToSize(pdfSafe(body), CW - 8);
+      const boxH = lines.length * 4.4 + 11;
+      chkPB(boxH + 2);
+      doc.setFillColor(col[0], col[1], col[2]);
+      doc.rect(ML, y, 1.5, boxH, 'F');
+      doc.setFillColor(248, 250, 252); doc.rect(ML + 1.5, y, CW - 1.5, boxH, 'F');
+      doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...col);
+      doc.text(pdfSafe(title), ML + 5, y + 5);
+      doc.setFontSize(8.4); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 64, 67);
+      doc.text(lines, ML + 5, y + 9.5);
+      y += boxH + 3; doc.setTextColor(0, 0, 0);
+    };
+
+    // ── Dati: stesso calcolo usato dalla scheda a schermo ──
+    const r = calcPensione();
+    // Deflatore identico a quello della scheda a schermo (renderPenKPI): tutti gli
+    // importi di calcPensione sono NOMINALI all'anno di pensionamento.
+    const _deflaz = Math.pow(1 + penState.infl, r.yearsToRet);
+    const _annoPens = new Date().getFullYear() + r.yearsToRet;
+    const regimeLabel = { contributivo: 'Contributivo puro', misto: 'Misto', retributivo: 'Retributivo' }[penState.regime] || penState.regime;
+
+    // ── Copertina ──
+    doc.setFillColor(...BLU); doc.rect(0, 0, W, 55, 'F');
+    doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.setTextColor(...WHT);
+    doc.text(pdfSafe('Report Pensione'), ML, 28);
+    doc.setFontSize(11); doc.setFont('helvetica', 'normal');
+    doc.text(pdfSafe('INPS + Fondo Pensione + Capitale ETF'), ML, 38);
+    doc.setFontSize(8.5); doc.setTextColor(220, 230, 250);
+    doc.text(pdfSafe(`Generato il ${new Date().toLocaleDateString('it-IT')} · Documento informativo, non consulenza`), ML, 47);
+    doc.setTextColor(0, 0, 0);
+    y = 65; pN = 1;
+
+    // ── Sezione 1: parametri di input ──
+    sHdr('Parametri del Piano', BLU);
+    doc.autoTable({
+      startY: y,
+      head: [['Parametro', 'Valore', 'Parametro', 'Valore']],
+      body: [
+        ['Eta attuale → pensionamento', `${penState.age} → ${penState.retAge} anni`, 'Speranza di vita (orizzonte rendita)', `${penState.lifeExp} anni`],
+        ['RAL attuale lorda', fmtP(penState.ral) + '/anno', 'Regime pensionistico', regimeLabel],
+        ['Anni di contributi gia versati', `${penState.contYears} anni`, 'Crescita reale RAL attesa', (penState.ralGrowth * 100).toFixed(1) + '%/a'],
+        ['Versamento mensile Fondo Pensione', fmtP(penState.fpVers) + '/mese', 'Rendimento atteso Fondo Pensione', (penState.fpRet * 100).toFixed(1) + '%/a lordo'],
+        ['TFR versato al Fondo', penState.tfrSi ? 'Si' : 'No', 'Fondo negoziale (contributo datoriale)', penState.isNegoziale ? 'Si' : 'No'],
+        ['Capitale ETF stimato al pensionamento', fmtP(penState.etfCapital), 'Rendimento ETF netto atteso', (penState.etfRet * 100).toFixed(1) + '%/a'],
+      ],
+      styles: { fontSize: 8, cellPadding: 2.5 },
+      headStyles: { fillColor: LBG, textColor: GRAY, fontStyle: 'bold', fontSize: 7.5 },
+      margin: { left: ML, right: MR }
+    });
+    y = doc.lastAutoTable.finalY + 5;
+
+    // ── Sezione 2: pensione INPS ──
+    sHdr('Pensione Pubblica INPS', BLU);
+    doc.autoTable({
+      startY: y,
+      head: [['Voce', `Valore (euro nominali ${_annoPens})`]],
+      body: [
+        ['Pensione lorda annua', fmtP(r.pensioneLordaAnn)],
+        ['Pensione lorda mensile', fmtP(r.pensioneLordaMens)],
+        ['IRPEF annua stimata', fmtP(r.irpefAnn)],
+        ['Pensione netta annua', fmtP(r.pensioneNettaAnn)],
+        ['Pensione netta mensile', fmtP(r.pensioneNettaMens)],
+        ['Pensione netta mensile in euro di oggi', fmtP(Math.round(r.pensioneNettaMens / _deflaz))],
+        ['Tasso di sostituzione (netto/RAL)', (r.tassoSost * 100).toFixed(1) + '%'],
+        ['Coefficiente di trasformazione applicato', (r.coeffTrasf * 100).toFixed(3) + '%'],
+        ['Montante contributivo finale', fmtP(r.cumMontante)],
+      ],
+      styles: { fontSize: 8, cellPadding: 2.5 },
+      headStyles: { fillColor: LBG, textColor: GRAY, fontStyle: 'bold', fontSize: 7.5 },
+      margin: { left: ML, right: MR }
+    });
+    y = doc.lastAutoTable.finalY + 5;
+    narrative(`Regime ${regimeLabel.toLowerCase()}. Il montante contributivo individuale viene convertito in rendita annua tramite il coefficiente di trasformazione (dipendente dall'eta di pensionamento), poi tassato secondo gli scaglioni IRPEF con la detrazione specifica per redditi da pensione (art. 13 comma 3 TUIR).`);
+
+    // ── Sezione 3: Fondo Pensione ──
+    sHdr('Fondo Pensione Complementare', GRN);
+    doc.autoTable({
+      startY: y,
+      head: [['Voce', `Valore (euro nominali ${_annoPens})`]],
+      body: [
+        ['Capitale maturato al pensionamento', fmtP(r.capFP)],
+        ['di cui: TFR conferito', fmtP(r.fpComposizione.tfr)],
+        ['di cui: contributo datore di lavoro', fmtP(r.fpComposizione.datore)],
+        ['di cui: contributo lavoratore (CCNL)', fmtP(r.fpComposizione.lavoratore)],
+        ['di cui: versamenti volontari (dedotti)', fmtP(r.fpComposizione.volontari)],
+        ['di cui: contributi extra (es. reinvestimento risparmio fiscale)', fmtP(r.fpComposizione.extra)],
+        ['di cui: versamenti oltre plafond (non dedotti, esenti in uscita)', fmtP(r.fpComposizione.nonDedotti)],
+        ['di cui: rendimenti netti maturati (gia tassati 20%/anno)', fmtP(r.fpComposizione.rendimenti)],
+        ['Quota imponibile alla prestazione (D.lgs 252/2005)', (r.fpComposizione.quotaImponibile * 100).toFixed(1) + '%'],
+        ['Aliquota agevolata applicata', (r.aliqFP * 100).toFixed(1).replace('.0', '') + '%'],
+        ['Rendita netta mensile stimata', fmtP(r.rendFPMens)],
+        ['Rendita netta mensile in euro di oggi', fmtP(Math.round(r.rendFPMens / _deflaz))],
+      ],
+      styles: { fontSize: 7.8, cellPadding: 2.3 },
+      headStyles: { fillColor: LBG, textColor: GRAY, fontStyle: 'bold', fontSize: 7.5 },
+      margin: { left: ML, right: MR }
+    });
+    y = doc.lastAutoTable.finalY + 5;
+    callout('Perche il Fondo Pensione conviene fiscalmente',
+      `L'aliquota del ${(r.aliqFP * 100).toFixed(1).replace('.0', '')}% si applica solo alla quota imponibile (${(r.fpComposizione.quotaImponibile * 100).toFixed(1)}%, cioe TFR + contributi mai tassati prima). I rendimenti sono esenti in uscita perche gia tassati anno per anno al 20% durante l'accumulo. L'aliquota scende dello 0,3% per ogni anno di partecipazione oltre il 15esimo, fino a un minimo del 9%.`,
+      GRN);
+
+    // ── Sezione 4: quadro combinato ──
+    sHdr('Copertura Combinata alla Pensione', PUR);
+    const totMensile = r.pensioneNettaMens + r.rendFPMens + (r.etfPrelievoMens || 0);
+    // FIX: confronto omogeneo. Prima il totale (nominale all'anno di pensionamento)
+    // veniva confrontato con il fabbisogno in euro di oggi, sovrastimando la copertura.
+    // Ora, come la scheda a schermo, il fabbisogno e' rivalutato all'anno di
+    // pensionamento (nominale vs nominale) e ogni riga e' mostrata anche in euro di oggi.
+    const fabbNom = (r.dec0 && r.dec0.fabbisognoMens) ? r.dec0.fabbisognoMens : penState.desired * _deflaz;
+    const toOggi = v => fmtP(Math.round(v / _deflaz));
+    const gapNom = Math.max(0, fabbNom - totMensile);
+    const copPct = fabbNom > 0 ? Math.round(totMensile / fabbNom * 100) : 100;
+    const bold = t => ({ content: t, styles: { fontStyle: 'bold' } });
+    doc.autoTable({
+      startY: y,
+      head: [['Fonte (mensile netto)', `Nel ${_annoPens} (nominale)`, 'In euro di oggi']],
+      body: [
+        ['Pensione INPS netta', fmtP(r.pensioneNettaMens), toOggi(r.pensioneNettaMens)],
+        ['Rendita Fondo Pensione', fmtP(r.rendFPMens), toOggi(r.rendFPMens)],
+        ['Prelievo da capitale ETF (SWR)', fmtP(r.etfPrelievoMens || 0), toOggi(r.etfPrelievoMens || 0)],
+        [bold('Totale disponibile'), bold(fmtP(totMensile)), bold(toOggi(totMensile))],
+        ['Fabbisogno desiderato', fmtP(Math.round(fabbNom)), fmtP(penState.desired)],
+        [bold('Scoperto (gap)'), bold(gapNom > 0 ? fmtP(Math.round(gapNom)) : 'nessuno'), bold(gapNom > 0 ? toOggi(gapNom) : 'nessuno')],
+      ],
+      styles: { fontSize: 8, cellPadding: 2.5 },
+      headStyles: { fillColor: LBG, textColor: GRAY, fontStyle: 'bold', fontSize: 7.5 },
+      margin: { left: ML, right: MR }
+    });
+    y = doc.lastAutoTable.finalY + 5;
+    if (gapNom > 0) {
+      callout(`Copertura ${copPct}% del fabbisogno`,
+        `Le tre fonti coprono il ${copPct}% della spesa desiderata. Mancano circa ${toOggi(gapNom)} al mese in euro di oggi (${fmtP(Math.round(gapNom))} nominali nel ${_annoPens}): da colmare con versamenti aggiuntivi al fondo pensione o al portafoglio ETF, o rivedendo il fabbisogno.`, ORG);
+    } else {
+      callout(`Copertura ${copPct}% del fabbisogno`,
+        `Le tre fonti coprono interamente la spesa desiderata, con un margine di circa ${toOggi(totMensile - fabbNom)} al mese in euro di oggi.`, GRN);
+    }
+    narrative(`Nota metodologica: tutti gli importi dei calcoli sono espressi in euro nominali dell'anno di pensionamento (${_annoPens}). La colonna "in euro di oggi" li riporta al potere d'acquisto attuale ipotizzando un'inflazione del ${(penState.infl * 100).toFixed(1)}% annuo per ${r.yearsToRet} anni: 1 euro di oggi equivale a circa ${_deflaz.toFixed(2)} euro nel ${_annoPens}. Il confronto con il fabbisogno avviene sempre tra grandezze omogenee. Le tre fonti sono calcolate separatamente; il prelievo ETF assume un tasso di prelievo sostenibile (SWR) sul capitale accumulato, che proviene dalla scheda Simulatore se importato.`);
+
+    // ── Piede pagina finale ──
+    if (y + 16 > 287) { doc.addPage(); y = 20; }
+    doc.setDrawColor(210, 210, 210); doc.line(ML, y, W - MR, y); y += 6;
+    doc.setFontSize(7.3); doc.setFont('helvetica', 'italic'); doc.setTextColor(...GRAY);
+    doc.text(doc.splitTextToSize(pdfSafe('Documento generato automaticamente a scopo educativo e informativo. Non costituisce consulenza fiscale, previdenziale o finanziaria personalizzata. I calcoli si basano sulla normativa vigente (coefficienti INPS DM 2025-26, D.lgs 252/2005) e su parametri e ipotesi inseriti dall\'utente, che possono cambiare.'), CW), ML, y);
+
+    const _tot = doc.getNumberOfPages();
+    for (let i = 2; i <= _tot; i++) { doc.setPage(i); miniHdr(i, _tot); }
+    doc.save(`report-pensione-${penState.age}-${penState.retAge}anni.pdf`);
+  } catch (e) {
+    console.error('Errore generazione Report Pensione:', e);
+    alert('Si e verificato un errore nella generazione del PDF. Riprova.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalLabel; }
+  }
+}
+window.generatePensionePDF = generatePensionePDF;
+
 function renderPensione() {
   try {
     const r = calcPensione();

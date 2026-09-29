@@ -263,37 +263,37 @@ const ASSET_CLASSES = {
     label: 'Fattore Momentum (Prezzo)', emoji: '🚀', cat: 'fat', isEq: true,
     mu: 0.075, vol: 0.195, inflBeta: 0.05, ter: 0.3, fxExp: 0.85,
     histCAGR: 0.117, histPeriod: '1979-2025', src: 'Jegadeesh-Titman/Carhart — CAGR come simulato dal motore (World EUR + contributo reale)',
-    desc: 'Strategia long sistematica sui vincitori degli ultimi 12-1 mesi. CAGR storico long-only ~12%/a (1970-2024). Rendimento elevato ma con crash risk: drawdown violenti nei mercati a U-turn (es. 2009: −60%). Forward-looking ~7.5%/a. Correlazione con Valore ρ≈−0.15 — principale beneficio del multi-fattore.',
+    desc: 'Strategia long sistematica sui vincitori degli ultimi 12-1 mesi. CAGR storico long-only ~12%/a (1970-2025). Rendimento elevato ma con crash risk: drawdown violenti nei mercati a U-turn (es. 2009: −60%). Forward-looking ~7.5%/a. Correlazione con Valore ρ≈−0.15 — principale beneficio del multi-fattore.',
   },
   fat_qualita: {
     label: 'Fattore Qualità / Redditività', emoji: '⭐', cat: 'fat', isEq: true,
     mu: 0.075, vol: 0.150, inflBeta: 0.18, ter: 0.3, fxExp: 0.85,
     histCAGR: 0.117, histPeriod: '1979-2025', src: 'Novy-Marx/FF5 — CAGR come simulato dal motore (World EUR + spread reale)',
-    desc: 'Aziende con alta redditività operativa, bassa leva finanziaria e stabilità degli utili (RMW: Robust Minus Weak). CAGR storico long-only ~9.5%/a (1990-2024). Carattere difensivo: sovra-performa in crisi, sotto-performa nei rally euforici. Parte del modello accademico a 5 fattori. Forward-looking ~7.5%/a.',
+    desc: 'Aziende con alta redditività operativa, bassa leva finanziaria e stabilità degli utili (RMW: Robust Minus Weak). CAGR storico long-only ~9.5%/a (1990-2025). Carattere difensivo: sovra-performa in crisi, sotto-performa nei rally euforici. Parte del modello accademico a 5 fattori. Forward-looking ~7.5%/a.',
   },
   fat_low_vol: {
     label: 'Fattore Bassa Volatilità (Difensivo)', emoji: '📉', cat: 'fat', isEq: true,
     mu: 0.070, vol: 0.120, inflBeta: 0.12, ter: 0.3, fxExp: 0.85,
     histCAGR: 0.089, histPeriod: '1979-2025', src: 'Frazzini & Pedersen — CAGR come simulato dal motore (World EUR + spread reale)',
-    desc: 'Azioni con volatilità storica e beta di mercato bassi (BAB: Betting Against Beta). Anomalia CAPM: il rendimento aggiustato per il rischio supera quello del mercato. CAGR storico ~8.5%/a con σ ~12% (1970-2024). Concentrato in settori difensivi: utilities, consumer staples, healthcare. Forward-looking ~7.0%/a. Ottimo abbinamento con Momentum.',
+    desc: 'Azioni con volatilità storica e beta di mercato bassi (BAB: Betting Against Beta). Anomalia CAPM: il rendimento aggiustato per il rischio supera quello del mercato. CAGR storico ~8.5%/a con σ ~12% (1970-2025). Concentrato in settori difensivi: utilities, consumer staples, healthcare. Forward-looking ~7.0%/a. Ottimo abbinamento con Momentum.',
   },
   fat_size: {
     label: 'Fattore Dimensione (Small Cap)', emoji: '🔬', cat: 'fat', isEq: true,
     mu: 0.075, vol: 0.190, inflBeta: 0.20, ter: 0.25, fxExp: 0.85,
     histCAGR: 0.104, histPeriod: '1979-2025', src: 'Banz/Fama-French — CAGR come simulato dal motore (World EUR + spread reale)',
-    desc: 'Premio di dimensione (SMB: Small Minus Big) — le piccole capitalizzazioni tendono a sovra-performare le grandi nel lungo periodo. CAGR storico ~9.5%/a (1970-2024). Il premio è più robusto nel segmento value. Parzialmente compresso post-pubblicazione accademica. Forward-looking ~7.5%/a. Correlazione con mercato ~0.80.',
+    desc: 'Premio di dimensione (SMB: Small Minus Big) — le piccole capitalizzazioni tendono a sovra-performare le grandi nel lungo periodo. CAGR storico ~9.5%/a (1970-2025). Il premio è più robusto nel segmento value. Parzialmente compresso post-pubblicazione accademica. Forward-looking ~7.5%/a. Correlazione con mercato ~0.80.',
   },
   fat_investment: {
     label: 'Fattore Investimento (CMA)', emoji: '🏗️', cat: 'fat', isEq: true,
     mu: 0.072, vol: 0.130, inflBeta: 0.10, ter: 0.35, fxExp: 0.85,
     histCAGR: 0.112, histPeriod: '1979-2025', src: 'Fama & French (2015) — CAGR come simulato dal motore (World EUR + spread reale)',
-    desc: 'Aziende con crescita degli attivi bassa (Conservative Minus Aggressive — CMA). Le imprese che investono meno producono rendimenti più alti nel lungo periodo. Parte del modello a 5 fattori (Fama-French 2015). CAGR storico ~8%/a (1990-2024). Carattere difensivo, alta correlazione con Qualità (ρ≈0.40). Forward-looking ~7.2%/a.',
+    desc: 'Aziende con crescita degli attivi bassa (Conservative Minus Aggressive — CMA). Le imprese che investono meno producono rendimenti più alti nel lungo periodo. Parte del modello a 5 fattori (Fama-French 2015). CAGR storico ~8%/a (1990-2025). Carattere difensivo, alta correlazione con Qualità (ρ≈0.40). Forward-looking ~7.2%/a.',
   },
   fat_dividendi: {
     label: 'Fattore Dividendi / Dividend Growth', emoji: '💰', cat: 'fat', isEq: true,
     mu: 0.072, vol: 0.145, inflBeta: 0.22, ter: 0.3, fxExp: 0.85,
-    histCAGR: 0.092, histPeriod: '1970-2024', src: 'Literatura accademica sui dividendi',
-    desc: 'Aziende con dividend yield elevato e/o storia di crescita dei dividendi (Dividend Aristocrats). CAGR storico ~9.2%/a (1970-2024). Sovrapposizione parziale con Qualità e Valore. Flusso cedolare elevato riduce la volatilità percepita. Settori tipici: utility, finanziari, consumer staples. Forward-looking ~7.2%/a.',
+    histCAGR: 0.092, histPeriod: '1970-2025', src: 'Literatura accademica sui dividendi',
+    desc: 'Aziende con dividend yield elevato e/o storia di crescita dei dividendi (Dividend Aristocrats). CAGR storico ~9.2%/a (1970-2025). Sovrapposizione parziale con Qualità e Valore. Flusso cedolare elevato riduce la volatilità percepita. Settori tipici: utility, finanziari, consumer staples. Forward-looking ~7.2%/a.',
   },
   fat_multifat: {
     label: 'Multi-Fattore (Val+Mom+Qual+LowVol+CMA)', emoji: '🎯', cat: 'fat', isEq: true,
@@ -344,25 +344,25 @@ const ASSET_CLASSES = {
   ob_usa_st: {
     label: 'Gov. USA Breve (1-3a)', emoji: '🇺🇸', cat: 'ob_usa',
     mu: 0.043, vol: 0.027, inflBeta: 0.10, ter: 0.07, fxExp: 1.0,
-    histCAGR: 0.048, histPeriod: '1970-2024', src: 'Federal Reserve (FRED)',
+    histCAGR: 0.048, histPeriod: '1970-2025', src: 'Federal Reserve (FRED)',
     desc: 'Titoli del Tesoro USA a scadenza 1-3 anni. Duration ~1.8. Volatilità storica ~2.7%. Rendimento legato al tasso di policy della Federal Reserve. Ottimo sostituto della liquidità in contesti di tassi elevati. Quasi nulla sensibilità ai tassi a lungo termine.',
   },
   ob_usa_it: {
     label: 'Gov. USA Intermedio (3-7a)', emoji: '🇺🇸', cat: 'ob_usa',
     mu: 0.045, vol: 0.055, inflBeta: -0.15, ter: 0.07, fxExp: 1.0,
-    histCAGR: 0.062, histPeriod: '1970-2024', src: 'Federal Reserve (FRED)',
+    histCAGR: 0.062, histPeriod: '1970-2025', src: 'Federal Reserve (FRED)',
     desc: 'Treasury USA 3-7 anni. Duration ~4.5. Volatilità ~5.5%. Punto di riferimento del mercato obbligazionario USA. Buona decorrelazione dall\'azionario in recessione (flight to quality). CAGR storico 6.2%/a gonfiato dal ciclo di calo dei tassi 1981-2021.',
   },
   ob_usa_lt: {
     label: 'Gov. USA Lungo (7-10a)', emoji: '🇺🇸', cat: 'ob_usa',
     mu: 0.047, vol: 0.085, inflBeta: -0.30, ter: 0.1, fxExp: 1.0,
-    histCAGR: 0.068, histPeriod: '1970-2024', src: 'Federal Reserve (FRED)',
+    histCAGR: 0.068, histPeriod: '1970-2025', src: 'Federal Reserve (FRED)',
     desc: 'Treasury USA 7-10 anni. Duration ~7-8. Forte apprezzamento in recessioni/deflazione. Soffre in regimi inflattivi (perdite reali del 30-40% negli anni \'70). Correlazione con azioni ~−0.15 in era post-2000.',
   },
   ob_usa_ult: {
     label: 'Gov. USA Ultra-Lungo (20-30a)', emoji: '🇺🇸', cat: 'ob_usa',
     mu: 0.048, vol: 0.145, inflBeta: -0.45, ter: 0.1, fxExp: 1.0,
-    histCAGR: 0.074, histPeriod: '1970-2024', src: 'Federal Reserve (FRED)',
+    histCAGR: 0.074, histPeriod: '1970-2025', src: 'Federal Reserve (FRED)',
     desc: 'Titoli del Tesoro USA 20-30 anni. Duration ~17-19. Volatilità ~14.5%/a — paragonabile alle azioni. Sensibilità massima ai tassi: −17% circa per ogni +1% di rialzo. Usato come deflation hedge (All Seasons 40%, Permanent Portfolio 25%). Anno 2022: −30%.',
   },
 
@@ -426,19 +426,19 @@ const ASSET_CLASSES = {
   gold: {
     label: 'Oro (metallo fisico / ETC)', emoji: '🥇', cat: 'real', isGold: true,
     mu: 0.038, vol: 0.150, inflBeta: 0.50, ter: 0.2, fxExp: 1.0,
-    histCAGR: 0.078, histPeriod: '1970-2024', src: 'Prezzo spot oro (mercato internazionale)',
-    desc: 'Prezzo spot oro in USD, convertito in EUR. CAGR 1970-2024: 7.8%/a — fortemente gonfiato dalla fine del gold standard 1971 e dal rialzo degli anni \'70-\'80. Forward-looking ~3.8%/a (inflazione + premio di scarsità). Nessun dividendo o cedola — rendimento da solo apprezzamento. Forte decorrelazione con azioni in crisi.',
+    histCAGR: 0.078, histPeriod: '1970-2025', src: 'Prezzo spot oro (mercato internazionale)',
+    desc: 'Prezzo spot oro in USD, convertito in EUR. CAGR 1970-2025: 7.8%/a — fortemente gonfiato dalla fine del gold standard 1971 e dal rialzo degli anni \'70-\'80. Forward-looking ~3.8%/a (inflazione + premio di scarsità). Nessun dividendo o cedola — rendimento da solo apprezzamento. Forte decorrelazione con azioni in crisi.',
   },
   commodities: {
     label: 'Commodities Diversificate', emoji: '⚡', cat: 'real',
     mu: 0.032, vol: 0.185, inflBeta: 0.65, ter: 0.3, fxExp: 1.0,
-    histCAGR: 0.052, histPeriod: '1970-2024', src: 'Bloomberg Commodity EUR reale dal 2005 (curvo.eu), stima aggregata prima',
+    histCAGR: 0.052, histPeriod: '1970-2025', src: 'Bloomberg Commodity EUR reale dal 2005 (curvo.eu), stima aggregata prima',
     desc: 'Paniere diversificato di materie prime: energia ~55%, metalli industriali ~20%, agricoltura ~25%. CAGR storico ~5.2%/a influenzato dagli shock petroliferi degli anni \'70. Rendimento reale di lungo periodo vicino a zero per i costi di roll sui futures. Ottima copertura inflazione a breve termine (β≈0.65).',
   },
   cash: {
     label: 'Liquidità / Mercato Monetario', emoji: '💵', cat: 'cash', isCash: true,
     mu: 0.025, vol: 0.020, inflBeta: 0.15, ter: 0.05, fxExp: 0.0,
-    histCAGR: 0.048, histPeriod: '1970-2024', src: 'Dati storici tassi breve termine (Fed/BCE)',
+    histCAGR: 0.048, histPeriod: '1970-2025', src: 'Dati storici tassi breve termine (Fed/BCE)',
     desc: 'BOT, T-Bills, fondi monetari, conti deposito. Rendimento = tasso di policy della banca centrale. Volatilità ~2% (include rischio di reinvestimento/variazione tassi: il rendimento atteso cambia ad ogni rinnovo). Rendimento reale spesso negativo in periodi inflattivi. CAGR storico 4.8%/a gonfiato dall\'era dei tassi alti anni \'80. Forward-looking normalizzato ~2.5%/a.',
   },
   // ══════════════════════════════════════════════════════════════
@@ -452,14 +452,14 @@ const ASSET_CLASSES = {
     label: 'Efficient Core 90/60 USA', emoji: '\u26a1', cat: 'eq', isComposite: true,
     composite: [ { ac: 'eq_usa', w: 0.90 }, { ac: 'ob_usa_it', w: 0.60 } ],
     finCost: 0.0125, ter: 0.20, fxExp: 0.70,
-    histPeriod: '1970-2024', src: 'WisdomTree NTSX / efficient core',
+    histPeriod: '1970-2025', src: 'WisdomTree NTSX / efficient core',
     desc: 'Mattoncino capital-efficient: 90% azioni USA + 60% Treasury USA (notional 150%, leva 1,5x). Nel builder si scompone nei due sottostanti, cos\u00ec puoi combinarlo con oro, trend, ex-USA ecc. mantenendo corretti correlazioni e tassazione. Costo di finanziamento ~1,25%/a gi\u00e0 dedotto.',
   },
   ec_glob_core: {
     label: 'Efficient Core 90/60 Globale', emoji: '\u26a1', cat: 'eq', isComposite: true,
     composite: [ { ac: 'eq_sviluppati', w: 0.90 }, { ac: 'ob_glob_gov', w: 0.60 } ],
     finCost: 0.0125, ter: 0.25, fxExp: 0.55,
-    histPeriod: '1970-2024', src: 'efficient core globale',
+    histPeriod: '1970-2025', src: 'efficient core globale',
     desc: 'Come l\'Efficient Core USA ma diversificato globalmente: 90% azioni mercati sviluppati + 60% governativi globali (hedged EUR), notional 150%. Nel builder si scompone nei sottostanti per un calcolo corretto di rischio, correlazioni e fiscalit\u00e0. Costo di finanziamento ~1,25%/a dedotto.',
   },
 };
@@ -2078,7 +2078,8 @@ function renderEcoScenarios() {
     `<strong>€${fmtN(state.pac)}/m</strong> PAC · ` +
     `<strong>${state.years} anni</strong> · ` +
     `<strong>${pName}</strong>` +
-    (seqOn ? ` · <span style="color:var(--purple)">⚠ Sequence Risk attivo</span>` : '');
+    (seqOn ? ` · <span style="color:var(--purple)">⚠ Sequence Risk attivo</span>` : '') +
+    ` · <span style="color:var(--text3)">Vale per l'orizzonte di accumulo. Il Decumulo ha un proprio pannello scenari, indipendente da questo.</span>`;
 
   // Build scenario cards
   document.getElementById('ecoScenarioGrid').innerHTML = Object.entries(ECO_SCENARIOS).map(([k, s]) => `
@@ -2882,10 +2883,71 @@ function runSuccessMC() {
 // ══════════════════════════════════════════════════════════════
 // TAB DECUMULO — Guyton-Klinger corretto
 // ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// COLLEGAMENTO PENSIONE → DECUMULO
+// Se attivo, ogni anno il portafoglio paga solo la parte di spesa NON coperta dalla
+// pensione netta (INPS + rendita Fondo Pensione) calcolata nella scheda Pensione.
+// Convenzioni identiche alla scheda Pensione (calcPensione, gap analysis):
+//   • INPS rivalutata al 75% dell'inflazione (perequazione parziale);
+//   • rendita FP rivalutata a meta' del rendimento netto del fondo.
+// Gli importi di calcPensione sono NOMINALI all'anno di pensionamento: qui vengono
+// riportati alla moneta di inizio decumulo; poi ogni motore li indicizza con la
+// propria inflazione (ipotizzata nel parametrico, storica nel motore storico).
+// Se il decumulo inizia prima della pensione, il portafoglio copre tutta la spesa
+// fino all'arrivo della pensione (ponte per il pensionamento anticipato).
+// NON persistito: penState non viene salvato, quindi dopo un refresh la scheda
+// Pensione torna ai default e il collegamento riparte spento.
+// ══════════════════════════════════════════════════════════════
+let decPensionLink = false;
+function getDecPensionLink() {
+  if (!decPensionLink || typeof calcPensione !== 'function' || typeof penState === 'undefined') return null;
+  let r;
+  try { r = calcPensione(); } catch (e) { return null; }
+  const infl = penState.infl || 0;
+  const inpsAnn = Math.max(0, r.pensioneNettaAnn || 0);
+  const fpAnn = Math.max(0, r.rendFPNetta || 0);
+  const fpGrowth = (penState.fpRet || 0) * (1 - (r.aliqFP || 0)) * 0.5;
+  // anni tra inizio decumulo (fine accumulo nel Simulatore) e inizio pensione
+  const shift = (penState.retAge - penState.age) - state.years;
+  let startIdx, inpsStart, fpStart;
+  if (shift >= 0) {
+    startIdx = shift;
+    inpsStart = inpsAnn / Math.pow(1 + infl, shift);
+    fpStart = fpAnn / Math.pow(1 + infl, shift);
+  } else {
+    // pensione gia' in corso all'inizio del decumulo: la porto avanti con le sue regole
+    startIdx = 0;
+    inpsStart = inpsAnn * Math.pow(1 + 0.75 * infl, -shift);
+    fpStart = fpAnn * Math.pow(1 + fpGrowth, -shift);
+  }
+  return { startIdx, inpsStart, fpStart, fpGrowth, inpsAnn, fpAnn,
+           retAge: penState.retAge, decAge: state.age + state.years,
+           ageMismatch: penState.age !== state.age };
+}
+// Aggiorna gli importi pensione dall'anno yearIdx al successivo, con l'inflazione di quell'anno
+function decPensionStep(pl, cur, yearIdx, inflY) {
+  if (yearIdx + 1 <= pl.startIdx) { cur.inps *= (1 + inflY); cur.fp *= (1 + inflY); }
+  else { cur.inps *= (1 + 0.75 * inflY); cur.fp *= (1 + pl.fpGrowth); }
+}
+
+function toggleDecPensionLink(on) {
+  decPensionLink = !!on;
+  renderDecumulo();
+  // I risultati storici partono solo dal loro bottone: se sono gia' a schermo li
+  // ricalcolo, altrimenti resterebbero quelli senza/con pensione accanto ai nuovi.
+  const hr = document.getElementById('decHistResults');
+  if (hr && hr.innerHTML.trim()) runDecHistorical();
+}
+window.toggleDecPensionLink = toggleDecPensionLink;
+
 function simulateDecumulo(sc) {
   const { startPortfolio: sP, withdrawal: w0, years: Y, portfolio: port, strategy: strat, inflation: infl, ter, ecoScenario, ecoTiming } = decState;
   const terRate = ter / 100, inflRate = infl / 100;
-  const initialWithdrawalRate = sP > 0 ? w0 / sP : 0;
+  const pl = getDecPensionLink();
+  const plCur = pl ? { inps: pl.inpsStart, fp: pl.fpStart } : null;
+  // Con la pensione, le regole GK ragionano sul prelievo DAL PORTAFOGLIO, non sulla spesa totale
+  const _initDraw = Math.max(0, w0 - ((pl && pl.startIdx === 0) ? pl.inpsStart + pl.fpStart : 0));
+  const initialWithdrawalRate = sP > 0 ? (_initDraw > 0 ? _initDraw : w0) / sP : 0;
   // Età di inizio decumulo — usata per lifecycle weight corretto
   const decStartAge = state.age + state.years;
   let cW = sP, wd = w0, prevReturn = null;
@@ -2922,8 +2984,11 @@ function simulateDecumulo(sc) {
 
   const data = [];
   for (let y = 1; y <= Y; y++) {
-    if (cW <= 0) { data.push({ year: y, start: 0, ret: 0, withdrawal: 0, withdrawalNet: 0, tax: 0, end: 0, rate: 0, note: 'Portafoglio esaurito', eco: false }); continue; }
+    if (cW <= 0) { data.push({ year: y, start: 0, ret: 0, withdrawal: 0, withdrawalNet: 0, tax: 0, end: 0, rate: 0, retRate: 0, note: 'Portafoglio esaurito', eco: false }); continue; }
     const startW = cW;
+    const _yi = y - 1;
+    const pensInc = (pl && _yi >= pl.startIdx) ? plCur.inps + plCur.fp : 0;
+    const draw = Math.max(0, wd - pensInc); // prelievo effettivo dal portafoglio (= wd se collegamento spento)
     const inEcoRegime = ecoWin && y >= ecoWin.s && y <= ecoWin.e;
     let grossRate;
     if (inEcoRegime) {
@@ -2941,9 +3006,9 @@ function simulateDecumulo(sc) {
     const netRate = grossRate - terRate;
     // Mid-point: interessi maturano sulla media tra inizio e fine anno
     // Equivalente a: cW_dopo = (cW - wd/2) * (1+r) - wd/2
-    const midW = Math.max(0, cW - wd / 2);
+    const midW = Math.max(0, cW - draw / 2);
     const annRet = midW * netRate;
-    cW = Math.max(0, cW - wd + annRet);
+    cW = Math.max(0, cW - draw + annRet);
 
     // ── Tassazione del prelievo (ETF UCITS, regime amministrato) ──────────────
     // Quota di plusvalenza proporzionale al prelievo (metodo costo medio):
@@ -2953,19 +3018,20 @@ function simulateDecumulo(sc) {
     // Il costo base si riduce proporzionalmente alla quota di portafoglio venduta.
     const taxRateDec = blendedTaxRate(decStartAge + y);
     const gainFrac = startW > 0 ? Math.max(0, (startW - totalCostBasis) / startW) : 0;
-    const taxOnWd = wd * gainFrac * taxRateDec;
-    const withdrawalNet = Math.round(wd - taxOnWd);
+    const taxOnWd = draw * gainFrac * taxRateDec;
+    const withdrawalNet = Math.round(draw - taxOnWd);
     // Aggiorna il costo base: ridotto proporzionalmente alla quota venduta
-    const sellFrac = startW > 0 ? Math.min(1, wd / startW) : 0;
+    const sellFrac = startW > 0 ? Math.min(1, draw / startW) : 0;
     totalCostBasis = Math.max(0, totalCostBasis * (1 - sellFrac));
 
     let note = crashNote, nextWd = wd;
+    if (pl && _yi === pl.startIdx && pensInc > 0) note = (note ? note + ' · ' : '') + '🏛 inizio pensione';
     if (inEcoRegime && y === ecoWin.s) note = (note ? note + ' · ' : '') + ECO_SCENARIOS[ecoScenario].emoji + ' regime attivo';
     if (ecoWin && y === ecoWin.e + 1) note = '↩ ritorno normale';
     if (strat === 'fixed') { nextWd = wd; }
     else if (strat === 'inflation') { nextWd = wd * (1 + inflRate); if (!note && infl > 0 && y > 1) note = `+${infl.toFixed(1)}% inflaz.`; }
     else if (strat === 'gk') {
-      const currentRate = cW > 0 ? wd / cW : Infinity;
+      const currentRate = cW > 0 ? draw / cW : Infinity;
       const portfolioRuleBlocks = prevReturn !== null && prevReturn < 0;
       if (currentRate > initialWithdrawalRate * 1.20) { nextWd = wd * 0.90; note = (note ? note + ' · ' : '') + 'GK: -10% (tasso alto)'; }
       else if (currentRate < initialWithdrawalRate * 0.80) {
@@ -2977,7 +3043,8 @@ function simulateDecumulo(sc) {
       }
       prevReturn = netRate;
     }
-    data.push({ year: y, start: Math.round(startW), ret: Math.round(annRet), withdrawal: Math.round(wd), withdrawalNet, tax: Math.round(taxOnWd), end: Math.round(cW), rate: startW > 0 ? wd / startW : 0, note, eco: !!inEcoRegime });
+    data.push({ year: y, start: Math.round(startW), ret: Math.round(annRet), withdrawal: Math.round(draw), spending: Math.round(wd), pension: Math.round(pensInc), withdrawalNet, tax: Math.round(taxOnWd), end: Math.round(cW), rate: startW > 0 ? draw / startW : 0, retRate: netRate, note, eco: !!inEcoRegime });
+    if (pl) decPensionStep(pl, plCur, _yi, inflRate);
     wd = nextWd;
   }
   return data;
@@ -3082,7 +3149,10 @@ function runDecumuloHistorical() {
 
   const results = [];
 
+  const pl = getDecPensionLink();
+  const _initDrawH = Math.max(0, w0 - ((pl && pl.startIdx === 0) ? pl.inpsStart + pl.fpStart : 0));
   for (const startYr of startYears) {
+    const plCur = pl ? { inps: pl.inpsStart, fp: pl.fpStart } : null;
     const startIdx = (startYr - 1970) * 12;
     let cap = sP, wd = w0, prevYearRet = null;
     let survived = true, exhaustYear = null;
@@ -3091,7 +3161,9 @@ function runDecumuloHistorical() {
     for (let yi = 0; yi < Y; yi++) {
       if (cap <= 0) { survived = false; exhaustYear = exhaustYear ?? yi; cap = 0; }
       // 12 mesi di rendimenti reali, sottraendo prelievo mensile (wd/12)
-      const monthlyWd = wd / 12;
+      const pensInc = (pl && yi >= pl.startIdx) ? plCur.inps + plCur.fp : 0;
+      const draw = Math.max(0, wd - pensInc); // prelievo dal portafoglio (= wd se collegamento spento)
+      const monthlyWd = draw / 12;
       let yearRet = 1; // moltiplicatore lordo
       for (let m = 0; m < 12; m++) {
         if (cap <= 0) { cap = 0; break; }
@@ -3124,8 +3196,9 @@ function runDecumuloHistorical() {
 
       // Adatta prelievo per anno successivo (strategia)
       let nextWd = wd;
-      const initialWR = sP > 0 ? w0 / sP : 0;
-      const currentWR = cap > 0 ? wd / cap : Infinity;
+      const initialWR = sP > 0 ? (_initDrawH > 0 ? _initDrawH : w0) / sP : 0;
+      const currentWR = cap > 0 ? draw / cap : Infinity;
+      if (pl) decPensionStep(pl, plCur, yi, inflRate);
       if (strat === 'fixed') { nextWd = wd; }
       else if (strat === 'inflation') { nextWd = wd * (1 + inflRate); }
       else if (strat === 'gk') {
@@ -3296,6 +3369,30 @@ function renderDecumulo() {
     b.style.color = hedged ? 'var(--blue)' : 'var(--text3)';
   })();
   const dBase = simulateDecumulo('normal'), dBest = simulateDecumulo('best'), dWorst = simulateDecumulo('worst');
+  // Pannello collegamento pensione: mostra SEMPRE gli importi usati e da dove arrivano
+  (function(){
+    const el = document.getElementById('decPensionInfo');
+    if (!el) return;
+    const cb = document.getElementById('decPensionChk'); if (cb) cb.checked = decPensionLink;
+    const F = (typeof fmtP === 'function') ? fmtP : fmt;
+    if (!decPensionLink) {
+      el.style.color = 'var(--text3)';
+      el.innerHTML = 'Spento: il portafoglio paga tutta la spesa ogni anno. Attivalo per sottrarre la pensione netta calcolata nella scheda <strong>Piano Pensione</strong>: il portafoglio pagher\u00E0 solo la parte non coperta.';
+      return;
+    }
+    const pl = getDecPensionLink();
+    if (!pl) { el.style.color = 'var(--red)'; el.innerHTML = '\u26A0\uFE0F Impossibile leggere la scheda Piano Pensione.'; return; }
+    const annoPens = new Date().getFullYear() + (penState.retAge - penState.age);
+    let h = `\uD83C\uDFDB Pensione netta collegata: <strong>INPS ${F(Math.round(pl.inpsAnn))}/anno</strong> + <strong>Fondo Pensione ${F(Math.round(pl.fpAnn))}/anno</strong> (nominali nel ${annoPens}, dai ${pl.retAge} anni). `;
+    h += pl.startIdx > 0
+      ? `Il decumulo inizia a ${pl.decAge} anni: per i primi <strong>${pl.startIdx} anni</strong> il portafoglio copre tutta la spesa, poi solo la parte non coperta dalla pensione. `
+      : `Il portafoglio copre solo la parte di spesa non coperta dalla pensione. `;
+    h += `Il campo <em>Prelievo annuo iniziale</em> ora indica la tua <strong>spesa annua totale</strong>. `;
+    h += `<span style="opacity:.8">Fonte: scheda Piano Pensione (RAL ${F(penState.ral)}, pensione a ${penState.retAge} anni): se non l'hai compilata, sono valori di esempio.</span>`;
+    if (pl.ageMismatch) h += `<br>\u26A0\uFE0F L'et\u00E0 nella scheda Pensione (${penState.age}) \u00E8 diversa da quella del Simulatore (${state.age}): nella scheda Pensione premi "Importa et\u00E0 e capitale ETF dal Simulatore" per allinearle.`;
+    el.style.color = 'var(--text2)';
+    el.innerHTML = h;
+  })();
   const { years: Y } = decState;
   const endBase = dBase[Y - 1]?.end || 0, endBest = dBest[Y - 1]?.end || 0, endWorst = dWorst[Y - 1]?.end || 0;
   const ruinBase = dBase.findIndex(d => d.note && d.note.includes('esaurito'));
@@ -3310,6 +3407,7 @@ function renderDecumulo() {
     { l: 'Totale prelevato lordo (base)', v: fmt(totalExtracted), c: 'var(--text)' },
     { l: 'Totale prelevato netto (base)', v: fmt(totalExtractedNet), c: 'var(--teal)' },
     { l: 'Totale imposte pagate (base)', v: fmt(totalTax), c: 'var(--orange)' },
+    ...(decPensionLink ? [{ l: 'Coperto dalla pensione (base)', v: fmt(dBase.reduce((a, d) => a + (d.pension || 0), 0)), c: 'var(--green)' }] : []),
     { l: 'Rovina scenario base', v: ruinBase < 0 ? 'Non si esaurisce' : 'Anno ' + (ruinBase + 1), c: ruinBase < 0 ? 'var(--green)' : 'var(--red)' },
     { l: 'Rovina pessimistico', v: ruinWorst < 0 ? 'Regge' : 'Anno ' + (ruinWorst + 1), c: ruinWorst < 0 ? 'var(--green)' : 'var(--red)' },
   ].map(s => `<div class="dec-stat"><div class="dec-stat-label">${s.l}</div><div class="dec-stat-value" style="color:${s.c}">${s.v}</div></div>`).join('');
@@ -3330,7 +3428,7 @@ function renderDecumulo() {
     const ecoStyle = d.eco ? 'background:rgba(147,52,230,.05);border-left:2px solid rgba(147,52,230,.4)' : '';
     const taxStr = d.tax > 0 ? `<span style="color:var(--orange);font-size:11px">−${fmt(d.tax)}</span>` : '—';
     const netStr = d.withdrawalNet != null ? `<strong style="color:var(--teal)">${fmt(d.withdrawalNet)}</strong>` : fmt(d.withdrawal);
-    return `<tr style="${ecoStyle}"><td style="text-align:left"><strong>${d.year}</strong></td><td>${fmt(d.start)}</td><td class="${d.ret >= 0 ? 'pos' : 'neg'}">${fmt(d.ret)}</td><td style="color:var(--red)">${fmt(d.withdrawal)}</td><td>${taxStr}</td><td>${netStr}</td><td class="${endCls}"><strong>${fmt(d.end)}</strong></td><td class="${rateCls}">${(d.rate * 100).toFixed(2)}%</td><td style="font-size:11.5px;color:var(--text3)">${d.note || ''}</td></tr>`;
+    return `<tr style="${ecoStyle}"><td style="text-align:left"><strong>${d.year}</strong></td><td>${fmt(d.start)}</td><td class="${d.ret >= 0 ? 'pos' : 'neg'}">${fmt(d.ret)}</td><td class="${d.ret >= 0 ? 'pos' : 'neg'}" style="font-size:11px;color:var(--text3)">${d.retRate != null ? (d.retRate*100).toFixed(2)+'%' : '—'}</td><td style="color:var(--green)">${d.pension ? fmt(d.pension) : '—'}</td><td style="color:var(--red)">${fmt(d.withdrawal)}</td><td>${taxStr}</td><td>${netStr}</td><td class="${endCls}"><strong>${fmt(d.end)}</strong></td><td class="${rateCls}">${(d.rate * 100).toFixed(2)}%</td><td style="font-size:11.5px;color:var(--text3)">${d.note || ''}</td></tr>`;
   }).join('');
 }
 
@@ -4246,6 +4344,16 @@ function clearSavedState() {
   location.reload();
 }
 window.clearSavedState = clearSavedState;
+
+// Reset generale con conferma: stessa pulizia di clearSavedState (Simulatore, A/B,
+// Decumulo, Custom), NON tocca gli scenari salvati esplicitamente dall'utente
+// (suitePro_v2_scenarios) ne' la scheda Pensione/Fiscalita (vivono solo in memoria di
+// sessione: un refresh della pagina le riporta comunque ai default).
+function confirmResetAll() {
+  const ok = window.confirm('Ricominciare da zero? Tutti i valori inseriti in questa sessione (Simulatore, A/B, Decumulo, Custom, Pensione, Fiscalita) verranno persi. Gli scenari salvati esplicitamente non vengono toccati.');
+  if (ok) clearSavedState();
+}
+window.confirmResetAll = confirmResetAll;
 
 // ── Ripristino al caricamento ─────────────────────────────────
 (function restoreOnLoad() {
@@ -5929,7 +6037,7 @@ async function generatePDF() {
           ['Capitale finale', fmtFull(endBase), fmtFull(endBest), fmtFull(endWorst)],
           ['Totale estratto (base)', fmtFull(totalExt), '\u2014', '\u2014'],
           ['Prelievo iniziale / anno', fmtFull(decState.withdrawal), '\u2014', '\u2014'],
-          ['Tasso di prelievo iniziale', decState.startPortfolio > 0 ? (decState.withdrawal / decState.startPortfolio * 100).toFixed(2) + '%' : '\u2014', '\u2014', '\u2014'],
+          [decPensionLink ? 'Spesa iniziale / capitale (pensione collegata)' : 'Tasso di prelievo iniziale', decState.startPortfolio > 0 ? (decState.withdrawal / decState.startPortfolio * 100).toFixed(2) + '%' : '\u2014', '\u2014', '\u2014'],
           ['Esaurimento capitale', ruinBase  < 0 ? 'Non si esaurisce' : 'Anno ' + (ruinBase + 1), '\u2014', ruinWorst < 0 ? 'Regge' : 'Anno ' + (ruinWorst + 1)],
         ],
         styles: { fontSize: 8, cellPadding: 2.5 },
