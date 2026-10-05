@@ -2,7 +2,7 @@
 // ══════════════════════════════════════════════════════════════
 let fiscState = {
   regime: 'amministrato',
-  method: 'avg',          // avg | lifo | fifo
+  method: 'avg',          // dipende dal regime: avg (amministrato) | lifo (dichiarativo) | fifo (solo confronto)
   aliqGain: 26,           // %
   aliqOb: 12.5,           // % per titoli stato
   irpef: 35,              // % aliquota marginale IRPEF per ETF NON armonizzati (scaglione rappresentativo)
@@ -19,8 +19,8 @@ let fiscMinusId = 0;
 let chartFisc = null, chartFiscComp = null;
 
 const FISC_REGIME_DESC = {
-  amministrato: `<strong>Regime Amministrato (art. 6 D.Lgs. 461/1997):</strong> Il broker/banca agisce da <em>sostituto d'imposta</em> — calcola e versa le tasse automaticamente. <strong>Vantaggi:</strong> semplicità, nessun obbligo dichiarativo. <strong>Limiti:</strong> le minusvalenze compensano solo redditi diversi (ETF non-UCITS, azioni, derivati) — <strong>non</strong> i redditi di capitale (cedole, dividendi, rendimento ETF UCITS). Metodo obbligatorio: <strong>costo medio ponderato</strong> per ETF. Imposta di bollo detratta direttamente dal conto.`,
-  dichiarativo: `<strong>Regime Dichiarativo (art. 5 D.Lgs. 461/1997):</strong> L'investitore dichiara autonomamente plusvalenze e minusvalenze nel Modello Redditi. <strong>Vantaggi:</strong> <em>compensazione totale</em> tra redditi diversi (incluso offset più ampio di minus vs plus), possibilità di usare metodo LIFO. <strong>Limiti:</strong> obbligo dichiarativo, pagamento imposte con F24 entro le scadenze. Adatto a portafogli complessi con strumenti diversificati e uso attivo dello zainetto fiscale.`,
+  amministrato: `<strong>Regime Amministrato (art. 6 D.Lgs. 461/1997):</strong> Il broker/banca agisce da <em>sostituto d'imposta</em> — calcola e versa le tasse automaticamente. Il costo fiscale si calcola con il <strong>costo medio ponderato</strong>. <strong>Vantaggi:</strong> semplicità, nessun obbligo dichiarativo. <strong>Limiti:</strong> le minusvalenze compensano solo redditi diversi (ETF non-UCITS, azioni, derivati) — <strong>non</strong> i redditi di capitale (cedole, dividendi, rendimento ETF UCITS). Metodo obbligatorio: <strong>costo medio ponderato</strong> per ETF. Imposta di bollo detratta direttamente dal conto.`,
+  dichiarativo: `<strong>Regime Dichiarativo (art. 5 D.Lgs. 461/1997):</strong> L'investitore dichiara autonomamente plusvalenze e minusvalenze nel Modello Redditi. <strong>Vantaggi:</strong> <em>compensazione totale</em> tra redditi diversi (incluso offset più ampio di minus vs plus), costo fiscale calcolato con il metodo <strong>LIFO</strong> (art. 67, c. 1-bis TUIR: si considerano vendute per prime le quote acquistate più di recente). <strong>Limiti:</strong> obbligo dichiarativo, pagamento imposte con F24 entro le scadenze. Adatto a portafogli complessi con strumenti diversificati e uso attivo dello zainetto fiscale.`,
 };
 
 const STRUMENTO_DESC = {
@@ -29,23 +29,30 @@ const STRUMENTO_DESC = {
   azioni: { label:'Azioni dirette', tipo:'Reddito Diverso', aliq:'26%', compensabile:true, note:'Capital gain da azioni: reddito diverso, compensabile con minus. Dividendi: reddito di capitale (26%).' },
   btp: { label:'BTP / Titoli di Stato', tipo:'Misto (cedole: capitale / plus da cessione: diversi)', aliq:'12.5%', compensabile:true, note:'Aliquota agevolata 12,5%. Le cedole sono redditi di capitale (non compensabili); le plusvalenze da cessione prima della scadenza sono redditi diversi, compensabili con minus pregresse (le minus da titoli di Stato entrano in zainetto al 48,08% del loro ammontare).' },
   obblig: { label:'Obbligaz. Corporate', tipo:'Reddito di Capitale / Diverso', aliq:'26%', compensabile:false, note:'Cedole: reddito di capitale (26%). Capital gain da vendita: reddito diverso, compensabile.' },
-  portafoglio: { label:'Portafoglio bilanciato', tipo:'Composito (pesato sul portafoglio)', aliq:'composita', compensabile:false, note:'Aliquota composita pesata sulla composizione del portafoglio del Simulatore: azioni/oro/liquidita al 26%, obbligazioni governative al 12,5%. Simula la vendita di una fetta dell intero portafoglio, non di un singolo strumento.' },
+  portafoglio: { label:'Portafoglio bilanciato', tipo:'Composito (pesato sul portafoglio)', aliq:'composita', compensabile:false, note:'Aliquota composita pesata sulla composizione del portafoglio del Simulatore: azioni/oro/liquidita al 26%, obbligazioni al 12,5% sulla quota di titoli di Stato e al 26% sul resto (un aggregato globale circa 19%). Simula la vendita di una fetta dell intero portafoglio, non di un singolo strumento.' },
 };
 
-document.getElementById('fiscRegimeBtns').onclick = e => {
-  const b = e.target.closest('[data-r]'); if (!b) return;
-  fiscState.regime = b.dataset.r;
-  document.querySelectorAll('#fiscRegimeBtns .gbtn').forEach(x=>x.classList.remove('a-blue'));
-  b.classList.add('a-blue');
-  document.getElementById('fiscRegimeDesc').innerHTML = FISC_REGIME_DESC[b.dataset.r]||'';
+// Il metodo di calcolo del costo fiscale dipende dal regime, non e' una scelta libera:
+// amministrato -> costo medio ponderato (D.Lgs. 461/1997); dichiarativo -> LIFO (art. 67 c.1-bis TUIR).
+const FISC_METHOD_BY_REGIME = { amministrato: 'avg', dichiarativo: 'lifo' };
+function setFiscRegime(r, methodOverride) {
+  if (!FISC_METHOD_BY_REGIME[r]) return;
+  fiscState.regime = r;
+  fiscState.method = methodOverride || FISC_METHOD_BY_REGIME[r];
+  document.querySelectorAll('#fiscRegimeBtns .gbtn').forEach(x => x.classList.toggle('a-blue', x.dataset.r === r));
+  document.querySelectorAll('#fiscMethodBtns .gbtn').forEach(x => x.classList.toggle('a-blue', x.dataset.mth === fiscState.method));
+  document.getElementById('fiscRegimeDesc').innerHTML = FISC_REGIME_DESC[r] || '';
   renderFiscale();
-};
+}
+document.getElementById('fiscRegimeBtns').onclick = e => { const b = e.target.closest('[data-r]'); if (b) setFiscRegime(b.dataset.r); };
+// Cliccare un metodo seleziona il regime che lo prevede: le due scelte restano sempre coerenti
 document.getElementById('fiscMethodBtns').onclick = e => {
   const b = e.target.closest('[data-mth]'); if (!b) return;
-  fiscState.method = b.dataset.mth;
-  document.querySelectorAll('#fiscMethodBtns .gbtn').forEach(x=>x.classList.remove('a-blue'));
-  b.classList.add('a-blue');
-  renderFiscale();
+  // FIFO: solo confronto (criterio di molti broker esteri). Si simula in regime dichiarativo,
+  // dove pero' la normativa richiede il LIFO: l'utente lo vede come alternativa, non come regola.
+  if (b.dataset.mth === 'fifo') { setFiscRegime('dichiarativo', 'fifo'); return; }
+  const r = Object.keys(FISC_METHOD_BY_REGIME).find(k => FISC_METHOD_BY_REGIME[k] === b.dataset.mth);
+  if (r) setFiscRegime(r);
 };
 document.getElementById('fiscStrumBtns').onclick = e => {
   const b = e.target.closest('[data-st]'); if (!b) return;
@@ -209,6 +216,30 @@ function calcTaxOnSell(sellAmount, currentPrice, lots, method, regime, strumento
   return { sellAmount, costBasis: Math.round(costBasis), grossGain: Math.round(grossGain), taxableGain: Math.round(taxableGain), tax: Math.round(tax), netProceeds: Math.round(netProceeds), effectiveRate, minusUsed: Math.round(minusUsed), canUseMinus, aliq: isWhitelist ? aliqOb : actualAliq, aliqApplicata: aliqCalc, baseRidotta48: isWhitelist, newMinus, method };
 }
 
+// ── Confronto tra regimi su una VENDITA PARZIALE ─────────────────────────────
+// E' l'unico caso in cui il metodo conta: decide QUALI quote vendi. Su una liquidazione
+// totale il costo fiscale e' sempre l'intero investito, quindi costo medio, LIFO e FIFO
+// danno lo stesso guadagno: il metodo sposta l'imposta nel tempo, non ne cambia il totale.
+// Usata sia dalla scheda Fiscalita sia dal report PDF, cosi' i due non possono divergere.
+function fiscCompareRegimes(o) {
+  const rows = [
+    { l: 'Amministrato (costo medio)', r: 'amministrato', m: 'avg' },
+    { l: 'Dichiarativo (LIFO)',        r: 'dichiarativo', m: 'lifo' },
+    { l: 'Confronto: FIFO',            r: 'dichiarativo', m: 'fifo' }, // criterio di molti broker esteri, non quello di legge
+  ];
+  return rows.map(s => {
+    const fD = calcFiscalLots(o.pac, o.w, o.sellY, o.netRate, s.m);
+    const yd = fD.yearlyData[fD.yearlyData.length - 1] || {};
+    const value = yd.currentValue || 0, invested = yd.totalInvested || 0;
+    const amount = Math.min(o.sellAmount, value);
+    const res = calcTaxOnSell(amount, yd.price || 1, fD.lots, s.m, s.r, o.strumento, o.aliqGain, o.aliqOb, o.minusvalenze, 2025 + o.sellY);
+    // imposta rinviata: plusvalenza rimasta sulle quote non vendute, stesse regole (base ridotta inclusa)
+    const latentGain = Math.max(0, (value - invested) - Math.max(0, res.grossGain));
+    const latent = Math.round(latentGain * (res.baseRidotta48 ? 0.4808 : 1) * (res.aliqApplicata || 0) / 100);
+    return { ...s, amount: Math.round(amount), costBasis: res.costBasis, tax: res.tax, latent, total: res.tax + latent, minusUsed: res.minusUsed };
+  });
+}
+
 function renderFiscale() {
   if (!fiscState.loaded) {
     // Usa dati di default se non importati dal simulatore.
@@ -290,32 +321,34 @@ function renderFiscale() {
     // Zainetto
     const validM = minusvalenze.filter(m=>m.scadenza>=(2025+years)&&m.amount>0);
     const totM = validM.reduce((s,m)=>s+m.amount,0);
-    const canUse = rgm==='dichiarativo' || STRUMENTO_DESC[strumento].compensabile;
+    const canUse = STRUMENTO_DESC[strumento].compensabile; // dipende dalla categoria di reddito, non dal regime
     const taxableGain = canUse ? Math.max(0, gain-totM) : gain;
     const tax = taxableGain * (aliq/100);
     const net = totalValue - tax - bolloTot;
     return { net: Math.round(net), totalTax: Math.round(tax), bolloTot: Math.round(bolloTot), totalValue: Math.round(totalValue) };
   };
 
-  const scenarios = [
-    { l:'Amm. + Costo Medio', r:'amministrato', m:'avg' },
-    { l:'Dich. + LIFO', r:'dichiarativo', m:'lifo' },
-    { l:'Dich. + FIFO', r:'dichiarativo', m:'fifo' },
-    { l:'Dich. + Costo Medio', r:'dichiarativo', m:'avg' },
-  ];
-  const scResults = scenarios.map(s=>({ ...s, ...computeNetForRegime(s.r, s.m) }));
-  const bestNet = Math.max(...scResults.map(s=>s.net));
-
+  // Confronto regimi su una vendita parziale (unico caso in cui il metodo conta)
+  const sellYc = Math.max(1, Math.min(sellYear || 1, years));
+  const scResults = fiscCompareRegimes({ pac, w, sellY: sellYc, netRate, sellAmount, strumento, aliqGain, aliqOb, minusvalenze });
+  const baseTax = scResults[0].tax;
+  const fullLiq = computeNetForRegime('amministrato', 'avg');
+  const fE = (typeof fmtFull === 'function' ? fmtFull : fmt);
+  const sameTot = Math.max(...scResults.map(s => s.total)) - Math.min(...scResults.map(s => s.total)) < 2;
   document.getElementById('fiscCompare').innerHTML = `
-    <div class="tbl-outer" style="margin-bottom:14px"><table>
-      <thead><tr><th style="text-align:left">Regime + Metodo</th><th>Valore lordo</th><th>Imposta CG</th><th>Bollo (cum.)</th><th>Netto finale</th><th>Risparmio vs peggiore</th></tr></thead>
-      <tbody>${scResults.map(s=>{const isBest=s.net===bestNet;const worst=Math.min(...scResults.map(x=>x.net));const saving=s.net-worst;return`<tr style="${isBest?'background:var(--green-dim)':''}"><td style="text-align:left;font-weight:${isBest?700:400}">${isBest?'⭐ ':''}${s.l}</td><td>${fmt(s.totalValue)}</td><td style="color:var(--red)">−${fmt(s.totalTax)}</td><td style="color:var(--orange)">−${fmt(s.bolloTot)}</td><td style="color:${isBest?'var(--green)':'var(--text)'};font-weight:${isBest?700:400}">${fmt(s.net)}</td><td class="${saving>0?'pos':'neutral'}">${saving>0?'+'+fmt(saving):'—'}</td></tr>`;}).join('')}</tbody>
-    </table></div>`;
+    <div style="font-size:12.5px;color:var(--text2);margin-bottom:8px;line-height:1.55">Vendita di <strong>${fE(scResults[0].amount)}</strong> nell'anno <strong>${sellYc}</strong> (importo e anno impostati sopra). Il metodo decide quali quote vendi: <strong>cambia quando paghi l'imposta, non quanto in totale</strong>${sameTot ? '' : ' (qui il totale varia per effetto dello zainetto)'}.</div>
+    <div class="tbl-outer" style="margin-bottom:10px"><table>
+      <thead><tr><th style="text-align:left">Regime e metodo</th><th>Costo fiscale quote vendute</th><th>Imposta sulla vendita</th><th>Imposta rinviata (quote rimaste)</th><th>Imposta totale</th><th>Sulla vendita, rispetto al costo medio</th></tr></thead>
+      <tbody>${scResults.map((s, i) => { const dd = baseTax - s.tax; return `<tr${i === 2 ? ' style="opacity:.75"' : ''}><td style="text-align:left">${s.l}</td><td>${fE(s.costBasis)}</td><td style="color:var(--red)">−${fE(s.tax)}</td><td style="color:var(--orange)">${fE(s.latent)}</td><td>${fE(s.total)}</td><td class="${dd > 0 ? 'pos' : dd < 0 ? 'neg' : 'neutral'}">${dd > 0 ? fmt(dd) + ' in meno' : dd < 0 ? fmt(-dd) + ' in più' : '—'}</td></tr>`; }).join('')}</tbody>
+    </table></div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:14px">In amministrato la legge prevede il costo medio, in dichiarativo il LIFO; il FIFO è solo un confronto (criterio di molti broker esteri). Su una <strong>liquidazione totale</strong> a fine piano il costo fiscale è tutto l'investito, quindi l'imposta è la stessa in ogni regime: ${fE(fullLiq.totalTax)}, netto ${fE(fullLiq.net)} dopo un bollo cumulato di ${fE(fullLiq.bolloTot)}. ${STRUMENTO_DESC[strumento].compensabile ? 'Con questo strumento le minusvalenze dello zainetto si compensano, in entrambi i regimi.' : 'Con questo strumento le minusvalenze dello zainetto non si compensano in nessun regime (redditi di capitale).'}</div>`;
 
-  // Chart confronto
-  if (chartFiscComp) { chartFiscComp.destroy(); chartFiscComp=null; }
-  const colors=['#1a73e8','#9334e6','#1e8e3e','#00897b'];
-  chartFiscComp=new Chart(document.getElementById('chFiscComp'),{type:'bar',data:{labels:scResults.map(s=>s.l),datasets:[{label:'Netto finale',data:scResults.map(s=>s.net),backgroundColor:colors.map((c,i)=>scResults[i].net===bestNet?c+'dd':c+'66'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' Netto: '+fmt(c.raw)}}},scales:{x:{ticks:{color:tC,font:{size:11}}},y:{ticks:{color:tC,font:{size:11},callback:v=>fmt(v)},grid:{color:gC}}}}});
+  // Chart confronto: imposta pagata ora + imposta rinviata (stesso totale)
+  if (chartFiscComp) { chartFiscComp.destroy(); chartFiscComp = null; }
+  chartFiscComp = new Chart(document.getElementById('chFiscComp'), { type: 'bar', data: { labels: scResults.map(s => s.l), datasets: [
+    { label: 'Imposta pagata con la vendita', data: scResults.map(s => s.tax), backgroundColor: '#d93025' },
+    { label: 'Imposta rinviata', data: scResults.map(s => s.latent), backgroundColor: '#f9ab00' } ] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { x: { stacked: true }, y: { stacked: true, ticks: { callback: v => fmt(v) } } } } });
 
   // Bollo nel tempo
   let bolloDetails='';

@@ -1021,7 +1021,7 @@ function calcCustomParams() {
   const { slots, total, finCostTotal } = expandCustomSlots(state.customPortfolio?.slots);
 
   // ── 2. Rendimento atteso ponderato e beta inflazione ──────────
-  let mu = 0, inflBeta = 0, eqW = 0, obW = 0, goldW = 0, cashW = 0, terW = 0, fxExpW = 0, otherFullW = 0;
+  let mu = 0, inflBeta = 0, eqW = 0, obW = 0, goldW = 0, cashW = 0, terW = 0, fxExpW = 0, otherFullW = 0, obGovW = 0;
   // Pesi per categoria di sensibilità al crash (sequence risk). Sottoinsiemi di
   // otherFullW: servono SOLO per modellare il comportamento in crisi (crash beta),
   // non alterano la classificazione fiscale (otherFullW resta invariato).
@@ -1058,7 +1058,7 @@ function calcCustomParams() {
     if (ac.isEq)        eqW   += w;
     else if (ac.isGold) goldW += w;
     else if (ac.isCash) cashW += w;
-    else if (ac.cat === 'ob_usa' || ac.cat === 'ob_eu' || ac.cat === 'ob_glob') { obW += w; obVolSum += w * (ac.vol || 0.057); // obblig. governative; vol pesata (fallback duration)
+    else if (ac.cat === 'ob_usa' || ac.cat === 'ob_eu' || ac.cat === 'ob_glob') { obW += w; obVolSum += w * (ac.vol || 0.057); obGovW += w * bondGovShare(sl.ac); // obblig. governative; vol pesata (fallback duration)
       // Traccia il peso per serie storica reale per scadenza (backtest/bootstrap usano dati veri)
       const _BSM = { ob_usa_st:'HIST_USB_2Y', ob_usa_it:'HIST_USB_5Y', ob_usa_lt:'HIST_USB_10Y', ob_usa_ult:'HIST_USB_30Y', ob_eu_st:'HIST_EUB_2Y', ob_eu_it:'HIST_EUB_5Y', ob_eu_lt:'HIST_EUB_10Y', ob_eu_ult:'HIST_EUB_30Y', ob_glob_gov:'HIST_GOV_GLOBAL', ob_glob_agg:'HIST_AGG_GLOBAL', ob_infl:'HIST_INFL_LINKED' };
       const _bs = _BSM[sl.ac];
@@ -1151,7 +1151,7 @@ function calcCustomParams() {
     vol:  sigmaFx,
     volStress: sigmaStressFx,      // vol in regime di crisi (FX vol amplificata)
     volNoFx: sigma,                // vol senza componente FX (riferimento)
-    eq:   eqW, ob: obW2, gold: goldW, cash: cashW,
+    eq:   eqW, ob: obW2, obGovFrac: (obW > 0 ? Math.max(0, Math.min(1, obGovW / obW)) : 1), gold: goldW, cash: cashW,
     obVolW: obW > 0 ? obVolSum / obW : 0.057,  // volatilità media pesata dei bond (per duration nel backtest)
     bondMix: bondMix,
     usaW: usaW, europaW: europaW,  // composizione bond per serie storica reale (per scadenza)
@@ -1339,7 +1339,26 @@ function hasAnyActivePac() {
   return state.pacChanges.some(c => +c.amount > 0);
 }
 
+// Quota di titoli di Stato (white list, aliquota ridotta) nelle obbligazioni di un'asset class.
+// Gli aggregati contengono anche corporate e cartolarizzati, tassati come le azioni (26%):
+// per l'aggregato globale ~50% governativi, come indicato nella sua descrizione.
+function bondGovShare(acKey) { return acKey === 'ob_glob_agg' ? 0.5 : 1; }
+// Frazione governativa della parte obbligazionaria di un portafoglio (1 = tutta white list).
+function bondGovFrac(portKey, age) {
+  try {
+    if (portKey === 'custom' && typeof calcCustomParams === 'function') { const f = calcCustomParams().obGovFrac; return (typeof f === 'number' && isFinite(f)) ? f : 1; }
+    if (portKey === 'glide' && typeof getGlideParams === 'function') { const f = getGlideParams(age).obGovFrac; return (typeof f === 'number' && isFinite(f)) ? f : 1; }
+  } catch (e) {}
+  // Preset e Lifecycle: la parte obbligazionaria e' l'aggregato globale (vedi PRESET_COMPOSITION);
+  // Golden Butterfly, Permanent, All Seasons, Larry ed Efficient Core usano titoli di Stato.
+  const AGG = { eq80: 1, eq60: 1, eq50: 1, eq40: 1, eq20: 1, ob100: 1, global_market: 1, lifecycle: 1 };
+  return AGG[portKey] ? bondGovShare('ob_glob_agg') : 1;
+}
+
 function blendedTaxRate(age) {
+  // Obbligazioni: aliquota ridotta solo sulla quota di titoli di Stato, il resto al 26%.
+  const _obR = (f) => (f * state.taxOb + (1 - f) * state.taxEq) / 100;
+  const _gf = bondGovFrac(state.portfolio, age);
   // Clamp equity a [0,1] per il calcolo dell'aliquota blended
   // (la leva implicita nei portafogli efficient core non aumenta l'aliquota fiscale)
   if (state.portfolio === 'custom') {
@@ -1355,7 +1374,7 @@ function blendedTaxRate(age) {
     const total = eqW + obW + goldW + cashW + otherW || 1;
     return (
       (eqW    / total) * state.taxEq / 100 +
-      (obW    / total) * state.taxOb / 100 +
+      (obW    / total) * _obR(_gf) +
       (goldW  / total) * state.taxEq / 100 +
       (cashW  / total) * state.taxEq / 100 +
       (otherW / total) * state.taxEq / 100
@@ -1371,7 +1390,7 @@ function blendedTaxRate(age) {
     const obMetaW = Math.max(0, pMeta.ob ?? 0);
     const tot = eq + obMetaW + trendW || 1;
     return (eq / tot) * state.taxEq / 100
-         + (obMetaW / tot) * state.taxOb / 100
+         + (obMetaW / tot) * _obR(_gf)
          + (trendW / tot) * state.taxEq / 100;
   }
   // Composizione completa: oro (ETC) e liquidità sono tassati al 26% (taxEq) in Italia,
@@ -1385,7 +1404,7 @@ function blendedTaxRate(age) {
     (eq    / total) * state.taxEq / 100 +
     (goldW / total) * state.taxEq / 100 +
     (cashW / total) * state.taxEq / 100 +
-    (obW   / total) * state.taxOb / 100
+    (obW   / total) * _obR(_gf)
   );
 }
 
@@ -2815,6 +2834,10 @@ function runSuccessMC() {
     const N = 1000, terRate = ter / 100;
     const inflRate = wI / 100;
     const retAge = age + years; // età all'inizio del decumulo
+    // Collegamento pensione (condiviso con la scheda Decumulo): il portafoglio paga solo la
+    // parte di spesa non coperta da INPS + rendita FP. Spento = comportamento identico a prima.
+    renderMcPensionPanel();
+    const pl = getDecPensionLink();
     let successes = 0;
     const finalVals = [], ruinYears = [];
     for (let i = 0; i < N; i++) {
@@ -2834,6 +2857,7 @@ function runSuccessMC() {
         cW += annPac + pic - exp + midW * r;
       }
       let wd = withdrawal, ruined = false;
+      const plCur = pl ? { inps: pl.inpsStart, fp: pl.fpStart } : null;
       // Fase prelievo — stesso portafoglio, età progredisce dal retAge
       for (let y = 1; y <= wY; y++) {
         if (cW <= 0) { ruined = true; ruinYears.push(y - 1); break; }
@@ -2843,8 +2867,11 @@ function runSuccessMC() {
         const vol = getPortfolioVol(portfolio, wAge);
         const mu_arith = mu + 0.5 * vol * vol;         // correzione log-normale (Itō)
         const r   = mu_arith + vol * randn_bm() - terRate;
-        const midW = Math.max(0, cW - wd / 2);
-        cW += midW * r - wd;
+        const pensInc = (pl && (y - 1) >= pl.startIdx) ? plCur.inps + plCur.fp : 0;
+        const draw = Math.max(0, wd - pensInc); // = wd se collegamento spento
+        const midW = Math.max(0, cW - draw / 2);
+        cW += midW * r - draw;
+        if (pl) decPensionStep(pl, plCur, y - 1, inflRate);
       }
       if (!ruined && cW > 0) successes++;
       else if (!ruined && cW <= 0) ruinYears.push(wY);
@@ -2856,12 +2883,12 @@ function runSuccessMC() {
     const col = sr >= 90 ? 'var(--green)' : sr >= 80 ? 'var(--orange)' : sr >= 70 ? '#e65100' : 'var(--red)';
     const label = sr >= 90 ? 'Piano molto solido ✅' : sr >= 80 ? 'Piano accettabile ⚠️' : sr >= 70 ? 'Piano a rischio 🔶' : 'Piano critico — revisione necessaria ❌';
     const desc = sr >= 90 ? `Il portafoglio rimane positivo in ${successes}/1.000 scenari. Robusto (soglia professionale: >90%).` : sr >= 80 ? `Fallisce in ${N - successes}/1.000 scenari. Accettabile ma con margine ridotto.` : `Fallisce in ${N - successes}/1.000 scenari. Considera di ridurre il prelievo o aumentare il patrimonio.`;
-    lastMCSuccessResult = { sr, successes, N, label, desc, avgRuinYear, p10: finalVals[Math.floor(N * .10)], p50: finalVals[Math.floor(N * .50)], p90: finalVals[Math.floor(N * .90)], withdrawal, wY, wI, years, portfolio, ter };
+    lastMCSuccessResult = { pensionLinked: !!pl, sr, successes, N, label, desc, avgRuinYear, p10: finalVals[Math.floor(N * .10)], p50: finalVals[Math.floor(N * .50)], p90: finalVals[Math.floor(N * .90)], withdrawal, wY, wI, years, portfolio, ter };
     document.getElementById('mc-success-result').innerHTML = `
       <div class="success-display sec" style="border-color:${col};background:${sr >= 90 ? 'var(--green-dim)' : sr >= 80 ? 'var(--orange-dim)' : sr >= 70 ? 'rgba(230,81,0,.08)' : 'var(--red-dim)'}">
         <div class="success-pct" style="color:${col}">${sr.toFixed(1)}%</div>
         <div style="font-size:16px;font-weight:600;margin-top:8px;color:${col}">${label}</div>
-        <div style="font-size:13px;margin-top:6px;color:var(--text2)">${desc}</div>
+        <div style="font-size:13px;margin-top:6px;color:var(--text2)">${desc}</div>${pl ? '<div style="font-size:12px;margin-top:6px;color:var(--green)">🏛 Pensione inclusa (INPS + Fondo Pensione dalla scheda Piano Pensione): il portafoglio paga solo la spesa non coperta.</div>' : ''}
         <div class="success-bar"><div class="success-bar-fill" style="width:${sr}%;background:${col}">${sr.toFixed(0)}%</div></div>
       </div>
       <div class="grid-3" style="margin-bottom:10px">
@@ -2895,8 +2922,8 @@ function runSuccessMC() {
 // propria inflazione (ipotizzata nel parametrico, storica nel motore storico).
 // Se il decumulo inizia prima della pensione, il portafoglio copre tutta la spesa
 // fino all'arrivo della pensione (ponte per il pensionamento anticipato).
-// NON persistito: penState non viene salvato, quindi dopo un refresh la scheda
-// Pensione torna ai default e il collegamento riparte spento.
+// NON persistito di proposito: a ogni visita riparte spento, cosi' includere la pensione
+// resta sempre una scelta esplicita (i dati della scheda Pensione invece sono salvati).
 // ══════════════════════════════════════════════════════════════
 let decPensionLink = false;
 function getDecPensionLink() {
@@ -2937,7 +2964,35 @@ function toggleDecPensionLink(on) {
   // ricalcolo, altrimenti resterebbero quelli senza/con pensione accanto ai nuovi.
   const hr = document.getElementById('decHistResults');
   if (hr && hr.innerHTML.trim()) runDecHistorical();
+  renderMcPensionPanel();
+  // Prob. Successo si ricalcola solo col suo bottone: segnalo che il risultato a schermo e' superato
+  const mr = document.getElementById('mc-success-result');
+  if (mr && mr.innerHTML.trim() && !mr.querySelector('.pen-stale'))
+    mr.insertAdjacentHTML('afterbegin', '<div class="pen-stale" style="margin-bottom:10px;padding:8px 12px;border-radius:6px;background:var(--orange-dim);color:var(--orange);font-size:12.5px">\u26A0\uFE0F Impostazione pensione cambiata: premi <strong>Calcola Probabilit\u00E0</strong> per aggiornare il risultato.</div>');
 }
+// Pannello pensione nella scheda Prob. Successo (stesso interruttore della scheda Decumulo)
+function renderMcPensionPanel() {
+  const cb = document.getElementById('mcPensionChk'); if (cb) cb.checked = decPensionLink;
+  const el = document.getElementById('mcPensionInfo'); if (!el) return;
+  const F = (typeof fmtP === 'function') ? fmtP : fmt;
+  if (!decPensionLink) {
+    el.style.color = 'var(--text3)';
+    el.innerHTML = 'Spento: il portafoglio paga tutto il prelievo target ogni anno. Impostazione condivisa con la scheda Decumulo.';
+    return;
+  }
+  const pl = getDecPensionLink();
+  if (!pl) { el.style.color = 'var(--red)'; el.innerHTML = '\u26A0\uFE0F Impossibile leggere la scheda Piano Pensione.'; return; }
+  const annoPens = new Date().getFullYear() + (penState.retAge - penState.age);
+  let h = `Pensione collegata: <strong>INPS ${F(Math.round(pl.inpsAnn))}/anno</strong> + <strong>Fondo Pensione ${F(Math.round(pl.fpAnn))}/anno</strong> (nominali nel ${annoPens}, dai ${pl.retAge} anni). `;
+  h += pl.startIdx > 0
+    ? `Il prelievo inizia a ${pl.decAge} anni: per i primi <strong>${pl.startIdx} anni</strong> il portafoglio paga tutto, poi solo la parte non coperta dalla pensione. `
+    : `Il portafoglio paga solo la parte di spesa non coperta dalla pensione. `;
+  h += `Il <em>Prelievo annuo target</em> ora indica la tua <strong>spesa annua totale</strong>. Impostazione condivisa con la scheda Decumulo. `;
+  h += `<span style="opacity:.8">Fonte: scheda Piano Pensione (RAL ${F(penState.ral)}, pensione a ${penState.retAge} anni): se non l'hai compilata, sono valori di esempio.</span>`;
+  if (pl.ageMismatch) h += `<br>\u26A0\uFE0F L'et\u00E0 nella scheda Pensione (${penState.age}) \u00E8 diversa da quella del Simulatore (${state.age}): nella scheda Pensione premi "Importa et\u00E0 e capitale ETF dal Simulatore" per allinearle.`;
+  el.style.color = 'var(--text2)'; el.innerHTML = h;
+}
+window.renderMcPensionPanel = renderMcPensionPanel;
 window.toggleDecPensionLink = toggleDecPensionLink;
 
 function simulateDecumulo(sc) {
@@ -3016,7 +3071,10 @@ function simulateDecumulo(sc) {
     //   imposta   = prelievo * gain_frac * aliquota_blended
     // Il prelievo nominale (wd) è l'importo lordo necessario; il netto è wd - imposta.
     // Il costo base si riduce proporzionalmente alla quota di portafoglio venduta.
-    const taxRateDec = blendedTaxRate(decStartAge + y);
+    // Aliquota del portafoglio del DECUMULO (decState.portfolio), non di quello del
+    // Simulatore: se i due differiscono, prima si tassavano i prelievi con l'aliquota sbagliata.
+    let taxRateDec;
+    { const _spT = state.portfolio; try { state.portfolio = port; taxRateDec = blendedTaxRate(decStartAge + y); } finally { state.portfolio = _spT; } }
     const gainFrac = startW > 0 ? Math.max(0, (startW - totalCostBasis) / startW) : 0;
     const taxOnWd = draw * gainFrac * taxRateDec;
     const withdrawalNet = Math.round(draw - taxOnWd);
@@ -3342,7 +3400,7 @@ function runDecHistorical() {
           </table>
         </div>
         <div style="font-size:11.5px;color:var(--text3);margin-top:10px;line-height:1.5">
-          <strong>Note metodologiche:</strong> usa la serie mensile storica (totali annui e mesi-crisi ancorati ai dati reali, infra-annuale ricostruito) e l'inflazione effettiva di ogni anno. Il portafoglio è ribilanciato implicitamente ai pesi target ogni mese. La strategia di prelievo applicata è quella selezionata sopra. <strong>Il "Calo Max Capitale" misura la riduzione massima del patrimonio dal suo picco e include sia i cali di mercato sia i prelievi periodici</strong>: in fase di decumulo è fisiologicamente più ampio del drawdown di solo mercato, perché il capitale scende anche per effetto dei prelievi che servono a vivere. Risultati confrontabili con Trinity Study (Bengen 1994) e successivi aggiornamenti (Pfau, Kitces).
+          <strong>Note metodologiche:</strong> usa la serie mensile storica (totali annui e mesi-crisi ancorati ai dati reali, infra-annuale ricostruito) e l'inflazione effettiva di ogni anno. Il portafoglio è ribilanciato implicitamente ai pesi target ogni mese. La strategia di prelievo applicata è quella selezionata sopra. <strong>Il "Calo Max Capitale" misura la riduzione massima del patrimonio dal suo picco e include sia i cali di mercato sia i prelievi periodici</strong>: in fase di decumulo è fisiologicamente più ampio del drawdown di solo mercato, perché il capitale scende anche per effetto dei prelievi che servono a vivere. Risultati confrontabili con il Trinity Study (Cooley, Hubbard, Walz 1998), che riprende la regola del 4% di Bengen (1994), e successivi aggiornamenti (Pfau, Kitces).
         </div>`;
       document.getElementById('decHistResults').innerHTML = html;
     } catch (e) {
@@ -3603,6 +3661,7 @@ function renderCustomBuilder() {
       ${cp.goldW>0?`<span class="custom-param-chip">Oro: <strong>${(cp.goldW*100).toFixed(0)}%</strong></span>`:''}
       ${cp.cashW>0?`<span class="custom-param-chip">Cash: <strong>${(cp.cashW*100).toFixed(0)}%</strong></span>`:''}
       ${cp.otherFullW>0?`<span class="custom-param-chip" title="Trend following, carry, commodities, REIT, fattori — tassati al 26%">Alt: <strong>${(cp.otherFullW*100).toFixed(0)}%</strong></span>`:''}
+      ${cp.ob>0?`<span class="custom-param-chip" title="Aliquota effettiva sulle obbligazioni del portafoglio: 12,5% sulla quota di titoli di Stato (white list), 26% su corporate e cartolarizzati. Un aggregato globale ha circa il 50% di titoli di Stato.">Aliq. obbl.: <strong>${(((cp.obGovFrac ?? 1) * state.taxOb) + ((1 - (cp.obGovFrac ?? 1)) * state.taxEq)).toFixed(1)}%</strong></span>`:''}
     </div>`;
   el.innerHTML = `
     <div class="sec-label" style="margin-bottom:12px">🔧 Builder Portafoglio Custom</div>
@@ -4339,7 +4398,7 @@ function _showRestoreBadge() {
 
 function clearSavedState() {
   try {
-    [LS_KEY, LS_KEYB, LS_KEYD, LS_KEYCUSTOM].forEach(k => localStorage.removeItem(k));
+    [LS_KEY, LS_KEYB, LS_KEYD, LS_KEYCUSTOM, 'suitePro_v2_penState'].forEach(k => localStorage.removeItem(k));
   } catch(_) {}
   location.reload();
 }
@@ -5151,12 +5210,13 @@ async function generatePDF() {
       'Le proiezioni utilizzano un modello deterministico annuale per gli scenari base/ottimista/pessimista, applicando un rendimento atteso ' +
       'specifico per portafoglio e una formula "mid-year convention" per i versamenti PAC (versamenti distribuiti uniformemente nell\'anno). ' +
       'Il TER viene sottratto dal rendimento lordo. La fiscalita e applicata solo sulla quota di plusvalenza al disinvestimento, con aliquota ' +
-      'composita pesata sulla composizione del portafoglio: azioni, oro (ETC) e liquidita al 26%, obbligazioni governative al 12,5%.'
+      'composita pesata sulla composizione del portafoglio: azioni, oro (ETC) e liquidita al 26%; obbligazioni al 12,5% solo sulla quota di titoli di Stato, il resto (corporate, cartolarizzati) al 26%: un aggregato globale risulta circa al 19%.'
     );
     narrative(
       'Lo scenario Monte Carlo usa un approccio Gaussiano standard (1.000 simulazioni) con μ = rendimento atteso del portafoglio e σ = volatilità storica. ' +
       'I percentili (P10/P25/P50/P75/P90) descrivono la distribuzione del valore finale: ' +
       'il P10 rappresenta il decimo peggior risultato su 100, il P50 la mediana, il P90 il decimo migliore. ' +
+      (seq.on ? 'Queste simulazioni includono il rischio di sequenza attivo, che lo scenario Base invece non considera: per questo la mediana puo risultare inferiore al Base. ' : 'A parita di ipotesi la mediana e allineata allo scenario Base. ') +
       'Per simulazioni con modelli avanzati (fat-tail, GARCH, Regime-Switching) usare il tab MC Avanzato.'
     );
     narrative(
@@ -5327,6 +5387,7 @@ async function generatePDF() {
         let pAdv = '';
         if (gP10 != null && Pa.p10 < gP10 * 0.92) pAdv = `Il modello avanzato produce uno scenario pessimistico (P10) piu severo del gaussiano standard: ${fmtFull(Pa.p10)} contro ${fmtFull(gP10)}. E un risultato atteso e istruttivo - i modelli che incorporano code grasse, volatilita variabile o sequenze storiche reali tendono a rivelare un rischio di coda che la distribuzione normale sottostima. Ai fini della pianificazione prudenziale, questo P10 piu basso e un riferimento piu conservativo.`;
         else if (gP10 != null && Pa.p10 > gP10 * 1.08) pAdv = `In questo caso il modello avanzato mostra una coda inferiore (P10) meno severa del gaussiano: ${fmtFull(Pa.p10)} contro ${fmtFull(gP10)}. Puo accadere quando le sequenze storiche campionate includono forti recuperi; resta utile confrontare entrambe le viste.`;
+        else if ((gP50 && Math.abs(Pa.p50 / gP50 - 1) > 0.10) || (gP90 && Math.abs(Pa.p90 / gP90 - 1) > 0.15)) pAdv = `La coda inferiore (P10) e simile al gaussiano, ma il centro e la parte alta della distribuzione no: mediana ${gP50 ? (Pa.p50 >= gP50 ? '+' : '') + ((Pa.p50 / gP50 - 1) * 100).toFixed(0) + '%' : 'n.d.'} e P90 ${gP90 ? (Pa.p90 >= gP90 ? '+' : '') + ((Pa.p90 / gP90 - 1) * 100).toFixed(0) + '%' : 'n.d.'} rispetto al gaussiano. Le due ipotesi portano quindi a stime diverse. Se il modello avanzato usa dati storici, ricorda che il periodo 1970-2025 include decenni di rendimenti obbligazionari molto piu alti di quelli attuali, che tendono a gonfiare le stime.`;
         else pAdv = `I percentili del modello avanzato risultano complessivamente allineati a quelli del Monte Carlo gaussiano, segno che per questo portafoglio e orizzonte l'assunzione di normalita non distorce in modo sostanziale la stima del rischio.`;
         narrative(pAdv);
         narrative('Questa analisi e una lettura informativa dei diversi modelli statistici disponibili; non costituisce raccomandazione di investimento. Per esplorare interattivamente tutti i modelli (Gaussiano, t-Student, GARCH, Regime-Switching, Block Bootstrap) usa il tab MC Avanzato nell\'applicazione.');
@@ -5342,8 +5403,9 @@ async function generatePDF() {
       const dBbw2 = projectWithOverrides({ portfolio: stateB.portfolio, ter: stateB.ter, pac: pacBov2 }, 'worst');
       const pBLabel2 = (typeof PORT !== 'undefined' && PORT[stateB.portfolio]?.label) || stateB.portfolio;
       const invB2 = dBbn2[years].invested;
-      const eqB2 = getEquityWeight(stateB.portfolio, endAge);
-      const txFB2 = (eqB2 * state.taxEq + (1 - eqB2) * state.taxOb) / 100;
+      // stessa aliquota della scheda A/B (oro/liquidita al 26%, obbligazioni per quota governativa)
+      const _spB2 = state.portfolio; state.portfolio = stateB.portfolio;
+      const txFB2 = blendedTaxRate(endAge); state.portfolio = _spB2;
       const nBv2 = calcNetNom(dBbn2[years].value, invB2, txFB2);
       const deltaAB = dBbn2[years].value - vN;
       const deltaNAB = nBv2 - nN;
@@ -5401,7 +5463,7 @@ async function generatePDF() {
     sHdr('6 — Scenari Economici Multi-Regime', TEAL);
     narrative(
       'Ogni regime economico applica moltiplicatori specifici sui rendimenti delle asset class e modula l\'inflazione (media + sigma). ' +
-      'I valori reali tengono conto della deflazione/inflazione cumulata di ogni scenario. Il delta vs Base evidenzia l\'impatto del regime ' +
+      'I valori reali tengono conto della deflazione/inflazione cumulata di ogni scenario. L\'inflazione indicata in tabella vale solo negli anni in cui il regime e attivo (finestra impostata nella scheda Scenari Economici): negli altri anni torna quella normale, quindi non va applicata a tutto l\'orizzonte. Il delta vs Base evidenzia l\'impatto del regime ' +
       'rispetto alla proiezione con inflazione costante usata nello Scenario Base.'
     );
     const dBaseEco = project('normal', false);
@@ -5440,14 +5502,14 @@ async function generatePDF() {
     // ─────────── 7. SEQUENCE RISK ───────────
     sHdr('7 — Sequence of Returns Risk', RED);
     narrative(
-      'Il "rischio di sequenza" e l\'effetto sproporzionato che un crash di mercato puo avere se accade nei primi anni del piano (o appena prima della pensione). ' +
+      'Il "rischio di sequenza" e l\'effetto sproporzionato che un crash di mercato puo avere a seconda di quando accade. In fase di accumulo pesa di piu vicino al traguardo, quando il capitale accumulato e massimo e resta poco tempo per recuperare (un crash nei primi anni colpisce poco capitale e, con il PAC, permette di comprare a prezzi bassi). In fase di prelievo pesa di piu nei primi anni, perche costringe a vendere quote a prezzi depressi. ' +
       'A parita di rendimento medio di lungo termine, due percorsi con la stessa media ma sequenze diverse possono produrre esiti molto differenti, soprattutto in presenza di prelievi.'
     );
     if (dS) {
       const gap = vN - dS[years].value;
       const gapPct = vN > 0 ? (gap / vN * 100).toFixed(1) : '0';
       narrative(
-        `Nel piano analizzato il modulo e attivo (severita ${seq.severity}, timing ${seq.timing}). Il valore finale con crash simulato e ${fmtFull(dS[years].value)}, ` +
+        `Nel piano analizzato il modulo e attivo (${({ single: 'un crash', double: 'due crash', triple: 'tre crash' })[seq.mode || 'single'] || 'un crash'}, severita ${seq.severity}, timing ${seq.timing}). Il valore finale con crash simulato e ${fmtFull(dS[years].value)}, ` +
         `inferiore di ${fmtFull(gap)} (${gapPct}%) rispetto allo Scenario Base senza shock. La fase di recupero post-crash dura ${typeof RECOVERY_YEARS !== 'undefined' ? RECOVERY_YEARS : 'alcuni'} anni con rendimenti rialzisti.`
       );
     } else {
@@ -5505,7 +5567,7 @@ async function generatePDF() {
     narrative(
       'Lettura: l\'IRR (rendimento del piano) considera il timing dei versamenti PAC; il TWR (rendimento asset) misura la performance pura del portafoglio, confrontabile tra periodi. ' +
       'Il Max Drawdown misura la massima perdita dal picco precedente nell\'intera serie. La tabella riflette anche eventuali aggiunte una tantum (PIC) e prelievi impostati nel simulatore. ' +
-      'Nota metodologica: i dati usano rendimenti in USD; l\'effetto cambio EUR/USD non e incluso. ' +
+      'Nota metodologica: i dati sono serie in euro (azioni MSCI World Net EUR, obbligazioni in EUR, oro in EUR), quindi l\'effetto del cambio e gia incluso nei rendimenti storici. ' +
       'Il backtest non e applicabile ai portafogli con leva (Efficient Core) o managed futures (Return Stacking). ' +
       'Per la tabella completa con confronto tra portafogli diversi sullo stesso periodo usare il tab Backtesting Storico nell\'applicazione.'
     );
@@ -5681,8 +5743,8 @@ async function generatePDF() {
     y = doc.lastAutoTable.finalY + 4;
     narrative(
       'Tasse, costi e inflazione sono i tre "freni" del rendimento composto. Anche piccole differenze (0.20% vs 0.50% di TER) ' +
-      'producono divergenze significative su 30+ anni. Per ridurre la fiscalita: privilegia ETF ad accumulazione, sfrutta minusvalenze pregresse ' +
-      'entro 4 anni, considera strumenti previdenziali (PIP/Fondi pensione) con tassazione agevolata.'
+      'producono divergenze significative su 30+ anni. Per ridurre la fiscalita: privilegia ETF ad accumulazione e considera strumenti previdenziali. Le minusvalenze pregresse non riducono le imposte sui guadagni degli ETF UCITS (redditi di capitale): ' +
+      'si compensano solo con redditi diversi (azioni singole, ETC, certificati, obbligazioni) entro 4 anni. Considera strumenti previdenziali (PIP/Fondi pensione) con tassazione agevolata.'
     );
 
     // ─────────── 8b. FISCALITA IT COMPARATA ───────────
@@ -5710,54 +5772,34 @@ async function generatePDF() {
         const capAnno = dN[yi]?.value || 0;
         bolloCum += capAnno * (fsBollo / 100);
       }
-      // I 4 scenari regime+metodo
+      // I due regimi, ognuno con il metodo previsto dalla normativa (non a scelta):
+      // amministrato -> costo medio ponderato; dichiarativo -> LIFO (art. 67 c.1-bis TUIR)
       const strDesc = (typeof STRUMENTO_DESC !== 'undefined' && STRUMENTO_DESC[fsStrum]) ? STRUMENTO_DESC[fsStrum] : { compensabile: false };
       const fsScenarios = [
-        { l: 'Amm. + Costo Medio',  r: 'amministrato',  m: 'avg' },
-        { l: 'Dich. + LIFO',        r: 'dichiarativo',  m: 'lifo' },
-        { l: 'Dich. + FIFO',        r: 'dichiarativo',  m: 'fifo' },
-        { l: 'Dich. + Costo Medio', r: 'dichiarativo',  m: 'avg' },
+        { l: 'Amministrato (costo medio)', r: 'amministrato',  m: 'avg' },
+        { l: 'Dichiarativo (LIFO)',        r: 'dichiarativo',  m: 'lifo' },
+        { l: 'Confronto: FIFO',            r: 'dichiarativo',  m: 'fifo' }, // criterio di molti broker esteri, non quello di legge
       ];
-      const fsResults = fsScenarios.map(sc => {
-        const canUse = sc.r === 'dichiarativo' || strDesc.compensabile;
-        const taxableGain = canUse ? Math.max(0, fvGain - totMinus) : fvGain;
-        const tax = taxableGain * (fsAliqG / 100);
-        const net = Math.round(fvLordo - tax - bolloCum);
-        const totalTax = Math.round(tax);
-        return { ...sc, net, totalTax, bolloCum: Math.round(bolloCum) };
-      });
-      const bestNet2 = Math.max(...fsResults.map(s => s.net));
-      const worstNet2 = Math.min(...fsResults.map(s => s.net));
+      // Confronto su una vendita parziale (stessa funzione della scheda Fiscalita)
+      const fsSellY = Math.max(1, Math.min(fiscState.sellYear || 10, fsYears));
+      const fsCmp = fiscCompareRegimes({
+        pac: fiscState.loaded ? fiscState.pac : state.pac, w: fiscState.loaded ? fiscState.w : state.w, sellY: fsSellY,
+        netRate: ((getPortParams(state.portfolio)?.normal) || 0.055) - state.ter / 100,
+        sellAmount: fiscState.sellAmount || 50000, strumento: fsStrum, aliqGain: fsAliqG, aliqOb: fsAliqOb, minusvalenze: fsMinus });
+      const bestNet2 = Math.max(...fsCmp.map(r => r.tax)), worstNet2 = Math.min(...fsCmp.map(r => r.tax));
       narrative(
-        `Confronto tra i 4 principali regimi/metodi di calcolo della plusvalenza. Strumento analizzato: ${fsStrum.replace('_', ' ').toUpperCase()}. ` +
-        `Aliquota gain: ${fsAliqG.toFixed(1)}%. Aliquota ob.: ${fsAliqOb.toFixed(1)}%. Imposta di bollo: ${fsBollo.toFixed(2)}%/a. ` +
-        (totMinus > 0 ? `Minusvalenze in zainetto: ${fmtFull(totMinus)} (${fsMinus.length} voci).` : 'Nessuna minusvalenza nello zainetto fiscale.') +
-        ` Nota: questa sezione analizza un singolo strumento (${fsStrum.replace('_', ' ').toUpperCase()}) con la sua aliquota piena ${fsAliqG.toFixed(1)}%, per confrontare i regimi fiscali tra loro. La sezione 8 usa invece l'aliquota composita ${(blendedTaxRate(state.age)*100).toFixed(1)}% pesata sulla composizione del portafoglio (azioni 26% + obbligazioni 12,5%): per questo il netto fiscale qui differisce da quello dell'header. Entrambi sono corretti per il rispettivo scopo — qui il confronto tra regimi, lì la stima fiscale sul portafoglio reale.`
+        `Confronto tra i regimi su una vendita parziale di ${fmtFull(fsCmp[0].amount)} all'anno ${fsSellY}: e il caso in cui il metodo conta, perche decide quali quote vendi. ` +
+        `Strumento analizzato: ${fsStrum.replace('_', ' ').toUpperCase()}. Imposta di bollo: ${fsBollo.toFixed(2)}%/a. ` +
+        (totMinus > 0 ? `Minusvalenze in zainetto: ${fmtFull(totMinus)} (${fsMinus.length} voci). ` : 'Nessuna minusvalenza nello zainetto fiscale. ') +
+        `L'imposta non pagata sulla vendita resta come imposta rinviata sulle quote rimaste: il totale non cambia. Su una liquidazione totale a fine piano (valore ${fmtFull(fvLordo)}) il costo fiscale e tutto l'investito e l'imposta e la stessa in ogni regime.`
       );
       doc.autoTable({
         startY: y,
-        head: [['Regime + Metodo', 'Valore Lordo', 'Imposta CG', 'Bollo Cum.', 'Netto Finale', 'Risparmio vs Pegg.']],
-        body: fsResults.map(s => {
-          const saving = s.net - worstNet2;
-          const isBest = s.net === bestNet2;
-          return [
-            (isBest ? '\u2b50 ' : '') + s.l,
-            fmtFull(fvLordo),
-            '\u2212' + fmtFull(s.totalTax),
-            '\u2212' + fmtFull(s.bolloCum),
-            fmtFull(s.net),
-            saving > 0 ? '+' + fmtFull(saving) : '\u2014',
-          ];
-        }),
+        head: [['Regime e metodo', 'Costo quote vendute', 'Imposta sulla vendita', 'Imposta rinviata', 'Imposta totale']],
+        body: fsCmp.map(r => [r.l, fmtFull(r.costBasis), '\u2212' + fmtFull(r.tax), fmtFull(r.latent), fmtFull(r.total)]),
         styles: { fontSize: 8, cellPadding: 2.5 },
         headStyles: { fillColor: ORG, textColor: WHT, fontStyle: 'bold', fontSize: 7.5 },
-        columnStyles: {
-          0: { fontStyle: 'bold' },
-          2: { textColor: RED },
-          3: { textColor: [227, 116, 0] },
-          4: { fontStyle: 'bold', textColor: GRN },
-          5: { textColor: GRN },
-        },
+        columnStyles: { 0: { fontStyle: 'bold' }, 2: { textColor: RED }, 3: { textColor: [227, 116, 0] } },
         margin: { left: ML, right: MR }
       });
       y = doc.lastAutoTable.finalY + 4;
@@ -5768,8 +5810,8 @@ async function generatePDF() {
       const sampB = [5, 10, 15, Math.floor(fsYears / 2), fsYears].filter((v, i, a) => v <= fsYears && a.indexOf(v) === i).sort((a, b) => a - b);
       for (const yB of sampB) {
         let cumB2 = 0;
-        for (let i = 0; i < yB; i++) cumB2 += (dN[i]?.value || 0) * (fsBollo / 100);
-        bolloRows.push([`Anno ${yB}`, fmtFull(dN[yB - 1]?.value || 0), fmtFull(Math.round((dN[yB - 1]?.value || 0) * (fsBollo / 100))), fmtFull(Math.round(cumB2))]);
+        for (let i = 1; i <= yB; i++) cumB2 += (dN[i]?.value || 0) * (fsBollo / 100); // bollo sul patrimonio di fine anno
+        bolloRows.push([`Anno ${yB}`, fmtFull(dN[yB]?.value || 0), fmtFull(Math.round((dN[yB]?.value || 0) * (fsBollo / 100))), fmtFull(Math.round(cumB2))]);
       }
       doc.autoTable({
         startY: y,
@@ -5789,15 +5831,15 @@ async function generatePDF() {
         const totV2 = validM2.reduce((s, m) => s + m.amount, 0);
         narrative(
           `Minusvalenze nello zainetto: ${fmtFull(totV2)} totali (${validM2.length} voci). ` +
-          `In regime dichiarativo compensano integralmente le plusvalenze future. ` +
-          `In regime amministrato compensano solo redditi diversi (azioni, ETF non-UCITS), NON i redditi di capitale (ETF UCITS). ` +
-          `Risparmio fiscale stimato: ${fmtFull(Math.round(Math.min(totV2, fvGain) * fsAliqG / 100))} (in regime dichiarativo).`
+          `In qualunque regime (amministrato o dichiarativo) le minusvalenze sono redditi diversi e si compensano solo con plusvalenze che sono anch'esse redditi diversi (azioni singole, ETC, certificati, obbligazioni), entro 4 anni. ` +
+          `NON si compensano con i guadagni degli ETF UCITS, che sono redditi di capitale: per un portafoglio di soli ETF il risparmio e nullo. ` +
+          `Risparmio massimo teorico, solo vendendo strumenti che generano redditi diversi: ${fmtFull(Math.round(Math.min(totV2, fvGain) * fsAliqG / 100))}.`
         );
       } else {
         callout('Nessuna minusvalenza nello zainetto', 'Inserisci minusvalenze pregresse nel tab Fiscalita IT per calcolare il risparmio fiscale residuo da compensazione. Le minusvalenze scadono dopo 4 anni.', ORG);
       }
       callout('Regime Dichiarativo vs Amministrato',
-        `Il regime dichiarativo (LIFO) e generalmente il piu vantaggioso per investitori attivi perche permette di vendere prima le quote piu recenti (meno rivalutate) e di compensare tutte le minus. Il regime amministrato e piu semplice (nessun obbligo dichiarativo) ma piu costoso in termini fiscali su portafogli con ETF UCITS. Il risparmio massimo tra il regime migliore e il peggiore in questo piano e ${fmtFull(bestNet2 - worstNet2)}.`,
+        `Il metodo di calcolo del costo fiscale dipende dal regime, non si sceglie: in amministrato la banca usa il costo medio ponderato, in dichiarativo si considerano vendute per prime le quote acquistate piu di recente (LIFO, art. 67 c.1-bis TUIR). Con un PAC le quote recenti sono di solito le meno rivalutate, quindi in una vendita parziale il LIFO puo rinviare parte dell\'imposta; su una vendita totale i due metodi tendono a coincidere. In nessuno dei due regimi le minusvalenze si compensano con i guadagni degli ETF UCITS (redditi di capitale). Il regime amministrato e il piu semplice, perche la banca calcola e versa le imposte. La riga FIFO e solo un confronto: e il criterio usato da molti broker esteri, ma in dichiarativo il costo va ricalcolato con il LIFO. Sulla vendita parziale, differenza di imposta tra la riga piu cara e la meno cara: ${fmtFull(bestNet2 - worstNet2)}, che non e un risparmio definitivo ma un rinvio.`,
         ORG
       );
     } catch(eFisc) { /* skip if fiscState not ready */ }
@@ -5810,7 +5852,7 @@ async function generatePDF() {
         'Test di robustezza piu severo del Monte Carlo: ripercorre il piano di prelievo su tutti gli anni di partenza disponibili ' +
         'usando i rendimenti mensili storici REALI calibrati e l\'inflazione effettiva di ogni anno. Incorpora oil shock 1973, ' +
         'stagflazione anni \'70-\'80, dot-com bust 2000, GFC 2008, COVID 2020, inflazione 2022. ' +
-        'E\' la versione "italiana" del Trinity Study (Bengen 1994).'
+        'E\' la versione "italiana" del Trinity Study (1998), che riprende la regola del 4% di Bengen (1994).'
       );
       const succPct = (dh.successRate * 100).toFixed(0);
       const succCol = dh.successRate >= 0.90 ? GRN : dh.successRate >= 0.70 ? ORG : RED;
@@ -5854,7 +5896,7 @@ async function generatePDF() {
       narrative(
         `Statistiche aggregate: capitale finale mediano ${fmt(median?.finalCap || 0)}, ` +
         `P10 ${fmt(p10?.finalCap || 0)}, P90 ${fmt(p90?.finalCap || 0)}. ` +
-        'Confronto: il Trinity Study (1994) trova ~95% sopravvivenza al 4% SWR su 60/40 a 30 anni — questo simulatore replica con precisione il risultato accademico.'
+        'Confronto: il Trinity Study (1998) trova circa il 95% di sopravvivenza con prelievo del 4% su un 60/40 a 30 anni. Questo simulatore usa dati, periodo e valuta diversi (serie in euro 1970-2025): i risultati sono confrontabili come ordine di grandezza, non sovrapponibili.'
       );
     } catch (e) { /* skip if not available */ }
 
@@ -6126,13 +6168,13 @@ async function generatePDF() {
       ['PIC', 'Piano di Investimento di Capitale. Versamento una tantum di una somma definita.'],
       ['SWR (Safe Withdrawal Rate)', 'Tasso di prelievo annuo "sicuro" applicato a un capitale. La regola del 4% (Bengen, 1994) ipotizza prelievi del 4% iniziali rivalutati a inflazione su 30 anni.'],
       ['TER', 'Total Expense Ratio. Costo annuo totale di un ETF/fondo, espresso in % e sottratto al rendimento.'],
-      ['Sequence Risk', 'Rischio di subire un crash nei primi anni del piano o vicino al decumulo, con impatto sproporzionato sul risultato finale.'],
+      ['Sequence Risk', 'Rischio che un crash cada nel momento peggiore: verso la fine dell\'accumulo (capitale massimo) o nei primi anni di prelievo, con impatto sproporzionato sul risultato finale.'],
       ['Beta inflazione', 'Sensibilita di un portafoglio all\'inflazione. Beta>0 = resistente; Beta<0 = soffre.'],
       ['Crossover', 'Anno in cui la rendita netta annua prodotta dal portafoglio supera il PAC versato: il piano si autosostiene.'],
       ['Monte Carlo', 'Tecnica di simulazione che genera migliaia di percorsi casuali per stimare la distribuzione di un esito.'],
       ['Percentile (P10/P50/P90)', 'P10 = 90% degli scenari fa meglio; P50 = mediana; P90 = solo 10% fa meglio.'],
       ['Valore Reale', 'Valore nominale corretto per l\'inflazione cumulata (potere d\'acquisto di oggi).'],
-      ['Aliquota composita', 'Media ponderata fra aliquota azionaria (26%) e obbligazionaria (12,5% per titoli di Stato) sulla composizione del portafoglio.'],
+      ['Aliquota composita', 'Media ponderata fra aliquota azionaria (26%) e obbligazionaria (12,5% sulla quota di titoli di Stato white list, 26% su corporate e cartolarizzati) sulla composizione del portafoglio.'],
       ['Esposizione FX', 'Percentuale del portafoglio denominata in valuta non-euro (USD, GBP, JPY...). Genera rischio cambio per investitori EUR.'],
       ['Hedging valutario', 'Strategia di copertura cambio tramite forward FX. Elimina la volatilita EUR/USD ma costa ~30 bps/anno (differenziale tassi).'],
       ['Vol di stress / σ-crisi', 'Volatilita portafoglio in regime di crisi (es. 2008, 2020). Le correlazioni fra asset rischiosi salgono verso 1 e la diversificazione si riduce.'],
@@ -6225,7 +6267,7 @@ async function generatePDF() {
       // ===== 3. Incertezza e robustezza =====
       subHdr('3. Quanto e robusto il risultato');
       var p3 = `Nessuna proiezione e un punto: e una distribuzione di esiti possibili. La forbice tra lo scenario pessimistico (${fmtFull(nP)} netti) e quello ottimistico (${fmtFull(nO)} netti) `;
-      if (spreadPO > 0.55)      p3 += `e ampia, coerentemente con una volatilita annua attesa del ${vol.toFixed(0)}%. In presenza di questa dispersione, lo scenario centrale va letto come la mediana di una distribuzione larga, non come un valore atteso affidabile: il rischio di sequenza dei rendimenti puo allontanare sensibilmente l'esito reale dalla media. `;
+      if (spreadPO > 0.55)      p3 += `e ampia, coerentemente con una volatilita annua attesa del ${vol.toFixed(0)}%. In presenza di questa dispersione, lo scenario centrale va letto come un esito tipico di una distribuzione larga, non come un valore atteso affidabile${seq.on ? ' (con il rischio di sequenza attivo la mediana del Monte Carlo e inferiore allo scenario Base, perche solo il Monte Carlo include i crash)' : ''}: il rischio di sequenza dei rendimenti puo allontanare sensibilmente l'esito reale dalla media. `;
       else if (spreadPO > 0.3)  p3 += `e moderata, in linea con una volatilita annua del ${vol.toFixed(0)}%. La dispersione esiste ma e gestibile; resta comunque buona norma non interpretare lo scenario centrale come un traguardo garantito. `;
       else                      p3 += `e contenuta, riflesso di una volatilita annua bassa (${vol.toFixed(0)}%). Il portafoglio privilegia la prevedibilita degli esiti rispetto alla massimizzazione del rendimento atteso: un compromesso ragionevole per orizzonti brevi o bassa tolleranza al rischio. `;
       narrative(p3);
@@ -6281,7 +6323,7 @@ async function generatePDF() {
       pU += `Il modo corretto di usarlo e farne piu versioni e confrontarle: cambia un parametro alla volta - alza il versamento, allunga l'orizzonte, riduci il TER, abbassa il rendimento atteso a uno scenario prudente - e osserva come si muove il valore reale netto. `;
       pU += `E in questa analisi di sensibilita, non nel singolo numero finale, che sta il valore dello strumento. `;
       if (mcProb != null && mcProb < 70) pU += `In particolare, dato che la probabilita di successo stimata (${mcProb.toFixed(0)}%) non e elevata, vale la pena testare cosa serve per portarla in zona di sicurezza (>80%): di solito bastano aggiustamenti modesti ma costanti, applicati presto. `;
-      pU += `Il numero che conta resta uno: ${fmtFull(realN)}, il valore finale in potere d'acquisto di oggi al netto di imposte e inflazione. E questa la cifra che misura cosa potrai realmente fare con il tuo capitale.`;
+      pU += `Il numero che conta resta uno: ${fmtFull(realN)}, il valore finale in potere d'acquisto di oggi, al netto dell'inflazione ma prima delle imposte sulla plusvalenza e del bollo. E questa la cifra che misura cosa potrai realmente fare con il tuo capitale.`;
       narrative(pU);
 
       // ===== 4. A cosa prestare attenzione (avvisi dinamici) =====
@@ -6289,7 +6331,7 @@ async function generatePDF() {
       if (beta < 0.1)               avvisi.push(`Beta inflazione ${beta>=0?'+':''}${beta.toFixed(2)}: la copertura del portafoglio contro l'inflazione e modesta. In uno scenario di inflazione persistente il valore reale finale rischia di deludere rispetto alla proiezione centrale.`);
       if (years < 10)               avvisi.push(`Orizzonte di ${years} anni: relativamente breve. La capitalizzazione composta ha poco tempo per agire e il timing di mercato pesa di piu; un drawdown vicino alla scadenza ha meno tempo per essere recuperato.`);
       if (eqW >= 0.8 && years < 15) avvisi.push(`Esposizione azionaria elevata (${(eqW*100).toFixed(0)}%) su orizzonte non lungo: il rendimento atteso e alto ma il portafoglio puo subire cali del 40-50% in una crisi. Il rischio reale non e la volatilita, ma la tentazione di disinvestire al ribasso.`);
-      if (seq && seq.on)            avvisi.push(`Sequence-of-returns risk attivo: l'ordine temporale dei rendimenti influenza l'esito anche a parita di media. Cali nei primi anni (fase di accumulo) o in prossimita del traguardo sono i piu dannosi.`);
+      if (seq && seq.on)            avvisi.push(`Sequence-of-returns risk attivo: l'ordine temporale dei rendimenti influenza l'esito anche a parita di media. In accumulo i cali piu dannosi sono quelli vicini al traguardo, quando il capitale e massimo; in fase di prelievo quelli dei primi anni.`);
       if (ter >= 0.5)               avvisi.push(`Costi di gestione (TER) ${ter.toFixed(2)}%/anno: per effetto del compounding, su ${years} anni erodono una quota non trascurabile del montante. A parita di strategia, prodotti analoghi a costo inferiore migliorano direttamente il risultato netto.`);
       if (inflBottom < 1.5)         avvisi.push(`Inflazione ipotizzata ${inflBottom.toFixed(1)}%, inferiore alla media storica di lungo periodo (~2%). Un'ipotesi piu prudente alzerebbe l'erosione attesa e ridurrebbe il valore reale finale.`);
       if (avvisi.length === 0)      avvisi.push(`I parametri appaiono complessivamente equilibrati. Resta valida la regola generale: la disciplina nei versamenti e la capacita di non liquidare durante i ribassi incidono sul risultato piu di qualunque ottimizzazione del portafoglio.`);

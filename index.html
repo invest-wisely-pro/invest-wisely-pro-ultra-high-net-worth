@@ -327,12 +327,9 @@
       <h2><span class="num">9</span> Scheda <b>Fiscalità IT</b> 🏛️</h2>
       <p>Analisi completa della fiscalità italiana sugli investimenti finanziari. Calcola l'impatto reale delle tasse sui rendimenti e confronta i diversi regimi e metodi di calcolo delle plusvalenze.</p>
       <h3>Confronto regimi fiscali</h3>
-      <p>La tabella <b>"Confronto Regimi e Metodi"</b> simula il piano completo su 4 combinazioni e mostra quale produce il netto maggiore:</p>
+      <p>La tabella <b>"Confronto Regimi e Metodi"</b> simula il piano completo nei due regimi, ognuno con il metodo previsto dalla normativa:</p>
       <ul>
-        <li><b>Amministrato + Costo Medio</b> — il più diffuso; tasse automatiche ma limitata compensazione minusvalenze.</li>
-        <li><b>Dichiarativo + LIFO</b> — vende prima le quote più recenti (spesso meno rivalutate); può ridurre le tasse a breve termine.</li>
-        <li><b>Dichiarativo + FIFO</b> — vende prima le quote più vecchie (spesso più rivalutate); tasse potenzialmente maggiori ma più semplice.</li>
-        <li><b>Dichiarativo + Costo Medio</b> — media ponderata del prezzo di carico; il più bilanciato.</li>
+        <li><b>Amministrato — costo medio ponderato</b>: la banca calcola e versa le imposte; il costo fiscale è la media ponderata dei prezzi di acquisto. Il più semplice.</li> <li><b>Dichiarativo — LIFO</b>: dichiari tu nel Modello Redditi; si considerano vendute per prime le quote acquistate più di recente (art. 67 c.1-bis TUIR). Con un PAC sono di solito le meno rivalutate, quindi in una vendita parziale parte dell'imposta può slittare.</li> <li><b>Confronto: FIFO</b>: vende per prime le quote più vecchie. È il criterio usato da molti broker esteri, ma non quello previsto dalla normativa italiana: in dichiarativo il costo va ricalcolato con il LIFO. Utile per capire la differenza.</li> <li>Il metodo non si sceglie: dipende dal regime. In nessuno dei due regimi le minusvalenze si compensano con i guadagni degli ETF UCITS (redditi di capitale).</li>
       </ul>
       <h3>Imposta di bollo</h3>
       <p>Pari allo 0,20% annuo sul valore del dossier titoli (D.L. 201/2011). Applicata al saldo medio annuo. La sezione mostra l'accumulo del bollo nel tempo: a 30 anni può erodere il 4–6% del capitale.</p>
@@ -708,7 +705,7 @@
     <div class="pblock"><div class="plabel"><span class="opt-tooltip-wrap">💎 Soglia Optionality <span class="opt-tooltip-icon">?<span class="opt-tooltip-bubble"><strong style="color:var(--blue)">Cos'è la Soglia di Optionality?</strong><br>Livello patrimoniale a cui il portafoglio ti dà <em>opzioni di vita reali</em> — part-time, sabbatico, cambio carriera — prima della libertà finanziaria totale (FIRE). Distinta dal FIRE (100% copertura): questa è il punto di <strong>"abbastanza per avere scelta"</strong>. Il grafico mostra la linea tratteggiata per vedere quando ogni scenario la raggiunge. <em>È solo un riferimento visivo sul grafico: non entra in nessun calcolo del piano.</em></span></span></span><span class="pval" id="lO">€450.000</span></div><input type="range" id="sO" min="50000" max="3000000" step="25000" value="450000"><div class="range-hints"><span>€50k</span><span>€3M</span></div></div>
     <div class="pblock"><div class="plabel"><span>TER ETF <span class="ter-badge">💸 costo fondo</span></span><span class="pval" id="lTer">0.20%</span></div><input type="range" id="sTer" min="0" max="2.0" step="0.05" value="0.20"><div class="range-hints"><span>0%</span><span>2.0%</span></div></div>
     <div class="pblock"><div class="plabel"><span>Tasse Azionario</span><span class="pval" id="lTeq">26.0%</span></div><input type="range" id="sTeq" min="0" max="40" step="0.5" value="26.0"><div class="range-hints"><span>0%</span><span>40%</span></div></div>
-    <div class="pblock"><div class="plabel"><span>Tasse Obbligaz. (Gov.)</span><span class="pval" id="lTob">12.5%</span></div><input type="range" id="sTob" min="0" max="40" step="0.5" value="12.5"><div class="range-hints"><span>0%</span><span>40%</span></div></div>
+    <div class="pblock"><div class="plabel"><span title="Aliquota sulla quota di titoli di Stato (white list). Corporate e cartolarizzati sono tassati con l'aliquota azionaria: un ETF aggregato globale (circa 50% titoli di Stato) risulta intorno al 19%.">Tasse titoli di Stato</span><span class="pval" id="lTob">12.5%</span></div><input type="range" id="sTob" min="0" max="40" step="0.5" value="12.5"><div class="range-hints"><span>0%</span><span>40%</span></div></div>
   </div>
 </div>
 
@@ -1136,6 +1133,12 @@
     <div class="pblock"><div class="plabel"><span>Indicizzazione prelievo/anno</span><span class="pval" id="lMcI">2.0%</span></div><input type="range" id="sMcI" min="0" max="5" step="0.5" value="2.0"><div class="range-hints"><span>0%</span><span>5%/anno</span></div></div>
     <div style="display:flex;align-items:flex-end"><button class="gbtn a-blue" onclick="runSuccessMC()" style="padding:10px 20px;font-size:13.5px;font-weight:600;width:100%">🎯 Calcola Probabilità</button></div>
   </div>
+  <div style="margin:0 0 16px;padding:12px 14px;background:rgba(30,142,62,.06);border:1px solid rgba(30,142,62,.25);border-radius:var(--radius-sm)">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
+      <input type="checkbox" id="mcPensionChk" onchange="toggleDecPensionLink(this.checked)"> 🏛 Includi la pensione (INPS + Fondo Pensione) dalla scheda Piano Pensione
+    </label>
+    <div id="mcPensionInfo" style="font-size:12px;line-height:1.55;margin-top:6px;color:var(--text3)">Spento: il portafoglio paga tutto il prelievo target ogni anno. Impostazione condivisa con la scheda Decumulo.</div>
+  </div>
   <div class="info-box">💡 <strong>Come funziona:</strong> 1.000 percorsi <strong>Monte Carlo parametrico</strong> con rendimento atteso e volatilità del portafoglio selezionato — coerente con gli scenari Base / Ottimistico / Pessimistico. Accumulo per <span id="mcAccYears">35</span> anni, poi prelievo annuale rivalutato per l'inflazione impostata. Fallisce se il portafoglio arriva a zero. Questo modello usa un <strong>random walk gaussiano puro</strong> (nessuna mean-reversion, nessun regime di mercato): tende a essere più severo di un bootstrap su dati storici reali, specie se sommato a stress manuali (es. crisi multiple). È una scelta prudenziale voluta, non un errore. <em>Per un modello alternativo (storico, GARCH, regime-switching) usa la scheda "Monte Carlo Avanzato".</em></div>
 </div>
 <div id="mc-success-result"><div class="info-box" style="text-align:center;padding:32px;color:var(--text3)">Clicca "Calcola" per eseguire la simulazione.</div></div>
@@ -1473,11 +1476,11 @@
       <div id="fiscRegimeDesc" class="adv-desc" style="margin-top:8px"></div>
     </div>
     <div>
-      <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:8px">Metodo valorizzazione lotti</div>
+      <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:8px">Metodo costo fiscale (dipende dal regime)</div>
       <div class="btn-group" id="fiscMethodBtns" style="flex-direction:column;align-items:flex-start">
-        <button class="gbtn a-blue" data-mth="avg" style="width:100%;text-align:left">⚖️ Costo Medio Ponderato (ETF UCITS — regime amm.)</button>
-        <button class="gbtn" data-mth="lifo" style="width:100%;text-align:left">📚 LIFO — Ultimo entrato, primo uscito (regime dichiarativo)</button>
-        <button class="gbtn" data-mth="fifo" style="width:100%;text-align:left">📖 FIFO — Primo entrato, primo uscito (confronto)</button>
+        <button class="gbtn a-blue" data-mth="avg" style="width:100%;text-align:left">⚖️ Costo Medio Ponderato — regime amministrato</button>
+        <button class="gbtn" data-mth="lifo" style="width:100%;text-align:left">📚 LIFO — regime dichiarativo (ultime quote acquistate vendute per prime)</button>
+        <button class="gbtn" data-mth="fifo" style="width:100%;text-align:left">📖 FIFO — solo confronto (criterio di molti broker esteri; non è quello di legge)</button>
       </div>
     </div>
   </div>

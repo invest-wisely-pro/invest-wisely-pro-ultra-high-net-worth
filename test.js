@@ -175,7 +175,7 @@ function loadSimulator() {
   ['fmt','fmtN','fmtFull','getCrashYears',
    'getCrashYear','_sanitizeCrashYears','getCrashWeights','getLCWeight','getEquityWeight',
    'getGoldWeight','getCashWeight','expandCustomSlots','calcCustomParams','getRate','getRateEco','getEcoWindow',
-   'projectEco','getPacForYear','project','blendedTaxRate','calcNetNom','cagrSafe'].forEach(fn => loadFn(SRC.main, fn));
+   'projectEco','getPacForYear','project','bondGovShare','bondGovFrac','blendedTaxRate','calcNetNom','cagrSafe'].forEach(fn => loadFn(SRC.main, fn));
 }
 function setState(o) {
   Object.assign(global.state, {
@@ -243,7 +243,8 @@ function suiteSimulator() {
   const taxOf = p => { setState({ portfolio:p }); return blended(40) * 100; };
   ok(near(taxOf('golden_butterfly'), 20.6, 0.3), 'Golden Butterfly aliquota 20.6% (oro al 26%)', taxOf('golden_butterfly').toFixed(1)+'%');
   ok(near(taxOf('eq100'), 26.0, 0.2), 'eq100 aliquota 26%', taxOf('eq100').toFixed(1)+'%');
-  ok(near(taxOf('ob100'), 12.5, 0.2), 'ob100 aliquota 12.5%', taxOf('ob100').toFixed(1)+'%');
+  // ob100 = aggregato obbligazionario globale (~50% titoli di Stato al 12,5%, ~50% corporate/ABS al 26%)
+  ok(near(taxOf('ob100'), 19.25, 0.2), 'ob100 (aggregato) aliquota 19,25%: 12,5% solo sulla quota governativa', taxOf('ob100').toFixed(1)+'%');
   ok(near(taxOf('permanent'), 22.6, 0.3), 'Permanent aliquota 22.6%', taxOf('permanent').toFixed(1)+'%');
 
   // 2.g Edge cases: capitale non va negativo con uscita > montante

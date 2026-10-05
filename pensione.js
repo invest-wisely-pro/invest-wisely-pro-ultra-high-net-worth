@@ -37,6 +37,7 @@ let penState = {
   rispFiscDest:     'reinvesti_fp', // 'spendi' | 'reinvesti_fp' | 'reinvesti_etf'
   // Dati ETF ereditati dal Simulatore (aggiornati su importa)
   etfCapital: 0,       // capitale ETF stimato al pensionamento
+  etfBridgeYears: 0,  // anni di ponte (fine accumulo -> pensione) gia' scontati da etfCapital
   etfRet:     0.05,    // rendimento annuo NETTO del portafoglio del Simulatore (default ~bilanciato; aggiornato su importa)
 };
 // Snapshot dei default catturato subito dopo la dichiarazione, PRIMA di qualsiasi
@@ -45,6 +46,31 @@ let penState = {
 // i campi e ri-renderizzare. Nessuna struttura annidata in penState -> shallow
 // clone (JSON round-trip) e' sicuro e non lascia riferimenti condivisi.
 const _PEN_DEFAULTS = JSON.parse(JSON.stringify(penState));
+// ── Salvataggio della scheda Pensione nel browser (come il Simulatore) ──
+// Chiave dedicata; al caricamento si accettano SOLO i campi noti (quelli dei default)
+// e del tipo giusto: un dato corrotto o di una versione precedente non entra nei calcoli,
+// e i campi aggiunti in futuro partono dal loro default.
+const PEN_LS_KEY = 'suitePro_v2_penState';
+function savePenStateLS() {
+  try { localStorage.setItem(PEN_LS_KEY, JSON.stringify(penState)); } catch (e) { /* storage pieno o disabilitato */ }
+}
+function loadPenStateLS() {
+  try {
+    const raw = localStorage.getItem(PEN_LS_KEY);
+    if (!raw) return false;
+    const snap = JSON.parse(raw);
+    if (!snap || typeof snap !== 'object') return false;
+    let n = 0;
+    for (const k of Object.keys(_PEN_DEFAULTS)) {
+      if (!(k in snap)) continue;
+      const def = _PEN_DEFAULTS[k], v = snap[k];
+      if (typeof def === 'number') { if (typeof v === 'number' && isFinite(v)) { penState[k] = v; n++; } }
+      else if (typeof v === typeof def) { penState[k] = v; n++; }
+    }
+    return n > 0;
+  } catch (e) { return false; }
+}
+loadPenStateLS();
 function resetPensione() {
   Object.keys(penState).forEach(k => delete penState[k]);
   Object.assign(penState, JSON.parse(JSON.stringify(_PEN_DEFAULTS)));
@@ -574,11 +600,36 @@ function calcPenSuggerito() {
 function importPenFromSim() {
   if (typeof state === 'undefined') return;
   penState.age = state.age || penState.age;
-  let capStimato = 0;
+  let capStimato = 0, bridgeYears = 0, bridgeWd = 0, capAccEnd = 0;
   try {
     const yearsToRet = Math.max(0, penState.retAge - penState.age);
     const dSim = project('normal', false);
-    capStimato = dSim[Math.min(yearsToRet, dSim.length - 1)]?.value ?? 0;
+    const accYears = dSim.length - 1;                       // anni di accumulo del Simulatore
+    capAccEnd = dSim[Math.min(yearsToRet, accYears)]?.value ?? 0;
+    capStimato = capAccEnd;
+    // PONTE: se la pensione parte DOPO la fine dell'accumulo, negli anni intermedi si vive
+    // del portafoglio. Il capitale al pensionamento e' quello che resta dopo quei prelievi,
+    // calcolato col motore e le impostazioni della scheda Decumulo (prelievo, strategia,
+    // inflazione), come la sezione di decumulo del report generale. Prima si usava il
+    // capitale a fine accumulo, contando due volte gli anni di ponte.
+    bridgeYears = Math.max(0, yearsToRet - accYears);
+    if (bridgeYears > 0 && typeof simulateDecumulo === 'function' && typeof decState !== 'undefined') {
+      const _ds = JSON.stringify(decState);
+      const _pl = (typeof decPensionLink !== 'undefined') ? decPensionLink : false;
+      try {
+        decState.startPortfolio = capAccEnd;
+        decState.years = Math.max(decState.years || 0, bridgeYears);
+        if (typeof decPensionLink !== 'undefined') decPensionLink = false; // nel ponte la pensione non c'e'
+        const rows = simulateDecumulo('normal');
+        const row = rows[bridgeYears - 1];
+        capStimato = row ? Math.max(0, row.end) : capAccEnd;
+        bridgeWd = decState.withdrawal;
+      } finally {
+        Object.assign(decState, JSON.parse(_ds));
+        if (typeof decPensionLink !== 'undefined') decPensionLink = _pl;
+      }
+    }
+    penState.etfBridgeYears = bridgeYears;
     penState.etfCapital = capStimato;
     // Rendimento NETTO del portafoglio scelto nel Simulatore (per il reinvestimento del risparmio fiscale in ETF)
     if (typeof getRate === 'function') {
@@ -591,7 +642,7 @@ function importPenFromSim() {
   if (slAge) { slAge.value = penState.age; document.getElementById('lPenAge').textContent = penState.age; }
   const swrMens = Math.round(capStimato * 0.04 / 12);
   document.getElementById('penImportStatus').innerHTML =
-    `<span style="color:var(--green)">✅ Importato dal Simulatore: età <strong>${penState.age}</strong> anni · capitale ETF stimato al pensionamento (scenario Base): <strong>${fmtP(penState.etfCapital)}</strong> → ~${fmtP(swrMens)}/mese al 4% SWR, a completamento di INPS e fondo pensione.</span>`;
+    `<span style="color:var(--green)">✅ Importato dal Simulatore: età <strong>${penState.age}</strong> anni · capitale ETF stimato al pensionamento (scenario Base): <strong>${fmtP(penState.etfCapital)}</strong>${bridgeYears > 0 ? ` (dopo ${bridgeYears} anni di ponte dai ${penState.age + penState.retAge - penState.age - bridgeYears} anni, con prelievi di ${fmtP(bridgeWd)}/anno impostati nella scheda Decumulo; a fine accumulo era ${fmtP(capAccEnd)})` : ''} → ~${fmtP(swrMens)}/mese al 4% SWR, a completamento di INPS e fondo pensione.</span>`;
   renderPensione();
 }
 
@@ -697,7 +748,7 @@ async function generatePensionePDF() {
         ['Anni di contributi gia versati', `${penState.contYears} anni`, 'Crescita reale RAL attesa', (penState.ralGrowth * 100).toFixed(1) + '%/a'],
         ['Versamento mensile Fondo Pensione', fmtP(penState.fpVers) + '/mese', 'Rendimento atteso Fondo Pensione', (penState.fpRet * 100).toFixed(1) + '%/a lordo'],
         ['TFR versato al Fondo', penState.tfrSi ? 'Si' : 'No', 'Fondo negoziale (contributo datoriale)', penState.isNegoziale ? 'Si' : 'No'],
-        ['Capitale ETF stimato al pensionamento', fmtP(penState.etfCapital), 'Rendimento ETF netto atteso', (penState.etfRet * 100).toFixed(1) + '%/a'],
+        [penState.etfBridgeYears > 0 ? `Capitale ETF al pensionamento (dopo ${penState.etfBridgeYears} anni di ponte)` : 'Capitale ETF stimato al pensionamento', fmtP(penState.etfCapital), 'Rendimento ETF netto atteso', (penState.etfRet * 100).toFixed(1) + '%/a'],
       ],
       styles: { fontSize: 8, cellPadding: 2.5 },
       headStyles: { fillColor: LBG, textColor: GRAY, fontStyle: 'bold', fontSize: 7.5 },
@@ -717,7 +768,8 @@ async function generatePensionePDF() {
         ['Pensione netta annua', fmtP(r.pensioneNettaAnn)],
         ['Pensione netta mensile', fmtP(r.pensioneNettaMens)],
         ['Pensione netta mensile in euro di oggi', fmtP(Math.round(r.pensioneNettaMens / _deflaz))],
-        ['Tasso di sostituzione (netto/RAL)', (r.tassoSost * 100).toFixed(1) + '%'],
+        ['Tasso di sostituzione lordo (pensione lorda / ultima RAL lorda)', (r.tassoSost * 100).toFixed(1) + '%'],
+        ['Pensione netta / ultima RAL lorda', r.tassoSost > 0 ? (r.pensioneNettaAnn / (r.pensioneLordaAnn / r.tassoSost) * 100).toFixed(1) + '%' : '-'],
         ['Coefficiente di trasformazione applicato', (r.coeffTrasf * 100).toFixed(3) + '%'],
         ['Montante contributivo finale', fmtP(r.cumMontante)],
       ],
@@ -812,6 +864,7 @@ async function generatePensionePDF() {
 window.generatePensionePDF = generatePensionePDF;
 
 function renderPensione() {
+  savePenStateLS(); // ogni modifica della scheda passa da qui
   try {
     const r = calcPensione();
     window.lastPenResult = { r, params: { ...penState } };
@@ -1399,3 +1452,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (chartPenFisc) { try { chartPenFisc.resize(); } catch(e) {} }
   });
 });
+
+
+// Dopo l'inizializzazione della scheda (che imposta la descrizione del regime di default)
+// riallinea cursori, etichette e pulsanti ai valori ricaricati dal browser.
+// Registrato per ultimo: gira dopo il DOMContentLoaded che collega i pulsanti.
+document.addEventListener('DOMContentLoaded', () => { try { syncPenControls(); } catch (e) {} });

@@ -21,7 +21,7 @@ async function downloadGuidePDF() {
       doc.setDrawColor(220,220,220); doc.line(ML, 11.2, W-MR, 11.2);
     };
     const chk = (n=12) => { if (y+n>278){ doc.addPage(); pN++; y=18; hdrBar(); } };
-    const h1 = (t) => { chk(16); doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(...BLU); doc.text(pdfSafe(t), ML, y); y+=7; doc.setDrawColor(...BLU); doc.setLineWidth(.6); doc.line(ML,y-2,ML+30,y-2); doc.setLineWidth(.2); doc.setTextColor(0,0,0); y+=4.5; };
+    const h1 = (t) => { chk(20); y += 4; doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(...BLU); doc.text(pdfSafe(t), ML, y); y+=7; doc.setDrawColor(...BLU); doc.setLineWidth(.6); doc.line(ML,y-2,ML+30,y-2); doc.setLineWidth(.2); doc.setTextColor(0,0,0); y+=4.5; };
     const h2 = (t) => { chk(10); doc.setFontSize(10.5); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK); doc.text(pdfSafe(t), ML, y); y+=5.8; doc.setTextColor(0,0,0); };
     const p  = (t, ind=0) => {
       doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(50,55,60);
@@ -145,6 +145,8 @@ async function downloadGuidePDF() {
     li('P50 = mediana. Non usarlo come unico riferimento: preferisci il P25.');
     li('P75/P90 = esiti ottimistici, rispettivamente il 25% e il 10% fa meglio.');
     li('Probabilita di successo = % di simulazioni in cui il portafoglio non si azzera durante il prelievo. Target: >90%.');
+    h2('Includere la pensione');
+    p('Con l\'interruttore "Includi la pensione" la simulazione considera la pensione netta INPS e la rendita del fondo pensione calcolate nella scheda Pensione: ogni anno il portafoglio paga solo la parte di spesa che la pensione non copre. Il "Prelievo annuo target" diventa quindi la tua spesa annua totale. L\'interruttore e condiviso con la scheda Decumulo, cosi le due schede rispondono sempre sullo stesso piano. Se lo cambi dopo aver calcolato, un avviso ricorda di premere di nuovo "Calcola Probabilita".');
     callout('Per simulazioni con code piu pesanti (crash piu frequenti e prolungati) usa il tab Monte Carlo Avanzato — Regime-Switching e t-Student modellano distribuzioni fat-tail senza dipendere da dati storici non verificabili.', BLU, 'Modelli avanzati disponibili');
     callout('Pianifica sul P25, usa il P10 come margine di sicurezza e non innamorarti del P50. I piani robusti tengono anche negli scenari avversi.', AMBER, 'Consiglio');
 
@@ -153,6 +155,13 @@ async function downloadGuidePDF() {
     li('Fisso Nominale — prelievo costante in cifra assoluta. Semplice ma non protegge dall\'inflazione.');
     li('Indicizzato Inflazione (4% rule) — prelievo rivalutato ogni anno all\'inflazione. Il metodo classico di Bengen (1994).');
     li('Guyton-Klinger (Guard-rails) — prelievo dinamico: aumenta se il mercato va bene, si riduce in drawdown. Massimizza il prelievo medio mantenendo il capitale piu a lungo.');
+    h2('Collegamento con la scheda Pensione');
+    p('L\'interruttore "Includi la pensione (INPS + Fondo Pensione)" collega il decumulo alla scheda Pensione. Senza collegamento il portafoglio deve pagare l\'intera spesa ogni anno, e il piano sembra piu fragile di quanto sia; con il collegamento paga solo la parte non coperta dalla pensione.');
+    li('Il campo "Prelievo annuo iniziale" diventa la tua spesa annua totale; la tabella mostra una colonna Pensione e le statistiche la quota coperta dalla pensione.');
+    li('Pensionamento anticipato: se il decumulo inizia prima dell\'eta di pensione, per quegli anni il portafoglio copre tutta la spesa (ponte), poi solo lo scoperto. L\'anno di inizio pensione e segnato nella tabella.');
+    li('La pensione segue le stesse regole della scheda Pensione: la pensione INPS e rivalutata al 75% dell\'inflazione (perequazione parziale), la rendita del fondo con la propria crescita. Vale sia per gli scenari Pessimistico/Base/Ottimistico sia per le sequenze storiche reali.');
+    li('Il riquadro mostra sempre gli importi usati e i dati di partenza (RAL, eta di pensione). Se l\'eta indicata nella scheda Pensione e diversa da quella del Simulatore compare un avviso: usa "Importa eta e capitale ETF dal Simulatore" nella scheda Pensione.');
+    li('L\'interruttore riparte spento a ogni visita, cosi includere la pensione resta sempre una scelta esplicita. La scheda Probabilita di Successo usa la stessa impostazione.');
     h2('Rischio di sequenza in decumulo');
     p('Il toggle "Rischio di Sequenza" inietta un crollo di mercato durante la fase di prelievo. È il rischio piu pericoloso in pensione, e diverso dall\'accumulo: un crash nei PRIMI anni di prelievo costringe a vendere quote in perdita proprio mentre il capitale dovrebbe durare, e puo esaurirlo in modo irreversibile anche se i rendimenti medi di lungo periodo restano buoni. Stesso crash, esito opposto a seconda del timing.');
     li('Severità (lieve −20% / moderato −35% / severo −50%) e timing (inizio / metà / fine): un crash a inizio decumulo è molto piu dannoso di uno alla fine.');
@@ -248,10 +257,10 @@ async function downloadGuidePDF() {
     h1('9 — Scheda Fiscalita IT');
     p('Analisi completa della fiscalita italiana sugli investimenti finanziari. Calcola l\'impatto reale delle tasse e confronta i diversi regimi e metodi di calcolo delle plusvalenze.');
     h2('Confronto regimi fiscali');
-    li('Amministrato + Costo Medio — il piu diffuso; tasse automatiche ma limitata compensazione minusvalenze.');
-    li('Dichiarativo + LIFO — vende prima le quote piu recenti; puo ridurre le tasse a breve.');
-    li('Dichiarativo + FIFO — vende prima le quote piu vecchie; piu semplice da gestire.');
-    li('Dichiarativo + Costo Medio — media ponderata del prezzo di carico; bilanciato.');
+    li('Amministrato - costo medio ponderato: la banca calcola e versa le imposte; il costo fiscale e la media ponderata dei prezzi di acquisto. Il piu semplice.');
+    li('Dichiarativo - LIFO: dichiari tu nel Modello Redditi; si considerano vendute per prime le quote acquistate piu di recente (art. 67 c.1-bis TUIR). Con un PAC sono di solito le meno rivalutate, quindi in una vendita parziale parte dell\'imposta puo slittare.');
+    li('Confronto FIFO: vende per prime le quote piu vecchie. E il criterio di molti broker esteri, ma non quello previsto dalla normativa italiana: in dichiarativo il costo va ricalcolato con il LIFO.');
+    li('Il metodo non si sceglie: dipende dal regime. In nessuno dei due regimi le minusvalenze si compensano con i guadagni degli ETF UCITS (redditi di capitale).');
     h2('Imposta di bollo');
     p('Pari allo 0,20% annuo sul valore del dossier titoli. A 30 anni puo erodere il 4-6% del capitale complessivo.');
     h2('Tassazione differenziata per tipo di asset');
@@ -266,6 +275,7 @@ async function downloadGuidePDF() {
     h2('Input principali');
     li('Eta attuale, eta di pensionamento, speranza di vita: definiscono gli anni di contribuzione residui e la durata della fase di pensione.');
     li('RAL (retribuzione annua lorda) e sua crescita reale attesa: base per i contributi e per il calcolo del montante.');
+    li('Crescita reale RAL attesa (cursore dedicato, predefinito 0,5% annuo oltre l\'inflazione): pesa molto sulla pensione finale. Pubblico impiego o carriera stabile: 0-0,5%; carriera privata con avanzamenti: 1-2%.');
     li('Anni di contributi gia versati e montante contributivo gia accumulato: il punto di partenza.');
     li('Aliquota contributiva IVS (33% per dipendenti privati): la quota di RAL che alimenta il montante INPS.');
     li('Spesa mensile desiderata in pensione (in euro di oggi): l\'obiettivo rispetto a cui misurare il gap.');
@@ -278,10 +288,16 @@ async function downloadGuidePDF() {
     h2('Tasso di sostituzione e gap previdenziale');
     p('Il tasso di sostituzione e il rapporto tra la prima pensione e l\'ultima retribuzione: indica quanto del reddito da lavoro viene "sostituito" dalla pensione pubblica. In Italia, per i piu giovani nel sistema contributivo, tende a scendere sotto il 60-70%, lasciando un gap rispetto al tenore di vita pre-pensione. La scheda evidenzia questo gap e quanto il fondo pensione puo colmarlo.');
     h2('Previdenza complementare e vantaggio fiscale');
-    p('I versamenti al fondo pensione sono deducibili dal reddito IRPEF fino a 5.164,57 euro l\'anno: la deduzione genera un risparmio fiscale pari all\'aliquota marginale IRPEF dell\'aderente. La scheda calcola questo risparmio e permette di scegliere come destinarlo: spenderlo, reinvestirlo nel fondo pensione stesso, o reinvestirlo nel portafoglio ETF del Simulatore. Reinvestire il risparmio fiscale e una delle leve piu potenti della previdenza integrativa.');
+    p('I versamenti al fondo pensione sono deducibili dal reddito IRPEF fino a 5.300 euro l\'anno (limite in vigore dal 2026; fino al 2025 era 5.164,57 euro), comprensivo dell\'eventuale contributo del datore di lavoro: la deduzione genera un risparmio fiscale pari all\'aliquota marginale IRPEF dell\'aderente. La scheda calcola questo risparmio e permette di scegliere come destinarlo: spenderlo, reinvestirlo nel fondo pensione stesso, o reinvestirlo nel portafoglio ETF del Simulatore. Reinvestire il risparmio fiscale e una delle leve piu potenti della previdenza integrativa.');
     li('TFR al fondo: conferire il TFR (circa RAL/13,5 l\'anno) al fondo pensione invece di lasciarlo in azienda. La scheda confronta le due opzioni.');
     li('Fondo negoziale: se previsto dal contratto, il datore di lavoro aggiunge un contributo (es. 1,5% della RAL) a condizione che il lavoratore versi la sua quota. E denaro aggiuntivo: la scheda lo include nel montante del fondo.');
     li('Tassazione agevolata della rendita: i rendimenti del fondo pensione scontano un\'imposta sostitutiva ridotta e la prestazione finale ha aliquote agevolate (dal 15% che scende fino al 9% con l\'anzianita di partecipazione), contro il 26% degli investimenti ordinari.');
+    h2('Report PDF della scheda Pensione');
+    p('Il pulsante "Scarica Report Pensione PDF" genera un documento dedicato di due pagine: parametri del piano, pensione INPS, fondo pensione con la composizione del montante e la sua tassazione, e la copertura combinata di INPS, fondo pensione e capitale ETF rispetto alla spesa desiderata.');
+    li('Euro nominali ed euro di oggi: gli importi dei calcoli sono espressi in euro dell\'anno di pensionamento. Il report li affianca agli stessi valori riportati al potere d\'acquisto attuale, e confronta sempre grandezze omogenee (il fabbisogno viene rivalutato all\'anno di pensionamento). Confrontare un importo futuro nominale con una spesa espressa in euro di oggi farebbe sembrare la copertura molto piu ampia di quanto sia.');
+    li('Scoperto e copertura: il report indica la percentuale di spesa coperta e, se le fonti non bastano, quanto manca al mese sia in euro di oggi sia in euro nominali.');
+    h2('Reset e salvataggio');
+    p('I valori della scheda vengono salvati nel browser e ritrovati alla visita successiva. "Reset scheda" riporta tutti i valori, i cursori e i pulsanti della scheda ai valori di esempio.');
     h2('Importa dal Simulatore');
     p('Il pulsante di importazione recupera dal Simulatore il capitale ETF stimato al pensionamento e il rendimento netto del portafoglio scelto, cosi la proiezione previdenziale e coerente con il piano di accumulo impostato nelle altre schede.');
     callout('I calcoli previdenziali sono stime basate sulla normativa vigente e su ipotesi (crescita RAL, rivalutazione montante, rendimenti, evoluzione dei coefficienti). La normativa previdenziale cambia nel tempo e i coefficienti vengono rivisti periodicamente. Le stime hanno scopo illustrativo e non sostituiscono una consulenza previdenziale qualificata (patronato, consulente previdenziale) ne le proiezioni ufficiali INPS ("La mia pensione futura").', AMBER, 'Nota importante');
@@ -307,6 +323,7 @@ async function downloadGuidePDF() {
     li('Scenari economici — confronto regimi macro e tabella comparativa.');
     li('Modulo inflazione — erosione del potere d\'acquisto e SWR reale nei vari scenari inflattivi.');
     li('Sequence Risk, fiscalita, glossario, note legali finali.');
+    p('La scheda Pensione ha un proprio report PDF dedicato (vedi capitolo 9a).');
 
     h1('12 — Errori comuni e consigli pratici');
     li('Usare solo lo scenario base: guarda sempre la fan chart e il P10/P25. Il P50 e spesso troppo ottimista.');
@@ -316,6 +333,7 @@ async function downloadGuidePDF() {
     li('Fissare l\'orizzonte troppo corto: l\'azionario ha senso solo su 10+ anni. Sotto i 5 anni considera portafogli prevalentemente obbligazionari.');
     li('Ignorare le tasse nel confronto: usa la scheda Fiscalita IT per capire il netto reale. La differenza tra regime amministrato e dichiarativo puo valere migliaia di euro.');
     li('Non aggiornare il piano: rivisita i parametri ogni anno o dopo eventi importanti (cambio lavoro, acquisto casa, variazione del mercato).');
+    li('Salvataggio automatico: i dati inseriti (Simulatore, A/B, Decumulo, Custom, Pensione) restano nel browser e li ritrovi alla visita successiva. Il pulsante "Ricomincia da zero" in alto li cancella tutti, lasciando intatti gli scenari salvati esplicitamente.');
     callout('Nessun simulatore puo sostituire una consulenza personalizzata. Per decisioni patrimoniali importanti rivolgiti a un consulente finanziario indipendente abilitato (in Italia: iscritto all\'albo OCF — organismoconsulenti.org).', [217,48,37], 'Avvertenza finale');
 
     // ─────────── 13. SCENARI SALVATI ───────────

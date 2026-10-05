@@ -285,6 +285,10 @@ function _nearestCorrelationPD(A, n) {
 
 // ── Covarianza tra due asset class ─────────────────────────────────────────
 function getCov(acA, acB) {
+  // Compositi con leva (Efficient Core): covarianza come combinazione dei sottostanti
+  const ca = ASSET_CLASSES[acA], cb = ASSET_CLASSES[acB];
+  if (ca && ca.isComposite && Array.isArray(ca.composite)) return ca.composite.reduce((t, c) => t + c.w * getCov(c.ac, acB), 0);
+  if (cb && cb.isComposite && Array.isArray(cb.composite)) return cb.composite.reduce((t, c) => t + c.w * getCov(acA, c.ac), 0);
   const i = AC_KEYS_EF.indexOf(acA);
   const j = AC_KEYS_EF.indexOf(acB);
   const a = ASSET_CLASSES[acA], b = ASSET_CLASSES[acB];
@@ -312,6 +316,13 @@ function portfolioVar(weights, acKeys) {
 function _acMu(acKey) {
   const ac = ASSET_CLASSES[acKey];
   if (!ac) return 0;
+  if (ac.isComposite && Array.isArray(ac.composite)) {
+    // Composito con leva: somma pesata dei sottostanti meno il costo della leva, con la
+    // stessa regola del motore principale (finCost = (nozionale - 1) x risk-free)
+    const lev = ac.composite.reduce((t, c) => t + c.w, 0);
+    const fin = ac.finCost ?? Math.max(0, lev - 1) * RF_RATE;
+    return ac.composite.reduce((t, c) => t + c.w * _acMu(c.ac), 0) - fin;
+  }
   if (typeof _optState !== 'undefined' && _optState.returnBasis === 'historical') {
     return ac.histCAGR != null ? ac.histCAGR : ac.mu;
   }
@@ -338,57 +349,118 @@ function computeEfficientFrontier(acKeys, ter, nPoints) {
   const n = acKeys.length;
   if (n < 2) return [];
 
-  // Rendimenti attesi per il range della frontiera (mu lordi, TER dedotto a livello portafoglio)
-  const mus  = acKeys.map(k => _acMu(k));
-  const vols = acKeys.map(k => ASSET_CLASSES[k]?.vol || 0.10);
+  // Rendimenti e covarianze precalcolati (i compositi con leva sono gestiti da _acMu/getCov)
+  const terD = (ter || 0) / 100;
+  const MU = acKeys.map(k => _acMu(k));
+  const C = acKeys.map(a => acKeys.map(b => getCov(a, b)));
+  if (MU.some(x => !isFinite(x)) || C.some(r => r.some(x => !isFinite(x)))) return [];
+  const muOf = (w) => { let m = 0; for (let i = 0; i < n; i++) m += w[i] * MU[i]; return m - terD; };
+  const varOf = (w) => { let v = 0; for (let i = 0; i < n; i++) { const wi = w[i]; if (!wi) continue; const Ci = C[i]; for (let j = 0; j < n; j++) v += wi * w[j] * Ci[j]; } return v; };
+  const mk = (w) => { const mu = muOf(w), vol = Math.sqrt(Math.max(0, varOf(w))); return { mu, vol, weights: w, sharpe: (mu - RF_RATE) / (vol || 0.001) }; };
 
-  const muMin = Math.min(...mus) - (ter||0)/100;  // range aggiustato per TER
-  const muMax = Math.max(...mus) - (ter||0)/100;
+  const muMin = Math.min(...MU) - terD;
+  const muMax = Math.max(...MU) - terD;
   const muRange = muMax - muMin;
 
-  // Genera molti portafogli casuali come seed (più campioni = frontiera più liscia)
+  // 1. Campionamento con seme (riproducibile) + portafogli d'angolo
+  const rng = _mulberry32(_hashSeed(acKeys.join('|') + '|' + (ter || 0) + '|' + ((typeof _optState !== 'undefined' && _optState.returnBasis) || 'forward')));
+  const pool = [];
   const N_RANDOM = 12000;
-  const randomPortfolios = [];
-  for (let k=0;k<N_RANDOM;k++) {
-    const w = _randomWeights(n);
-    const mu = portfolioMu(w, acKeys, ter);
-    const vol = Math.sqrt(Math.max(0, portfolioVar(w, acKeys)));
-    randomPortfolios.push({ mu, vol, weights: w, sharpe: (mu - RF_RATE) / (vol||0.001) });
+  for (let k = 0; k < N_RANDOM; k++) {
+    const w = Array.from({ length: n }, () => -Math.log(rng() + 1e-12));
+    const s = w.reduce((a, b) => a + b, 0);
+    pool.push(mk(w.map(x => x / s)));
+  }
+  // angoli: ogni asset da solo e le combinazioni a due (passo 10%): il campionamento
+  // casuale non arriva quasi mai agli estremi, che troncavano la curva
+  for (let i = 0; i < n; i++) {
+    const w = new Array(n).fill(0); w[i] = 1; pool.push(mk(w));
+    for (let j = i + 1; j < n; j++) for (let s = 1; s < 10; s++) { const w2 = new Array(n).fill(0); w2[i] = s / 10; w2[j] = 1 - s / 10; pool.push(mk(w2)); }
   }
 
-  // Per ogni livello di rendimento target, trova il portafoglio a volatilità minima.
+  // 2. Per ogni livello di rendimento target, il portafoglio campionato a volatilita' minima
   const raw = [];
-  for (let t=0;t<=nPoints;t++) {
-    const targetMu = muMin + (t/nPoints) * muRange;
+  for (let t = 0; t <= nPoints; t++) {
+    const targetMu = muMin + (t / nPoints) * muRange;
     const tolerance = muRange * 0.03 + 1e-4;
     let best = null;
-    for (const p of randomPortfolios) {
+    for (const p of pool) {
       if (Math.abs(p.mu - targetMu) >= tolerance) continue;
       if (!best || p.vol < best.vol) best = p;
     }
     if (best) raw.push(best);
   }
 
+  // 3. Affinamento locale: Min Varianza, Max Sharpe e 40 punti della curva
+  const byVol = pool.reduce((a, b) => (b.vol < a.vol ? b : a));
+  const mv = mk(_pairwiseRefine(byVol.weights, w => -varOf(w)));
+  const bySh = pool.reduce((a, b) => (b.sharpe > a.sharpe ? b : a));
+  const ms = mk(_pairwiseRefine(bySh.weights, w => { const v = Math.sqrt(Math.max(0, varOf(w))); return v > 0 ? (muOf(w) - RF_RATE) / v : -Infinity; }));
+  raw.push(mv, ms);
+  // estremo superiore: 100% sull'asset piu' redditizio, sempre efficiente (nessun portafoglio
+  // long-only rende di piu'); la ricerca per fasce di rendimento tendeva a scartarlo
+  { let im = 0; for (let i = 1; i < n; i++) if (MU[i] > MU[im]) im = i; const wTop = new Array(n).fill(0); wTop[im] = 1; raw.push(mk(wTop)); }
+  const K = 40;
+  for (let t = 1; t < K; t++) {
+    const target = mv.mu + (t / K) * (muMax - mv.mu);
+    let start = null;
+    for (const p of pool) if (p.mu >= target && (!start || p.vol < start.vol)) start = p;
+    if (!start) continue;
+    raw.push(mk(_pairwiseRefine(start.weights, w => -varOf(w), w => muOf(w) >= target - 1e-9)));
+  }
+
   // ── Filtro di DOMINANZA (inviluppo efficiente) ───────────────────────────────
-  // Una vera frontiera efficiente è monotòna nel ramo superiore: a maggior rischio
-  // deve corrispondere maggior rendimento. Il Monte Carlo produce però una nuvola
-  // con punti "dominati" (stesso/maggior rischio ma rendimento minore di un altro),
-  // che disegnati creano lo zig-zag. Qui ordiniamo per volatilità crescente e
-  // teniamo SOLO i punti il cui rendimento supera il massimo già visto: questo è
-  // l'upper-left envelope, ovvero la frontiera efficiente in senso stretto.
-  raw.sort((a,b) => a.vol - b.vol || b.mu - a.mu);
+  // Ordina per volatilita' crescente e tiene SOLO i punti il cui rendimento supera il
+  // massimo gia' visto: e' il ramo superiore, cioe' la frontiera efficiente in senso stretto.
+  raw.sort((a, b) => a.vol - b.vol || b.mu - a.mu);
   const frontier = [];
   let maxMuSoFar = -Infinity;
   for (const p of raw) {
     if (p.mu > maxMuSoFar + 1e-6) {
-      // evita duplicati quasi-coincidenti
-      const last = frontier[frontier.length-1];
+      const last = frontier[frontier.length - 1];
       if (last && Math.abs(last.vol - p.vol) < 1e-5 && Math.abs(last.mu - p.mu) < 1e-5) continue;
       frontier.push({ mu: p.mu, vol: p.vol, sharpe: p.sharpe, weights: p.weights });
       maxMuSoFar = p.mu;
     }
   }
   return frontier;
+}
+
+// ── Generatore pseudo-casuale con seme (mulberry32) ────────────────────────
+// Frontiera e ottimizzatore usavano Math.random: a ogni ricalcolo Max Sharpe e Min
+// Varianza cambiavano un po'. Con un seme legato agli asset scelti lo stesso input
+// produce sempre lo stesso risultato.
+function _mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function _hashSeed(str) { let h = 2166136261 >>> 0; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+let _qRand = Math.random; // generatore usato dall'ottimizzatore (riseminato a ogni esecuzione)
+
+// ── Affinamento locale per trasferimenti di peso tra coppie di asset ────────
+// Long-only, somma 1. score: piu' alto = meglio; feasible: vincolo opzionale.
+// Passi decrescenti fino a 0,05%: converge all'ottimo per obiettivi come
+// varianza minima o Sharpe massimo, che il solo campionamento casuale approssima.
+function _pairwiseRefine(w0, score, feasible) {
+  const w = w0.slice(), n = w.length;
+  let best = score(w);
+  for (const step of [0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001, 0.0005]) {
+    let improved = true, guard = 0;
+    while (improved && guard++ < 400) {
+      improved = false;
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          if (i === j || w[i] <= 1e-12) continue;
+          const d = Math.min(step, w[i]);
+          w[i] -= d; w[j] += d;
+          const s = score(w);
+          if (s > best + 1e-13 && (!feasible || feasible(w))) { best = s; improved = true; }
+          else { w[i] += d; w[j] -= d; }
+        }
+      }
+    }
+  }
+  return w;
 }
 
 function _randomWeights(n) {
@@ -1150,7 +1222,7 @@ function _populateAssetSelector() {
 
   el.innerHTML = Object.entries(cats).map(([cat, items]) => `
     <optgroup label="${catLabels[cat]||cat}">
-      ${items.map(({key,ac})=>`<option value="${key}">${ac.emoji||''} ${ac.label} — μ=${((ac.mu||0)*100).toFixed(1)}% σ=${((ac.vol||0)*100).toFixed(1)}%</option>`).join('')}
+      ${items.map(({key,ac})=>`<option value="${key}">${ac.emoji||''} ${ac.label} — μ=${(_acMu(key)*100).toFixed(1)}% σ=${(Math.sqrt(Math.max(0, getCov(key, key)))*100).toFixed(1)}%${ac.isComposite ? ' (con leva)' : ''}</option>`).join('')}
     </optgroup>
   `).join('');
 
@@ -1681,19 +1753,16 @@ function _portfolioVol(w, acKeys) {
 
 // ── Calcola downside deviation con MC veloce ───────────────────────────────
 function _downsideDeviation(w, acKeys, ter) {
+  // Deviazione sotto il risk-free per rendimenti normali: formula esatta.
+  // Prima era stimata con 200 estrazioni casuali a ogni valutazione: lo stesso portafoglio
+  // riceveva punteggi diversi e l'ottimizzatore Sortino inseguiva il rumore.
+  // Con z = (RF - mu) / sigma:  E[(RF - r)^2 ; r < RF] = sigma^2 * ((z^2 + 1) * Phi(z) + z * phi(z))
   const mu = portfolioMu(w, acKeys, ter);
   const vol = _portfolioVol(w, acKeys);
-  // MC veloce (200 sim) per stima downside
-  const N = 200;
-  let sumSq = 0;
-  for (let i = 0; i < N; i++) {
-    const r = mu + vol * _boxMuller();
-    if (r < RF_RATE) {                     // sotto risk-free = "downside"
-      const d = RF_RATE - r;
-      sumSq += d * d;
-    }
-  }
-  return Math.sqrt(sumSq / N);
+  if (!(vol > 0)) return Math.max(0, RF_RATE - mu);
+  const z = (RF_RATE - mu) / vol;
+  const phi = Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+  return vol * Math.sqrt(Math.max(0, (z * z + 1) * _normCDF(z) + z * phi));
 }
 
 // ── Risk contribution per asset ────────────────────────────────────────────
@@ -1777,7 +1846,7 @@ function _checkFeasibility(acKeys, bounds, maxEquity) {
 function _sampleConstrainedWeights(acKeys, bounds, maxEquity) {
   const n = acKeys.length;
   // Dirichlet sampling come base
-  const raw = Array.from({ length: n }, () => -Math.log(Math.random() + 1e-12));
+  const raw = Array.from({ length: n }, () => -Math.log(_qRand() + 1e-12));
   const sum = raw.reduce((a, b) => a + b, 0);
   let w = raw.map(x => x / sum);
   return _applyConstraints(w, acKeys, bounds, maxEquity);
@@ -1843,6 +1912,8 @@ function _solveRiskParity(acKeys, bounds, maxEquity) {
 
 // ── Optimizer principale ───────────────────────────────────────────────────
 function runOptimizer(acKeys, objective, bounds, maxEquity, ter, opts) {
+  // Riproducibile: stessi asset, obiettivo e vincoli -> stesso risultato
+  _qRand = _mulberry32(_hashSeed([acKeys.join('|'), objective, JSON.stringify(bounds || {}), maxEquity, ter, (typeof _optState !== 'undefined' && _optState.returnBasis) || ''].join('#')));
   opts = opts || {};
   const N = opts.N || 8000;
   const localIters = opts.localIters || 300;
@@ -1874,7 +1945,7 @@ function runOptimizer(acKeys, objective, bounds, maxEquity, ter, opts) {
   // 2. Local search adattiva (perturbazione + accettazione greedy)
   for (let iter = 0; iter < localIters; iter++) {
     const step = 0.08 * (1 - iter / localIters);  // step decrescente
-    const trial = bestW.map(wi => Math.max(0, wi + (Math.random() - 0.5) * step));
+    const trial = bestW.map(wi => Math.max(0, wi + (_qRand() - 0.5) * step));
     const sum = trial.reduce((a, b) => a + b, 0);
     if (sum <= 0) continue;
     const wNorm = trial.map(x => x / sum);
@@ -1885,6 +1956,19 @@ function runOptimizer(acKeys, objective, bounds, maxEquity, ter, opts) {
       bestW = wFinal;
       bestEval = ev;
     }
+  }
+
+  // 3. Affinamento finale per coppie nel rispetto dei vincoli: accetta solo spostamenti
+  // fattibili che migliorano l'obiettivo, quindi per costruzione non puo' peggiorare.
+  const _feasible = (w) => {
+    for (let i = 0; i < w.length; i++) { const b = bounds[acKeys[i]] || { min: 0, max: 1 }; if (w[i] < b.min - 1e-9 || w[i] > b.max + 1e-9) return false; }
+    if (maxEquity != null && maxEquity < 1) { let eq = 0; for (let i = 0; i < w.length; i++) if (_isEquityAsset(acKeys[i])) eq += w[i]; if (eq > maxEquity + 1e-9) return false; }
+    return true;
+  };
+  if (_feasible(bestW)) {
+    const wR = _pairwiseRefine(bestW, w => _evaluate(w, acKeys, objective, ter).score, _feasible);
+    const evR = _evaluate(wR, acKeys, objective, ter);
+    if (evR.score > bestScore) { bestW = wR; bestEval = evR; bestScore = evR.score; }
   }
 
   return { weights: bestW, ...bestEval };
@@ -2079,7 +2163,7 @@ function _populateOptAssetSelector() {
   };
   sel.innerHTML = Object.entries(cats).map(([cat, items]) => `
     <optgroup label="${catLabels[cat] || cat}">
-      ${items.map(({ key, ac }) => `<option value="${key}">${ac.emoji || ''} ${ac.label} (μ=${((ac.mu||0)*100).toFixed(1)}% σ=${((ac.vol||0)*100).toFixed(1)}%)</option>`).join('')}
+      ${items.map(({ key, ac }) => `<option value="${key}">${ac.emoji || ''} ${ac.label} (μ=${(_acMu(key)*100).toFixed(1)}% σ=${(Math.sqrt(Math.max(0, getCov(key, key)))*100).toFixed(1)}%${ac.isComposite ? ' (con leva)' : ''})</option>`).join('')}
     </optgroup>
   `).join('');
   for (const opt of sel.options) opt.selected = _optState.assets.includes(opt.value);
