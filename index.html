@@ -1693,9 +1693,17 @@
         <input type="range" id="sPenRalG" min="0" max="3" step="0.25" value="0.5" oninput="penState.ralGrowth=+this.value/100;document.getElementById('lPenRalG').textContent=this.value+'%/a';renderPensione()">
         <div style="font-size:11px;color:var(--text3);margin-top:4px">Crescita oltre l'inflazione. Pubblico impiego o carriera stabile: 0-0,5%. Carriera privata con avanzamenti: 1-2%.</div>
       </div>
+      <details id="penRalChBox" style="margin:2px 0 12px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px">
+        <summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:var(--text)">Variazioni di RAL nella carriera (opzionale)</summary>
+        <div style="font-size:11.5px;color:var(--text3);margin:6px 0 8px;line-height:1.5">Dall'età indicata la RAL diventa quella inserita (lorda annua, in euro di oggi); tra una variazione e l'altra cresce con la "Crescita reale RAL attesa". Utile per cambi di lavoro, promozioni, part-time o pause (RAL 0). La maternità obbligatoria è coperta da contributi figurativi: in quel caso non azzerare la RAL.</div>
+        <div id="penRalChList"></div>
+        <button class="gbtn" id="penRalChAdd" onclick="addPenRalChange()" style="padding:5px 12px;font-size:12px">+ Aggiungi variazione</button>
+        <div id="penRalSpark" style="margin-top:10px"></div>
+      </details>
       <div style="margin-top:14px">
         <button class="gbtn a-blue" onclick="importPenFromSim()" style="padding:9px 16px;font-weight:600;width:100%">⬇️ Importa età e capitale ETF dal Simulatore</button>
         <div id="penImportStatus" style="font-size:12px;color:var(--text3);margin-top:6px">Non ancora importato — il capitale ETF è considerato 0 finché non importi dal Simulatore.</div>
+        <div id="penEtfStale" style="display:none;margin-top:6px;padding:7px 10px;border-radius:6px;background:var(--orange-dim);color:var(--orange);font-size:12px">⚠️ Il Simulatore è cambiato dopo l'importazione: il capitale ETF mostrato non è più aggiornato. Premi di nuovo "Importa età e capitale ETF dal Simulatore".</div>
       </div>
       <div style="margin-top:10px">
         <button class="gbtn" onclick="calcPenSuggerito()" style="padding:9px 16px;font-weight:600;width:100%">🎯 Calcola versamento FP ottimale per coprire il gap</button>

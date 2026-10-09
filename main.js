@@ -2949,7 +2949,7 @@ function getDecPensionLink() {
   }
   return { startIdx, inpsStart, fpStart, fpGrowth, inpsAnn, fpAnn,
            retAge: penState.retAge, decAge: state.age + state.years,
-           ageMismatch: penState.age !== state.age };
+           ageMismatch: penState.age !== state.age, running: shift < 0 };
 }
 // Aggiorna gli importi pensione dall'anno yearIdx al successivo, con l'inflazione di quell'anno
 function decPensionStep(pl, cur, yearIdx, inflY) {
@@ -3083,7 +3083,7 @@ function simulateDecumulo(sc) {
     totalCostBasis = Math.max(0, totalCostBasis * (1 - sellFrac));
 
     let note = crashNote, nextWd = wd;
-    if (pl && _yi === pl.startIdx && pensInc > 0) note = (note ? note + ' · ' : '') + '🏛 inizio pensione';
+    if (pl && !pl.running && _yi === pl.startIdx && pensInc > 0) note = (note ? note + ' · ' : '') + '🏛 inizio pensione';
     if (inEcoRegime && y === ecoWin.s) note = (note ? note + ' · ' : '') + ECO_SCENARIOS[ecoScenario].emoji + ' regime attivo';
     if (ecoWin && y === ecoWin.e + 1) note = '↩ ritorno normale';
     if (strat === 'fixed') { nextWd = wd; }
@@ -4525,13 +4525,17 @@ async function exportExcel() {
     const portLabel = getPortLabel(portfolio);
 
     // ── 1. Dati proiezione annuale (3 scenari) ─────────────────
-    const dN = project('normal', seq?.on);
-    const dB = project('best',   seq?.on);
-    const dW = project('worst',  seq?.on);
+    // Scenari SENZA crash, come lo Scenario Base del report PDF; il percorso con i crash
+    // del rischio di sequenza va in una colonna a parte, con il suo nome
+    const dN = project('normal', false);
+    const dB = project('best',   false);
+    const dW = project('worst',  false);
+    const dSx = seq?.on ? project('normal', true) : null;
     const txF = blendedTaxRate(endAge);
 
     const hdrProj = ['Anno','Età','Investito (€)','Valore Base (€)','Valore Ott. (€)',
                      'Valore Pess. (€)','Guadagno Base (€)','Netto Fiscale Base (€)','Rend. annuo IRR (%)'];
+    if (dSx) hdrProj.push('Valore con crash - Sequence Risk (€)');
     const rowsProj = dN.map((d, i) => {
       const vN = d.value, inv = d.invested;
       const vB = dB[i]?.value ?? vN, vW = dW[i]?.value ?? vN;
@@ -4540,7 +4544,8 @@ async function exportExcel() {
       // IRR money-weighted: tiene conto del capitale iniziale E dei versamenti PAC.
       const cagr = i > 0 ? (planIRR(dN, i) * 100).toFixed(2) : 0;
       return [d.year ?? i, d.age ?? age + i, Math.round(inv), Math.round(vN),
-              Math.round(vB), Math.round(vW), Math.round(vN - inv), Math.round(netto), +cagr];
+              Math.round(vB), Math.round(vW), Math.round(vN - inv), Math.round(netto), +cagr]
+             .concat(dSx ? [Math.round(dSx[i]?.value ?? vN)] : []);
     });
 
     // ── 2. Riepilogo parametri ──────────────────────────────────
@@ -4560,11 +4565,11 @@ async function exportExcel() {
       ['Tassa az. (%)',         state.taxEq],
       ['Tassa ob. (%)',         state.taxOb],
       ['Aliquota blended (%)',  (txF * 100).toFixed(2)],
-      ['Sequence Risk',         seq?.on ? `Sì — ${seq.severity} / ${seq.timing}` : 'No'],
-      ['CAPE-adjusted returns',  state.capeAdj ? 'Attivo' : 'Disattivo'],
-      ['CAPE S&P500 (live)',     window._liveData?.capeUSA ? window._liveData.capeUSA.toFixed(1) : 'n/d'],
-      ['CAPE Europa (live)',     window._liveData?.capeEU  ? window._liveData.capeEU.toFixed(1)  : 'n/d'],
-      ['Delta rendimento CAPE',  window._liveData?.capeDeltaEq != null ? (window._liveData.capeDeltaEq * 100).toFixed(2) + '%/a' : 'n/d'],
+      ['Sequence Risk',         seq?.on ? `Sì — ${({ single: '1 crash', double: '2 crash', triple: '3 crash' })[seq.mode || 'single'] || '1 crash'} / ${seq.severity} / ${seq.timing}` : 'No'],
+      ['CAPE-adjusted returns',  state.capeAdj !== false ? 'Attivo' : 'Disattivo'], // stesso criterio del motore
+      ['CAPE S&P500 (live)',     window.liveMarketData?.cape_sp500 ? window.liveMarketData.cape_sp500.toFixed(1) : 'n/d'],
+      ['CAPE Europa (live)',     window.liveMarketData?.cape_europe ? window.liveMarketData.cape_europe.toFixed(1) : 'n/d'],
+      ['Fwd. return azionario USA / EU', window.liveMarketData?.fwd_eq_usa != null ? (window.liveMarketData.fwd_eq_usa * 100).toFixed(1) + '%/a / ' + (window.liveMarketData.fwd_eq_eu != null ? (window.liveMarketData.fwd_eq_eu * 100).toFixed(1) + '%/a' : 'n/d') : 'n/d'],
       ['Data generazione', new Date().toLocaleDateString('it-IT')],
     ];
 
@@ -5015,14 +5020,13 @@ async function generatePDF() {
       doc.setFillColor(...LBG); doc.rect(0, 0, W, 13, 'F');
       doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...GRAY);
       doc.text(pdfSafe('Report Patrimoniale Pro Suite v3 — Documento informativo, non consulenza finanziaria'), ML, 8.5);
-      doc.text(`Pag. ${pN}`, W - MR, 8.5, { align: 'right' });
       doc.setDrawColor(210, 210, 210); doc.line(ML, 12.5, W - MR, 12.5);
       doc.setTextColor(0, 0, 0);
     };
     const chkPB = (n = 18) => { if (y + n > 275) { doc.addPage(); pN++; y = 20; miniHdr(); } };
     const _secPages = []; // [titolo, pagina] di ogni sezione — per l'indice two-pass
     const sHdr = (t, col = BLU) => {
-      chkPB(14);
+      chkPB(34); // titolo + almeno qualche riga: niente titoli isolati in fondo pagina
       // pagina REALE dal motore jsPDF: il contatore manuale pN va fuori sincrono
       // quando autoTable inserisce page-break automatici nelle tabelle lunghe
       _secPages.push({ t: String(t), p: (doc.internal.getCurrentPageInfo ? doc.internal.getCurrentPageInfo().pageNumber : pN) });
@@ -5159,7 +5163,7 @@ async function generatePDF() {
         ['TER ETF annuo', ter.toFixed(2) + '%', 'Beta inflazione', String(portMeta.inflBeta ?? 'n/d')],
         ['Tasse plusvalenze Az.', taxEq.toFixed(1) + '%', 'Tasse plusvalenze Ob.', taxOb.toFixed(1) + '%'],
         ['Inflazione attesa (media)', inflBottom.toFixed(1) + '%', 'Inflazione (sigma)', inflVol.toFixed(1) + '%'],
-        ['Sequence Risk', seq.on ? `attivo (${seq.severity}, ${seq.timing})` : 'disattivato', 'PIC/Spese straordinarie', `${state.pics.length} PIC, ${state.exps.length} uscite`],
+        ['Sequence Risk', seq.on ? `attivo (${({ single: '1 crash', double: '2 crash', triple: '3 crash' })[seq.mode || 'single'] || '1 crash'}, ${seq.severity}, ${seq.timing})` : 'disattivato', 'PIC/Spese straordinarie', `${state.pics.length} PIC, ${state.exps.length} uscite`],
       ],
       styles: { fontSize: 8, cellPadding: 2.5 },
       headStyles: { fillColor: LBG, textColor: GRAY, fontStyle: 'bold', fontSize: 7.5 },
@@ -5517,13 +5521,12 @@ async function generatePDF() {
     }
 
     // ─────────── 7b. BACKTESTING STORICO ───────────
-    doc.addPage(); pN++; y = 20; miniHdr();
     sHdr('7b — Backtesting Storico — Dati Storici 1970-2025', [0, 150, 167]);
     narrative(
       'Il backtesting usa 672 rendimenti mensili storici 1970-2025 REALI in EUR (azioni MSCI World Net EUR, obbligazioni Euro Aggregate, oro EUR): sono le serie mensili vere degli indici, non ricostruzioni. ' +
       'Il portafoglio e il PAC mensile attuali del simulatore vengono applicati a 10 periodi storici diversi, includendo le correlazioni dinamiche: ' +
       'in anni di drawdown azionario > 15% le correlazioni tra asset class si alzano verso la matrice di stress, come osservato empiricamente. ' +
-      'Il CAGR nominale include dividendi e cedole (total return). Le ultime osservazioni disponibili coprono fino a dicembre 2024.'
+      'Il CAGR nominale include dividendi e cedole (total return). Le ultime osservazioni disponibili coprono fino a dicembre 2025.'
     );
     const btPortKeyPDF = (typeof btState !== 'undefined' && btState?.port === 'sim') ? portfolio : ((typeof btState !== 'undefined' && btState?.port) || portfolio);
     const btPacPDF = (typeof btState !== 'undefined' && btState?.pac != null) ? btState.pac : state.pac;
@@ -5749,7 +5752,7 @@ async function generatePDF() {
 
     // ─────────── 8b. FISCALITA IT COMPARATA ───────────
     try {
-      sHdr('8b \u2014 Analisi Fiscalita IT \u2014 Confronto 4 Regimi', ORG);
+      sHdr('8b \u2014 Analisi Fiscalita IT \u2014 Confronto Regimi', ORG);
       // Recupera stato fiscale (se caricato) oppure calcola da state
       const fsRegime   = (typeof fiscState !== 'undefined' && fiscState.loaded) ? fiscState.regime : 'amministrato';
       const fsMethod   = (typeof fiscState !== 'undefined' && fiscState.loaded) ? fiscState.method : 'avg';
@@ -6108,7 +6111,7 @@ async function generatePDF() {
       y = doc.lastAutoTable.finalY + 4;
       if (decState.strategy === 'gk') {
         callout('Guyton-Klinger Guard-Rails',
-          `La regola GK aggiusta il prelievo in modo dinamico: se il tasso di prelievo corrente supera del 20% quello iniziale (${(decState.withdrawal / Math.max(1, decState.startPortfolio) * 100).toFixed(2)}%), scatta un taglio del 10%; se scende sotto del 20%, aumenta del 10% (salvo anno precedente negativo). Questa flessibilita permette prelievi iniziali piu alti rispetto alla regola del 4% statica, massimizzando il reddito mantenendo la longevita del portafoglio.`,
+          `La regola GK aggiusta il prelievo in modo dinamico: se il tasso di prelievo corrente supera del 20% quello iniziale (${((function(){ if (!decPensionLink) return decState.withdrawal; const r0 = simulateDecumulo('normal')[0]; return (r0 && r0.withdrawal > 0) ? r0.withdrawal : decState.withdrawal; })() / Math.max(1, decState.startPortfolio) * 100).toFixed(2)}%${decPensionLink ? ', calcolato sul prelievo dal portafoglio al netto della pensione' : ''}), scatta un taglio del 10%; se scende sotto del 20%, aumenta del 10% (salvo anno precedente negativo). Questa flessibilita permette prelievi iniziali piu alti rispetto alla regola del 4% statica, massimizzando il reddito mantenendo la longevita del portafoglio.`,
           [0, 150, 136]
         );
       } else if (decState.strategy === 'inflation') {
@@ -6133,7 +6136,7 @@ async function generatePDF() {
         if (pr && isFinite(pr.pensioneLordaAnn) && pr.pensioneLordaAnn > 0) {
           chkPB(40);
           sHdr('8g — Stima Previdenziale (INPS)', [0, 121, 107]);
-          narrative(`Hai utilizzato il modulo Pensione del simulatore. Questa stima e indipendente dal piano di accumulo sopra: proietta la pensione pubblica INPS sulla base della tua carriera contributiva, secondo il metodo contributivo (montante rivalutato al PIL e convertito con il coefficiente di trasformazione per eta). E una stima semplificata a fini educativi, non un calcolo previdenziale ufficiale.`);
+          narrative(`Hai utilizzato il modulo Pensione del simulatore. ${decPensionLink ? 'Nel decumulo (sezioni 8C e 8F) questa pensione e collegata: il portafoglio paga solo la spesa non coperta.' : 'Questa stima non e collegata al decumulo delle sezioni 8C e 8F.'} La stima proietta la pensione pubblica INPS sulla base della tua carriera contributiva, secondo il metodo contributivo (montante rivalutato al PIL e convertito con il coefficiente di trasformazione per eta). E una stima semplificata a fini educativi, non un calcolo previdenziale ufficiale.`);
           const ts = (pr.tassoSost != null) ? (pr.tassoSost * 100).toFixed(0) + '%' : 'n/d';
           doc.autoTable({
             startY: y,
@@ -6205,7 +6208,8 @@ async function generatePDF() {
       const mult     = inv > 0 ? vN / inv : 0;                         // moltiplicatore lordo nominale
       const gainNom  = vN - inv;                                        // plusvalenza nominale
       const erosPct  = dF > 0 ? (1 - 1 / dF) * 100 : 0;                 // erosione potere acquisto %
-      const realMult = inv > 0 ? realN / inv : 0;                       // moltiplicatore reale
+      const realNet = nN / dF;                                            // reale netto: dopo imposte e inflazione
+      const realMult = inv > 0 ? realNet / inv : 0;                       // moltiplicatore reale
       const taxPct   = txF * 100;                                       // aliquota fiscale blended
       const beta     = portMeta.inflBeta ?? 0;
       const vol      = (portMeta.vol ?? 0) * 100;                       // volatilita annua %
@@ -6323,7 +6327,7 @@ async function generatePDF() {
       pU += `Il modo corretto di usarlo e farne piu versioni e confrontarle: cambia un parametro alla volta - alza il versamento, allunga l'orizzonte, riduci il TER, abbassa il rendimento atteso a uno scenario prudente - e osserva come si muove il valore reale netto. `;
       pU += `E in questa analisi di sensibilita, non nel singolo numero finale, che sta il valore dello strumento. `;
       if (mcProb != null && mcProb < 70) pU += `In particolare, dato che la probabilita di successo stimata (${mcProb.toFixed(0)}%) non e elevata, vale la pena testare cosa serve per portarla in zona di sicurezza (>80%): di solito bastano aggiustamenti modesti ma costanti, applicati presto. `;
-      pU += `Il numero che conta resta uno: ${fmtFull(realN)}, il valore finale in potere d'acquisto di oggi, al netto dell'inflazione ma prima delle imposte sulla plusvalenza e del bollo. E questa la cifra che misura cosa potrai realmente fare con il tuo capitale.`;
+      pU += `Il numero che conta resta uno: ${fmtFull(realNet)}, il valore finale in potere d'acquisto di oggi al netto di inflazione e imposte sulla plusvalenza (bollo escluso). E questa la cifra che misura cosa potrai realmente fare con il tuo capitale.`;
       narrative(pU);
 
       // ===== 4. A cosa prestare attenzione (avvisi dinamici) =====
@@ -6344,7 +6348,7 @@ async function generatePDF() {
       if (mult > 2.5 && years < 20)   bilancio.push('un moltiplicatore elevato su orizzonte non lungo dipende fortemente dal rendimento ipotizzato, che e l\'assunzione piu incerta del modello');
       if (beta < 0.1)                 bilancio.push('la protezione dall\'inflazione di questo portafoglio e verosimilmente sopravvalutata in scenari di carovita persistente');
       if (vol > 14)                   bilancio.push('la stabilita del risultato puo essere sopravvalutata: l\'alta volatilita rende la mediana meno rappresentativa dell\'esito individuale');
-      var pf = `Sintesi operativa. Il riferimento corretto e il valore reale netto (${fmtFull(realN)} in potere d'acquisto di oggi), non il nominale lordo. `;
+      var pf = `Sintesi operativa. Il riferimento corretto e il valore reale netto (${fmtFull(realNet)} in potere d'acquisto di oggi, dopo inflazione e imposte), non il nominale lordo. `;
       if (bilancio.length) pf += `Sul piano critico: ` + bilancio.slice(0, 3).join('; ') + `. `;
       pf += `Le tre leve realmente sotto il tuo controllo restano il tasso di risparmio, l'orizzonte temporale e i costi; il rendimento di mercato non e governabile e va trattato come ipotesi, non come promessa. Questo documento e uno strumento di analisi e di educazione finanziaria: serve a comprendere le relazioni tra le variabili, non a prevedere il futuro.`;
       callout('Bilancio critico e sintesi', pf, PUR);
@@ -6374,7 +6378,7 @@ async function generatePDF() {
 
     // Footer finale
     doc.setFontSize(7.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(...GRAY);
-    doc.text(pdfSafe(`Report generato da Suite Patrimoniale Pro v3 — ${new Date().toISOString().slice(0, 10)} — Pagine totali: ${pN}`), ML, Math.min(y, 285));
+    doc.text(pdfSafe(`Report generato da Suite Patrimoniale Pro v3 — ${new Date().toISOString().slice(0, 10)}`), ML, Math.min(y, 285));
 
     // ── Indice reale two-pass (pagina 2) + numerazione pagine ──────────────
     doc.insertPage(2); doc.setPage(2);

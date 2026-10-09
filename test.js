@@ -415,7 +415,7 @@ function suitePensione() {
   if (!SRC.pens) { warn('pensione.js non presente in questa build — suite saltata'); return; }
   eval(grab(SRC.pens, /let penState = \{[\s\S]*?\n\};/).replace('let ', 'global.'));
   loadConst(SRC.pens, /const COEFF_TRASF = \{[\s\S]*?\n\};/);
-  ['getCoeffTrasf','calcIRPEF','calcAliqMargIRPEF','calcPensione'].forEach(fn => loadFn(SRC.pens, fn));
+  ['getCoeffTrasf','calcIRPEF','calcAliqMargIRPEF','sanitizeRalChanges','penRalPath','calcPensione'].forEach(fn => loadFn(SRC.pens, fn));
 
   // 6.a Coefficienti di trasformazione ufficiali (DM 436/2024)
   if (global.getCoeffTrasf) {

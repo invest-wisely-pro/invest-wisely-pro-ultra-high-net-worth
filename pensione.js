@@ -19,6 +19,7 @@ let penState = {
   montante:   0,       // montante contributivo già accumulato
   desired:    2000,    // spesa mensile desiderata in pensione (€ oggi)
   infl:       0.02,    // inflazione attesa
+  ralChanges: [],      // variazioni di RAL nella carriera: [{ age, ral (euro di oggi) }]
   pil:        0.010,   // rivalutazione montante INPS: PIL reale medio di lungo
                // periodo (scenario RGS ~1,0%/a). NB: volutamente DISACCOPPIATO
                // dalla crescita RAL individuale (ralGrowth, sotto): il montante
@@ -37,7 +38,8 @@ let penState = {
   rispFiscDest:     'reinvesti_fp', // 'spendi' | 'reinvesti_fp' | 'reinvesti_etf'
   // Dati ETF ereditati dal Simulatore (aggiornati su importa)
   etfCapital: 0,       // capitale ETF stimato al pensionamento
-  etfBridgeYears: 0,  // anni di ponte (fine accumulo -> pensione) gia' scontati da etfCapital
+  etfBridgeYears: 0,
+  etfImportRef: null,  // { sig, cap }: firma del Simulatore al momento dell'importazione del capitale ETF  // anni di ponte (fine accumulo -> pensione) gia' scontati da etfCapital
   etfRet:     0.05,    // rendimento annuo NETTO del portafoglio del Simulatore (default ~bilanciato; aggiornato su importa)
 };
 // Snapshot dei default catturato subito dopo la dichiarazione, PRIMA di qualsiasi
@@ -67,6 +69,9 @@ function loadPenStateLS() {
       if (typeof def === 'number') { if (typeof v === 'number' && isFinite(v)) { penState[k] = v; n++; } }
       else if (typeof v === typeof def) { penState[k] = v; n++; }
     }
+    penState.ralChanges = sanitizeRalChanges(penState.ralChanges);
+    const _r = penState.etfImportRef;
+    penState.etfImportRef = (_r && typeof _r === 'object' && typeof _r.sig === 'string' && isFinite(+_r.cap)) ? { sig: _r.sig, cap: +_r.cap } : null;
     return n > 0;
   } catch (e) { return false; }
 }
@@ -101,6 +106,7 @@ function syncPenControls() {
   setBtn('penNegozialeBtns', 'data-neg', penState.isNegoziale ? 'si' : 'no');
   const rd = document.getElementById('penRegimeDesc');
   if (rd && typeof PEN_REGIME_DESC !== 'undefined') rd.innerHTML = PEN_REGIME_DESC[penState.regime] || '';
+  try { renderPenRalChanges(); } catch (e) {} // elenco variazioni di RAL ricaricato
 }
 window.resetPensione = resetPensione;
 
@@ -211,10 +217,14 @@ const PEN_REGIME_DESC = {
 
 // ── Calcolo core ──────────────────────────────────────────────
 function calcPensione() {
-  const { age, retAge, lifeExp, contYears, ral, ralGrowth, aliqCont,
+  const { age, retAge, lifeExp, contYears, ral: _ralCursore, ralGrowth, aliqCont,
           montante, desired, infl, pil, fpVers, fpRet,
           tfrSi, regime, isNegoziale, contDatoriale, contLavoratore,
           rispFiscDest } = penState;
+  // Una variazione di RAL all'eta' attuale sostituisce la RAL di oggi in TUTTO il calcolo
+  // (anche nella stima degli anni gia' lavorati, che parte dalla RAL di oggi a ritroso)
+  const _ralOggiCh = sanitizeRalChanges(penState.ralChanges).find(c => c.age === age);
+  const ral = _ralOggiCh ? _ralOggiCh.ral : _ralCursore;
 
   const yearsToRet   = Math.max(0, retAge - age);
   const yearsInPen   = Math.max(0, lifeExp - retAge);
@@ -302,9 +312,12 @@ function calcPensione() {
   const revAzienda = 0.015 + 0.75 * infl; // rivalutazione TFR di legge (art. 2120 c.c.)
   const rateCapIT  = pil + infl;
 
+  // Percorso della RAL nominale anno per anno (crescita + eventuali variazioni)
+  const ralPath = penRalPath(ral, ralGrowth, infl, age, yearsToRet, penState.ralChanges);
   const accData = [];
+  const rispPath = []; // risparmio IRPEF anno per anno
   for (let y = 0; y < yearsToRet; y++) {
-    const curRal     = ral * Math.pow(1 + ralGrowth + infl, y);
+    const curRal     = ralPath[y];
     const baseCont   = regime === 'contributivo'
       ? Math.min(curRal, MASSIMALE_2025 * Math.pow(1 + infl, y + 1))  // massimale indicizzato
       : curRal;                                                        // non si applica ad ante-1996
@@ -326,9 +339,26 @@ function calcPensione() {
     const fpDatCur   = (isNegoziale && tfrSi) ? curRal * contDatoriale  : 0;
     const fpLavCur   = isNegoziale ? curRal * contLavoratore : 0;
 
+    // Risparmio IRPEF DELL'ANNO: contributi deducibili di quell'anno (crescono con la RAL)
+    // per l'aliquota marginale di quell'anno. Prima era calcolato una sola volta con la RAL
+    // di oggi e ripetuto identico per tutti gli anni. Scaglioni IRPEF e plafond sono
+    // confrontati in euro di oggi (ipotesi: aggiornati periodicamente con l'inflazione);
+    // con soglie ferme la sola inflazione porterebbe quasi tutti al 43% (fiscal drag).
+    // Al primo anno il risultato coincide con il calcolo precedente.
+    const _deflY     = Math.pow(1 + infl, y);
+    const _plafResY  = Math.max(0, deduzMassima * _deflY - fpDatCur);
+    const _deducLY   = fpVers * 12 + fpLavCur;
+    const deducY     = Math.min(_deducLY, _plafResY);
+    const eccY       = Math.max(0, _deducLY - _plafResY);
+    const aliqY      = calcAliqMargIRPEF(curRal / _deflY);
+    const rispY      = deducY * aliqY;
+    const extraFPY   = rispFiscDest === 'reinvesti_fp'  ? rispY : 0;
+    const extraETFY  = rispFiscDest === 'reinvesti_etf' ? rispY : 0;
+    rispPath.push(rispY);
+
     // Totale versato nel FP quest'anno:
     // versamento volontario + quota negoziale lavoratore + TFR + eventuale extra da risparmio fiscale reinvestito
-    const fpAnn      = fpVers * 12 + fpLavCur + tfrAnnCur + fpDatCur + extraFP;
+    const fpAnn      = fpVers * 12 + fpLavCur + tfrAnnCur + fpDatCur + extraFPY;
 
     // NOTA FISCALE FP: il rendimento annuo è tassato al 20% ogni anno (non al 26% come ETF).
     // Implementazione: il rendimento netto è fpRet * (1 - 0.20) = fpRet * 0.80
@@ -343,16 +373,16 @@ function calcPensione() {
     versDatFP   += fpDatCur;
     versLavFP   += fpLavCur;
     versVolFP   += fpVers * 12;
-    versExtraFP += extraFP;
-    versNonDedottiFP += eccedenzaAnnua;
+    versExtraFP += extraFPY;
+    versNonDedottiFP += eccY;
 
     // ETF bonus da risparmio fiscale reinvestito nel portafoglio del Simulatore.
     // Cresce al rendimento NETTO del portafoglio scelto (etfRet), con tassazione
     // del capital gain DIFFERITA al riscatto (a differenza del FP, tassato lungo il
     // percorso al 20%). La tassa sulla plusvalenza viene applicata più sotto, al riscatto.
-    if (extraETF > 0) {
-      capETFBonus = capETFBonus * (1 + penState.etfRet) + extraETF;
-      capETFBonusVers += extraETF;
+    if (extraETFY > 0) {
+      capETFBonus = capETFBonus * (1 + penState.etfRet) + extraETFY;
+      capETFBonusVers += extraETFY;
     }
 
     accData.push({
@@ -366,7 +396,9 @@ function calcPensione() {
       tfrAnn:       Math.round(tfrAnnCur),
       fpDatAnn:     Math.round(fpDatCur),
       fpLavAnn:     Math.round(fpLavCur),
-      rispFiscAnn:  Math.round(risparmioFisc),
+      rispFiscAnn:  Math.round(rispY),
+      aliqMargAnn:  aliqY,
+      deducAnn:     Math.round(deducY),
     });
   }
 
@@ -379,7 +411,7 @@ function calcPensione() {
   // del pensionamento (quota A/B), proiettata a fine carriera in termini NOMINALI
   // (coerente con curRal del loop; prima il misto usava la RAL di oggi e il
   // retributivo la proiettava solo in reale -> sottostima incoerente tra rami).
-  const ralFinaleNom = ral * Math.pow(1 + ralGrowth + infl, yearsToRet);
+  const ralFinaleNom = ralPath[yearsToRet];
   if (regime === 'contributivo') {
     pensioneLordaAnn = cumMontante * coeffTrasf;
   } else if (regime === 'misto') {
@@ -403,8 +435,8 @@ function calcPensione() {
   const irpefAnn          = calcIRPEF(pensioneLordaAnn);
   const pensioneNettaAnn  = pensioneLordaAnn - irpefAnn;
   const pensioneNettaMens = pensioneNettaAnn / 12;
-  const ralFinale         = ral * Math.pow(1 + ralGrowth + infl, yearsToRet);
-  const tassoSost         = pensioneLordaAnn / ralFinale;
+  const ralFinale         = ralPath[yearsToRet];
+  const tassoSost         = ralFinale > 0 ? pensioneLordaAnn / ralFinale : 0; // RAL finale 0 (pausa fino alla pensione)
 
   // ── 4. Rendita fondo pensione ──────────────────────────
   const anniAdesione   = yearsToRet;
@@ -505,7 +537,7 @@ function calcPensione() {
   const fiscData = {
     aliqFP, aliqMargIRPEF, risparmioFisc, rispFiscMens,
     deduzEffettiva, deduzLorda, anniAdesione, capFP, rendFPNetta,
-    tfrAnnuoMedio, extraFP, extraETF, capETFBonus,
+    tfrAnnuoMedio, extraFP, extraETF, capETFBonus, rispFiscPath: rispPath,
     fpDatoriale: fpVersAnnDat, fpLavoratore: fpVersAnnLav, fpVersAnnDat, plafondResiduo,
     fpVersAnnVolont, rispFiscDest,
   };
@@ -630,6 +662,7 @@ function importPenFromSim() {
       }
     }
     penState.etfBridgeYears = bridgeYears;
+    penState.etfImportRef = { sig: penSimSig(), cap: Math.round(capStimato) };
     penState.etfCapital = capStimato;
     // Rendimento NETTO del portafoglio scelto nel Simulatore (per il reinvestimento del risparmio fiscale in ETF)
     if (typeof getRate === 'function') {
@@ -724,6 +757,9 @@ async function generatePensionePDF() {
     // importi di calcPensione sono NOMINALI all'anno di pensionamento.
     const _deflaz = Math.pow(1 + penState.infl, r.yearsToRet);
     const _annoPens = new Date().getFullYear() + r.yearsToRet;
+    // variazioni di RAL effettivamente applicate (dall'eta' attuale alla pensione) e RAL di oggi effettiva
+    const _ralApplicate = sanitizeRalChanges(penState.ralChanges).filter(c => c.age >= penState.age && c.age <= penState.retAge);
+    const _ralOggi = (_ralApplicate.find(c => c.age === penState.age) || { ral: penState.ral }).ral;
     const regimeLabel = { contributivo: 'Contributivo puro', misto: 'Misto', retributivo: 'Retributivo' }[penState.regime] || penState.regime;
 
     // ── Copertina ──
@@ -744,13 +780,14 @@ async function generatePensionePDF() {
       head: [['Parametro', 'Valore', 'Parametro', 'Valore']],
       body: [
         ['Eta attuale → pensionamento', `${penState.age} → ${penState.retAge} anni`, 'Speranza di vita (orizzonte rendita)', `${penState.lifeExp} anni`],
-        ['RAL attuale lorda', fmtP(penState.ral) + '/anno', 'Regime pensionistico', regimeLabel],
+        ['RAL attuale lorda', fmtP(_ralOggi) + '/anno' + (_ralOggi !== penState.ral ? ' (da variazione)' : ''), 'Regime pensionistico', regimeLabel],
         ['Anni di contributi gia versati', `${penState.contYears} anni`, 'Crescita reale RAL attesa', (penState.ralGrowth * 100).toFixed(1) + '%/a'],
+        ...(_ralApplicate.length ? [['Variazioni di RAL (euro di oggi)', { content: _ralApplicate.map(c => c.age + ' anni: ' + fmtP(c.ral)).join(' · '), colSpan: 3 }]] : []),
         ['Versamento mensile Fondo Pensione', fmtP(penState.fpVers) + '/mese', 'Rendimento atteso Fondo Pensione', (penState.fpRet * 100).toFixed(1) + '%/a lordo'],
         ['TFR versato al Fondo', penState.tfrSi ? 'Si' : 'No', 'Fondo negoziale (contributo datoriale)', penState.isNegoziale ? 'Si' : 'No'],
-        [penState.etfBridgeYears > 0 ? `Capitale ETF al pensionamento (dopo ${penState.etfBridgeYears} anni di ponte)` : 'Capitale ETF stimato al pensionamento', fmtP(penState.etfCapital), 'Rendimento ETF netto atteso', (penState.etfRet * 100).toFixed(1) + '%/a'],
+        [penState.etfBridgeYears > 0 ? `Capitale ETF al pensionamento (dopo ${penState.etfBridgeYears} anni di ponte)` : 'Capitale ETF stimato al pensionamento', fmtP(penState.etfCapital) + (penEtfStale() ? ' (DA REIMPORTARE: il Simulatore e cambiato)' : ''), 'Rendimento ETF netto atteso', (penState.etfRet * 100).toFixed(1) + '%/a'],
       ],
-      styles: { fontSize: 8, cellPadding: 2.5 },
+      styles: { fontSize: 8, cellPadding: 2.0 },
       headStyles: { fillColor: LBG, textColor: GRAY, fontStyle: 'bold', fontSize: 7.5 },
       margin: { left: ML, right: MR }
     });
@@ -773,7 +810,7 @@ async function generatePensionePDF() {
         ['Coefficiente di trasformazione applicato', (r.coeffTrasf * 100).toFixed(3) + '%'],
         ['Montante contributivo finale', fmtP(r.cumMontante)],
       ],
-      styles: { fontSize: 8, cellPadding: 2.5 },
+      styles: { fontSize: 8, cellPadding: 2.0 },
       headStyles: { fillColor: LBG, textColor: GRAY, fontStyle: 'bold', fontSize: 7.5 },
       margin: { left: ML, right: MR }
     });
@@ -799,7 +836,7 @@ async function generatePensionePDF() {
         ['Rendita netta mensile stimata', fmtP(r.rendFPMens)],
         ['Rendita netta mensile in euro di oggi', fmtP(Math.round(r.rendFPMens / _deflaz))],
       ],
-      styles: { fontSize: 7.8, cellPadding: 2.3 },
+      styles: { fontSize: 7.8, cellPadding: 1.9 },
       headStyles: { fillColor: LBG, textColor: GRAY, fontStyle: 'bold', fontSize: 7.5 },
       margin: { left: ML, right: MR }
     });
@@ -831,7 +868,7 @@ async function generatePensionePDF() {
         ['Fabbisogno desiderato', fmtP(Math.round(fabbNom)), fmtP(penState.desired)],
         [bold('Scoperto (gap)'), bold(gapNom > 0 ? fmtP(Math.round(gapNom)) : 'nessuno'), bold(gapNom > 0 ? toOggi(gapNom) : 'nessuno')],
       ],
-      styles: { fontSize: 8, cellPadding: 2.5 },
+      styles: { fontSize: 8, cellPadding: 2.0 },
       headStyles: { fillColor: LBG, textColor: GRAY, fontStyle: 'bold', fontSize: 7.5 },
       margin: { left: ML, right: MR }
     });
@@ -863,8 +900,121 @@ async function generatePensionePDF() {
 }
 window.generatePensionePDF = generatePensionePDF;
 
+// ── Variazioni di RAL nella carriera ──────────────────────────────────────
+// Elenco di eventi { age, ral }: dall'eta' indicata la RAL diventa quella inserita
+// (lorda annua, in euro di oggi); tra un evento e l'altro cresce col cursore.
+// Usato da TUTTI i calcoli che dipendono dalla RAL futura (contributi, TFR, contributi
+// del datore, RAL finale): un unico percorso, cosi' i numeri restano coerenti.
+const PEN_MAX_RAL_CHANGES = 10;
+function sanitizeRalChanges(arr) {
+  const byAge = {};
+  (Array.isArray(arr) ? arr : []).forEach(c => {
+    if (!c || !isFinite(+c.age) || !isFinite(+c.ral)) return;
+    byAge[Math.round(+c.age)] = Math.max(0, Math.round(+c.ral));
+  });
+  return Object.keys(byAge).map(Number).sort((a, b) => a - b).slice(0, 10 /* = PEN_MAX_RAL_CHANGES, letterale: usata anche al caricamento iniziale */).map(a => ({ age: a, ral: byAge[a] }));
+}
+// Percorso della RAL NOMINALE per y = 0..years. Senza variazioni coincide esattamente con
+// la formula storica ral * (1 + crescita + inflazione)^y.
+function penRalPath(ral, g, infl, age, years, changes) {
+  const ch = {};
+  sanitizeRalChanges(changes).forEach(c => { ch[c.age] = c.ral; });
+  const out = new Array(Math.max(0, years) + 1);
+  let baseVal = ral, baseY = 0;
+  for (let y = 0; y <= years; y++) {
+    // y = 0: una variazione all'eta' attuale sostituisce la RAL di oggi
+    if (ch[age + y] !== undefined) { baseVal = ch[age + y] * Math.pow(1 + infl, y); baseY = y; }
+    out[y] = baseVal * Math.pow(1 + g + infl, y - baseY);
+  }
+  return out;
+}
+function renderPenRalChanges() {
+  const box = document.getElementById('penRalChList');
+  if (!box) return;
+  const list = penState.ralChanges || [];
+  const F = (typeof fmtP === 'function') ? fmtP : (v => v);
+  box.innerHTML = list.length ? list.map((c, i) => {
+    const out = c.age < penState.age || c.age > penState.retAge;
+    return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--text2)">Dai</span>
+      <input type="number" min="${penState.age}" max="${penState.retAge}" value="${c.age}" onchange="updPenRalChange(${i},'age',this.value)" style="width:64px;padding:4px 6px;border:1px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text)">
+      <span style="font-size:12px;color:var(--text2)">anni RAL</span>
+      <input type="number" min="0" step="500" value="${c.ral}" onchange="updPenRalChange(${i},'ral',this.value)" style="width:100px;padding:4px 6px;border:1px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text)">
+      <span style="font-size:12px;color:var(--text2)">€/anno</span>
+      <button class="gbtn" onclick="delPenRalChange(${i})" title="Elimina questa variazione" style="padding:2px 9px">✕</button>
+      ${out ? '<span style="font-size:11px;color:var(--orange)">fuori dagli anni di lavoro: ignorata</span>' : ''}
+    </div>`; }).join('') : '<div style="font-size:12px;color:var(--text3);margin-bottom:6px">Nessuna variazione: la RAL cresce solo con il cursore.</div>';
+  const add = document.getElementById('penRalChAdd');
+  if (add) add.disabled = list.length >= PEN_MAX_RAL_CHANGES;
+  // grafico del percorso in euro di oggi
+  const sp = document.getElementById('penRalSpark');
+  if (sp) {
+    const years = Math.max(1, penState.retAge - penState.age);
+    const nom = penRalPath(penState.ral, penState.ralGrowth, penState.infl, penState.age, years, list);
+    const real = nom.map((v, y) => v / Math.pow(1 + penState.infl, y));
+    const W = 300, H = 56, mx = Math.max(...real, 1);
+    const pts = real.map((v, y) => `${(y / years * (W - 4) + 2).toFixed(1)},${(H - 14 - (v / mx) * (H - 22)).toFixed(1)}`).join(' ');
+    sp.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto" role="img" aria-label="Percorso della RAL in euro di oggi">
+      <polyline points="${pts}" fill="none" stroke="var(--blue)" stroke-width="2"/>
+      <text x="2" y="${H - 2}" font-size="9" fill="var(--text3)">${penState.age} anni: ${F(Math.round(real[0]))}</text>
+      <text x="${W - 2}" y="${H - 2}" font-size="9" fill="var(--text3)" text-anchor="end">${penState.retAge} anni: ${F(Math.round(real[years]))}</text>
+    </svg><div style="font-size:11px;color:var(--text3)">Percorso della RAL in euro di oggi</div>`;
+  }
+}
+function addPenRalChange() {
+  const list = sanitizeRalChanges(penState.ralChanges);
+  if (list.length >= PEN_MAX_RAL_CHANGES) return;
+  const lastAge = list.length ? list[list.length - 1].age : penState.age;
+  let age = Math.min(penState.retAge, lastAge + 3);
+  if (list.some(c => c.age === age)) age = Math.min(penState.retAge, lastAge + 1);
+  if (age <= penState.age || list.some(c => c.age === age)) return;
+  // proposta: la RAL che il percorso attuale darebbe a quell'eta' (euro di oggi)
+  const real = penRalPath(penState.ral, penState.ralGrowth, 0, penState.age, age - penState.age, list);
+  list.push({ age, ral: Math.round(real[age - penState.age] / 500) * 500 });
+  penState.ralChanges = sanitizeRalChanges(list);
+  renderPensione();
+}
+function updPenRalChange(i, field, v) {
+  const list = (penState.ralChanges || []).map(c => ({ ...c }));
+  if (!list[i]) return;
+  const n = +v;
+  if (!isFinite(n) || String(v).trim() === '') { renderPensione(); return; }
+  list[i][field] = field === 'age' ? Math.round(n) : Math.max(0, n);
+  penState.ralChanges = sanitizeRalChanges(list);
+  renderPensione();
+}
+function delPenRalChange(i) {
+  const list = (penState.ralChanges || []).slice();
+  list.splice(i, 1);
+  penState.ralChanges = sanitizeRalChanges(list);
+  renderPensione();
+}
+window.addPenRalChange = addPenRalChange; window.updPenRalChange = updPenRalChange; window.delPenRalChange = delPenRalChange;
+
+// Firma degli input del Simulatore e del Decumulo che determinano il capitale ETF importato.
+// Se cambia dopo l'importazione, il valore mostrato nella scheda e nel report non e' piu' attuale.
+function penSimSig() {
+  try {
+    return JSON.stringify([state.w, state.pac, state.age, state.years, state.portfolio, state.ter, state.pics, state.exps, state.pacChanges,
+      state.portfolio === 'custom' ? state.customPortfolio : null, state.portfolio === 'glide' ? state.glide : null,
+      decState.withdrawal, decState.portfolio, decState.strategy, decState.inflation, decState.years, penState.retAge, penState.age]);
+  } catch (e) { return ''; }
+}
+// Superato solo se il capitale e' ancora quello importato (un valore inserito a mano non e' segnalato)
+function penEtfStale() {
+  const r = penState.etfImportRef;
+  return !!(r && r.sig && Math.round(penState.etfCapital || 0) === Math.round(r.cap) && r.sig !== penSimSig());
+}
+function renderPenEtfStale() {
+  const el = document.getElementById('penEtfStale');
+  if (!el) return;
+  el.style.display = penEtfStale() ? 'block' : 'none';
+}
+
 function renderPensione() {
   savePenStateLS(); // ogni modifica della scheda passa da qui
+  try { renderPenRalChanges(); } catch (e) {}
+  try { renderPenEtfStale(); } catch (e) {}
   try {
     const r = calcPensione();
     window.lastPenResult = { r, params: { ...penState } };
@@ -1119,13 +1269,13 @@ function renderPenFP(r) {
       <div class="mcard"><div class="ml">Tassazione rendimento</div><div class="mv" style="color:var(--orange)">20%</div><div class="ms">Annua sulle plusvalenze (vs 26% ETF)</div></div>
       <div class="mcard"><div class="ml">Tassazione prestazione</div><div class="mv" style="color:${aliqFP<=0.12?'var(--green)':'var(--orange)'}">${(aliqFP*100).toFixed(1)}%</div><div class="ms">${anniAdesione} anni adesione (min 9%)</div></div>
       <div class="mcard"><div class="ml">Deducibilità annua</div><div class="mv" style="color:var(--green)">${fmtP(deduzEffettiva)}</div><div class="ms">${fpVersAnnDat > 0 ? `Plafond €5.300 − ${fmtP(Math.round(fpVersAnnDat))} datoriale = ${fmtP(Math.round(plafondResiduo))} disp.` : 'Limite €5.300/a (2026)'} · applicata ${(aliqMargIRPEF*100).toFixed(0)}%</div></div>
-      <div class="mcard"><div class="ml">Risparmio IRPEF annuo</div><div class="mv" style="color:var(--green)">${fmtP(risparmioFisc)}</div><div class="ms">${fmtP(Math.round(risparmioFisc/12))}/mese · aliq. marg. ${(aliqMargIRPEF*100).toFixed(0)}%</div></div>
+      <div class="mcard"><div class="ml">Risparmio IRPEF (1° anno)</div><div class="mv" style="color:var(--green)">${fmtP(risparmioFisc)}</div><div class="ms">${fmtP(Math.round(risparmioFisc/12))}/mese · aliq. marg. ${(aliqMargIRPEF*100).toFixed(0)}%</div></div>
       <div class="mcard"><div class="ml">TFR al fondo</div><div class="mv" style="color:${penState.tfrSi?'var(--green)':'var(--red)'}">${penState.tfrSi ? '✅ Sì' : '❌ No'}</div><div class="ms">${penState.tfrSi ? fmtP(Math.round(penState.ral/13.5/12))+'/m (RAL÷13,5)' : 'Resta in azienda'}</div></div>
       ${negRow}
     </div>
     <div style="background:#f3e8fd;border:1px solid #d7aefb;border-radius:var(--radius-sm);padding:12px 16px;font-size:12px;color:#6200ea;line-height:1.7">
       <strong>Vantaggi fiscali (D.Lgs. 252/2005):</strong>
-      Contributi fino a €5.300 deducibili dall'IRPEF → risparmio immediato di <strong>${fmtP(risparmioFisc)}/anno</strong>.
+      Contributi fino a €5.300 deducibili dall'IRPEF → risparmio immediato di <strong>${fmtP(risparmioFisc)}</strong> il primo anno, che cresce con la RAL e con lo scaglione IRPEF.
       Rendimenti tassati al <strong>20% annuo</strong> (vs 26% ETF, ma con tassazione immediata vs tax deferral ETF).
       Prestazione finale tassata al ${(aliqFP*100).toFixed(1)}% (scende dal 15% al 9% con 35+ anni di adesione).
       ${isNeg ? `<br><strong>Fondo negoziale:</strong> il datore contribuisce ${fmtP(fpDatoriale)}/anno (${(penState.contDatoriale*100).toFixed(1)}% RAL) — versamento "gratuito" per il lavoratore che entra solo versando la quota contrattuale (${fmtP(fpLavoratore)}/anno).` : ''}
@@ -1135,8 +1285,10 @@ function renderPenFP(r) {
 // ── Sezione Risparmio Fiscale ─────────────────────────────────
 function renderPenRispFisc(r) {
   const { fiscData, yearsToRet, capFP, capETFBonus } = r;
+  const _rp = Array.isArray(r.rispFiscPath) && r.rispFiscPath.length ? r.rispFiscPath : null;
   const { risparmioFisc, rispFiscMens, aliqMargIRPEF, deduzEffettiva, rispFiscDest } = fiscData;
-  const totRisp = risparmioFisc * yearsToRet; // totale risparmio fiscale cumulato (senza interessi)
+  const _rispY = (y) => (_rp ? (_rp[y] ?? 0) : risparmioFisc); // risparmio dell'anno y
+  let totRisp = 0; for (let y = 0; y < yearsToRet; y++) totRisp += _rispY(y); // totale cumulato (senza interessi)
 
   // Simula accumulazione del risparmio fiscale nelle 3 destinazioni
   let capSpeso = totRisp; // speso anno per anno: valore nominale cumulato
@@ -1145,11 +1297,11 @@ function renderPenRispFisc(r) {
   const fpRet = penState.fpRet;
   const etfRet = penState.etfRet;
   for (let y = 0; y < yearsToRet; y++) {
-    capReinvFP  = capReinvFP  * (1 + fpRet * 0.80) + risparmioFisc; // FP: 20% tassa sui rendimenti, lungo il percorso
-    capReinvETF = capReinvETF * (1 + etfRet)        + risparmioFisc; // ETF: rendimento del portafoglio, tassazione differita
+    capReinvFP  = capReinvFP  * (1 + fpRet * 0.80) + _rispY(y); // FP: 20% tassa sui rendimenti, lungo il percorso
+    capReinvETF = capReinvETF * (1 + etfRet)        + _rispY(y); // ETF: rendimento del portafoglio, tassazione differita
   }
   // ETF netto alla vendita finale
-  const costBaseETF  = risparmioFisc * yearsToRet;
+  const costBaseETF  = totRisp;
   const capReinvETFNetto = capReinvETF - Math.max(0, capReinvETF - costBaseETF) * 0.26;
 
   const destLabel = { spendi: '🛍️ Speso/consumato', reinvesti_fp: '💼 Reinvestito nel Fondo Pensione', reinvesti_etf: '📈 Reinvestito nel portafoglio ETF' };
@@ -1158,7 +1310,7 @@ function renderPenRispFisc(r) {
   document.getElementById('penRispFiscBox').innerHTML = `
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
       <div class="mcard" style="flex:1;min-width:160px">
-        <div class="ml">Risparmio IRPEF annuo</div>
+        <div class="ml">Risparmio IRPEF (1° anno)</div>
         <div class="mv" style="color:var(--green)">${fmtP(risparmioFisc)}</div>
         <div class="ms">${fmtP(rispFiscMens)}/mese · aliq. ${(aliqMargIRPEF*100).toFixed(0)}% su €${fmtP(deduzEffettiva)}</div>
       </div>
@@ -1199,8 +1351,8 @@ function renderPenRispFisc(r) {
       ${rispFiscDest === 'spendi'
         ? `Il risparmio IRPEF viene consumato ogni anno. Non si accumula capitale aggiuntivo, ma aumenta il tenore di vita attuale (${fmtP(rispFiscMens)}/mese extra).`
         : rispFiscDest === 'reinvesti_fp'
-        ? `Il risparmio IRPEF (${fmtP(risparmioFisc)}/anno) viene versato ogni anno come contributo aggiuntivo al fondo pensione. Beneficia anche lui della deducibilità (fino al limite €5.300). Rendimento netto: ${(fpRet*80).toFixed(1)}%/a (tassazione 20% annua plusvalenze). Capitale aggiuntivo stimato: <strong>${fmtP(Math.round(capReinvFP))}</strong>.`
-        : `Il risparmio IRPEF (${fmtP(risparmioFisc)}/anno) viene investito nel portafoglio ETF del simulatore (fuori dal FP) al rendimento netto <strong>${(etfRet*100).toFixed(1)}%/a</strong>. Sfrutta il <em>tax deferral</em>: nessuna tassazione intermedia, solo 26% sulla plusvalenza alla vendita finale. Capitale netto stimato: <strong>${fmtP(Math.round(capReinvETFNetto))}</strong>.`
+        ? `Il risparmio IRPEF (${fmtP(risparmioFisc)} il primo anno, poi crescente con la RAL) viene versato ogni anno come contributo aggiuntivo al fondo pensione. Beneficia anche lui della deducibilità (fino al limite €5.300). Rendimento netto: ${(fpRet*80).toFixed(1)}%/a (tassazione 20% annua plusvalenze). Capitale aggiuntivo stimato: <strong>${fmtP(Math.round(capReinvFP))}</strong>.`
+        : `Il risparmio IRPEF (${fmtP(risparmioFisc)} il primo anno, poi crescente con la RAL) viene investito nel portafoglio ETF del simulatore (fuori dal FP) al rendimento netto <strong>${(etfRet*100).toFixed(1)}%/a</strong>. Sfrutta il <em>tax deferral</em>: nessuna tassazione intermedia, solo 26% sulla plusvalenza alla vendita finale. Capitale netto stimato: <strong>${fmtP(Math.round(capReinvETFNetto))}</strong>.`
       }
     </div>`;
 }
@@ -1320,10 +1472,11 @@ function renderPenFiscComp(r) {
 function renderPenAccTable(r) {
   const { accData } = r;
   const isNeg = penState.isNegoziale;
+  const tfrOn = !!penState.tfrSi; // colonna TFR solo se il TFR va al fondo
   const stp = Math.max(1, Math.floor(accData.length / 12));
   const header = `<thead><tr style="background:var(--bg2)">
     <th>Età</th><th>Anno</th><th>RAL</th><th>Contrib. INPS</th><th>Montante INPS</th><th>Cap. FP</th><th>Vers. FP</th>
-    ${isNeg ? '<th>Di cui datoriale</th>' : ''}
+    ${tfrOn ? '<th title="TFR conferito al fondo pensione nell\'anno (RAL / 13,5)">Di cui TFR</th>' : ''}${isNeg ? '<th>Di cui datoriale</th>' : ''}${isNeg ? '<th title="Contributo del lavoratore previsto dal contratto (CCNL), deducibile">Di cui lavoratore</th>' : ''}
     <th>Risp. IRPEF</th>
   </tr></thead>`;
   const rows = accData
@@ -1336,7 +1489,7 @@ function renderPenAccTable(r) {
       <td style="font-weight:600;color:var(--blue)">${fmtP(d.montanteINPS)}</td>
       <td style="font-weight:600;color:var(--purple)">${fmtP(d.capFP)}</td>
       <td style="color:var(--text3)">${fmtP(d.fpVersAnn)}</td>
-      ${isNeg ? `<td style="color:var(--green)">${fmtP(d.fpDatAnn)}</td>` : ''}
+      ${tfrOn ? `<td style="color:var(--text2)">${fmtP(d.tfrAnn)}</td>` : ''}${isNeg ? `<td style="color:var(--green)">${fmtP(d.fpDatAnn)}</td>` : ''}${isNeg ? `<td style="color:var(--green)">${fmtP(d.fpLavAnn)}</td>` : ''}
       <td style="color:var(--green)">${fmtP(d.rispFiscAnn)}</td>
     </tr>`).join('');
   document.getElementById('penAccTable').innerHTML = `<table class="data-table" style="width:100%;border-collapse:collapse">${header}<tbody>${rows}</tbody></table>`;
