@@ -419,8 +419,8 @@ function suitePensione() {
 
   // 6.a Coefficienti di trasformazione ufficiali (DM 436/2024)
   if (global.getCoeffTrasf) {
-    ok(near(global.getCoeffTrasf(67), 0.05608, 0.0001), 'Coefficiente trasformazione 67 anni = 5.608%', (global.getCoeffTrasf(67)*100).toFixed(3)+'%');
-    ok(near(global.getCoeffTrasf(64), 0.05088, 0.0001), 'Coefficiente trasformazione 64 anni = 5.088%', (global.getCoeffTrasf(64)*100).toFixed(3)+'%');
+    ok(near(global.getCoeffTrasf(67), 0.05514, 0.0001), 'Coefficiente trasformazione 67 anni = 5.514% (D.D. 16/10/2026)', (global.getCoeffTrasf(67)*100).toFixed(3)+'%');
+    ok(near(global.getCoeffTrasf(64), 0.05009, 0.0001), 'Coefficiente trasformazione 64 anni = 5.009% (D.D. 16/10/2026)', (global.getCoeffTrasf(64)*100).toFixed(3)+'%');
   } else warn('getCoeffTrasf non trovata');
 
   // 6.b IRPEF crescente e progressiva
@@ -616,10 +616,10 @@ function suiteFactors() {
   try {
     const penSrc = fs.readFileSync(path.join(__dirname, 'pensione.js'), 'utf8');
     eval(penSrc.match(/const COEFF_TRASF = \{[\s\S]*?\};/)[0].replace('const ','global.'));
-    const OFF_DM = {57:0.04204,58:0.04308,59:0.04419,60:0.04536,61:0.04661,62:0.04795,63:0.04936,64:0.05088,65:0.05250,66:0.05423,67:0.05608,68:0.05808,69:0.06024,70:0.06258,71:0.06510};
+    const OFF_DM = {57:0.04153,58:0.04254,59:0.04361,60:0.04475,61:0.04596,62:0.04725,63:0.04863,64:0.05009,65:0.05166,66:0.05334,67:0.05514,68:0.05707,69:0.05914,70:0.06139,71:0.06382};
     let allC = true;
     for (const a in OFF_DM) if (Math.abs(global.COEFF_TRASF[a] - OFF_DM[a]) > 1e-9) allC = false;
-    ok(allC, 'INPS: 15 coefficienti trasformazione = tabella ufficiale DM biennio 2025-26');
+    ok(allC, 'INPS: 15 coefficienti trasformazione = tabella ufficiale D.D. 16/10/2026 (dal 2027)');
   } catch(e){ warn('INPS coeff: non verificabili — ' + e.message.slice(0,40)); }
 
   // 7.n Curve bond: patch ETF reali fino a dic2025 (672), cuciture corrette

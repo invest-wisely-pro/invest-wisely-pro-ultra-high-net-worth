@@ -114,23 +114,14 @@ let chartPen     = null;
 let chartPenFisc = null;
 let chartRispFisc = null;
 
-// ── Coefficienti di trasformazione INPS — biennio 2025/2026 ──
-// FIX 2026-07-04: verificati TUTTI i 15 valori contro il DM Lavoro/MEF 20-22
-// novembre 2024 (n. 436/2024, revisione biennale ex L.335/1995 Tab.A): le età
-// 68/69/70 riportavano 5.821/6.042/6.272 (valori errati); i valori ufficiali
-// sono 5.808/6.024/6.258, coerenti col reciproco dei divisori del decreto
-// (1/17.218, 1/16.600, 1/15.980). Gli altri 12 valori erano già esatti.
-// Vigente a lug 2026: il decreto del biennio 2027-28 arriverà a fine 2026.
-// Fonte: DM 436/2024 (Min. Lavoro, 20/11/2024), in vigore dal 1°/1/2025.
-// Valori ufficiali verificati per le età 57-67 e 71. Le età 68-69-70
-// (assenti nelle fonti testuali consultate) sono interpolate
-// geometricamente tra i valori ufficiali certi a 67 (5,608%) e 71
-// (6,510%), con progressione monotòna coerente col trend reale.
+// ── Coefficienti di trasformazione INPS — in vigore dal 1° gennaio 2027 ──
+// D.D. Lavoro/MEF 16 ottobre 2026 (tabella allegata, tasso di sconto 1,5%), sostituisce il
+// D.D. 20/11/2024 del biennio 2025-26. Tutti i 15 valori verificati sul testo del decreto.
 const COEFF_TRASF = {
-  57: 0.04204, 58: 0.04308, 59: 0.04419, 60: 0.04536,
-  61: 0.04661, 62: 0.04795, 63: 0.04936, 64: 0.05088,
-  65: 0.05250, 66: 0.05423, 67: 0.05608, 68: 0.05808,
-  69: 0.06024, 70: 0.06258, 71: 0.06510,
+  57: 0.04153, 58: 0.04254, 59: 0.04361, 60: 0.04475,
+  61: 0.04596, 62: 0.04725, 63: 0.04863, 64: 0.05009,
+  65: 0.05166, 66: 0.05334, 67: 0.05514, 68: 0.05707,
+  69: 0.05914, 70: 0.06139, 71: 0.06382,
 };
 
 function getCoeffTrasf(age) {
@@ -404,7 +395,9 @@ function calcPensione() {
 
   // ── 3. Pensione INPS lorda ─────────────────────────────
   const coeffTrasfBase = getCoeffTrasf(retAge);
-  const coeffTrasf     = coeffTrasfBase * Math.pow(1 - (penState.coeffDecl ?? 0), yearsToRet);
+  // il calo stimato parte dal 2027: la tabella in uso incorpora gia' la revisione di quell'anno
+  const _anniDecl      = Math.max(0, yearsToRet - Math.max(0, 2027 - new Date().getFullYear()));
+  const coeffTrasf     = coeffTrasfBase * Math.pow(1 - (penState.coeffDecl ?? 0), _anniDecl);
 
   let pensioneLordaAnn;
   // Retribuzione pensionabile per le quote retributive: media degli ultimi anni PRIMA
@@ -432,7 +425,12 @@ function calcPensione() {
   }
 
   const pensioneLordaMens = pensioneLordaAnn / 12;
-  const irpefAnn          = calcIRPEF(pensioneLordaAnn);
+  // La pensione e' in euro NOMINALI dell'anno di pensionamento, tra decenni: scaglioni e detrazioni si
+  // applicano in euro di oggi (ipotesi: aggiornati con l'inflazione), come per il risparmio IRPEF del
+  // fondo pensione. Con soglie ferme per 30 anni la sola inflazione porterebbe la pensione quasi tutta
+  // al 43% e sottostimerebbe la pensione netta (fiscal drag).
+  const _deflIrpef = Math.pow(1 + infl, yearsToRet);
+  const irpefAnn          = calcIRPEF(pensioneLordaAnn / _deflIrpef) * _deflIrpef;
   const pensioneNettaAnn  = pensioneLordaAnn - irpefAnn;
   const pensioneNettaMens = pensioneNettaAnn / 12;
   const ralFinale         = ralPath[yearsToRet];
@@ -583,7 +581,7 @@ function calcPensione() {
 function calcIRPEF(reddito, detr = 'pensione') {
   const scaglioni = [
     { max: 28000,    aliq: 0.23 },
-    { max: 50000,    aliq: 0.35 },
+    { max: 50000,    aliq: 0.33 },
     { max: Infinity, aliq: 0.43 },
   ];
   let imposta = 0, prev = 0;
@@ -604,7 +602,7 @@ function calcIRPEF(reddito, detr = 'pensione') {
 
 function calcAliqMargIRPEF(ral) {
   if (ral <= 28000) return 0.23;
-  if (ral <= 50000) return 0.35;
+  if (ral <= 50000) return 0.33; // 2° scaglione 33% dal 2026 (L. 199/2025)
   return 0.43;
 }
 
@@ -886,7 +884,7 @@ async function generatePensionePDF() {
     if (y + 16 > 287) { doc.addPage(); y = 20; }
     doc.setDrawColor(210, 210, 210); doc.line(ML, y, W - MR, y); y += 6;
     doc.setFontSize(7.3); doc.setFont('helvetica', 'italic'); doc.setTextColor(...GRAY);
-    doc.text(doc.splitTextToSize(pdfSafe('Documento generato automaticamente a scopo educativo e informativo. Non costituisce consulenza fiscale, previdenziale o finanziaria personalizzata. I calcoli si basano sulla normativa vigente (coefficienti INPS DM 2025-26, D.lgs 252/2005) e su parametri e ipotesi inseriti dall\'utente, che possono cambiare.'), CW), ML, y);
+    doc.text(doc.splitTextToSize(pdfSafe('Documento generato automaticamente a scopo educativo e informativo. Non costituisce consulenza fiscale, previdenziale o finanziaria personalizzata. I calcoli si basano sulla normativa vigente (coefficienti INPS in vigore dal 2027, D.D. 16/10/2026, D.lgs 252/2005) e su parametri e ipotesi inseriti dall\'utente, che possono cambiare.'), CW), ML, y);
 
     const _tot = doc.getNumberOfPages();
     for (let i = 2; i <= _tot; i++) { doc.setPage(i); miniHdr(i, _tot); }
@@ -997,7 +995,9 @@ function penSimSig() {
   try {
     return JSON.stringify([state.w, state.pac, state.age, state.years, state.portfolio, state.ter, state.pics, state.exps, state.pacChanges,
       state.portfolio === 'custom' ? state.customPortfolio : null, state.portfolio === 'glide' ? state.glide : null,
-      decState.withdrawal, decState.portfolio, decState.strategy, decState.inflation, decState.years, penState.retAge, penState.age]);
+      // impostazioni del Decumulo solo se c'e' un ponte: altrimenti non influenzano il capitale importato
+      ...((penState.etfBridgeYears || 0) > 0 ? [decState.withdrawal, decState.portfolio, decState.strategy, decState.inflation, decState.years] : []),
+      penState.retAge, penState.age]);
   } catch (e) { return ''; }
 }
 // Superato solo se il capitale e' ancora quello importato (un valore inserito a mano non e' segnalato)
@@ -1106,7 +1106,7 @@ function renderPenKPI(r) {
     <div class="mcard">
       <div class="ml">Pensione INPS netta</div>
       <div class="mv" style="color:var(--blue)">${fmtP(pensioneNettaMens)}<span style="font-size:11px;opacity:.6">/m</span></div>
-      <div class="ms">≈ ${fmtP(inpsReal)}/m in € di oggi · coeff. ${(coeffTrasf*100).toFixed(3)}%${r.coeffTrasfBase && Math.abs(r.coeffTrasfBase-coeffTrasf)>1e-5?` (2025: ${(r.coeffTrasfBase*100).toFixed(3)}%)`:''}</div>
+      <div class="ms">≈ ${fmtP(inpsReal)}/m in € di oggi · coeff. ${(coeffTrasf*100).toFixed(3)}%${r.coeffTrasfBase && Math.abs(r.coeffTrasfBase-coeffTrasf)>1e-5?` (tabella 2027: ${(r.coeffTrasfBase*100).toFixed(3)}%)`:''}</div>
     </div>
     <div class="mcard">
       <div class="ml">Rendita Fondo Pensione</div>
@@ -1240,7 +1240,7 @@ function renderPenINPS(r) {
   document.getElementById('penINPSDetail').innerHTML = `
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
       <div class="mcard"><div class="ml">Montante al pensionamento</div><div class="mv" style="color:var(--blue)">${fmtP(cumMontante)}</div><div class="ms">Rivalutato PIL nom. (${((penState.pil+penState.infl)*100).toFixed(1)}%/a)</div></div>
-      <div class="mcard"><div class="ml">Coeff. trasformazione</div><div class="mv" style="color:var(--blue)">${(coeffTrasf*100).toFixed(3)}%</div><div class="ms">Età ${penState.retAge}${r.coeffTrasfBase && Math.abs(r.coeffTrasfBase-coeffTrasf)>1e-5?` · futuro stimato (2025: ${(r.coeffTrasfBase*100).toFixed(3)}%)`:'· tabella INPS 2025'}</div></div>
+      <div class="mcard"><div class="ml">Coeff. trasformazione</div><div class="mv" style="color:var(--blue)">${(coeffTrasf*100).toFixed(3)}%</div><div class="ms">Età ${penState.retAge}${r.coeffTrasfBase && Math.abs(r.coeffTrasfBase-coeffTrasf)>1e-5?` · futuro stimato (tabella 2027: ${(r.coeffTrasfBase*100).toFixed(3)}%)`:'· tabella INPS 2025'}</div></div>
       <div class="mcard"><div class="ml">Pensione lorda annua</div><div class="mv" style="color:var(--blue)">${fmtP(pensioneLordaAnn)}</div><div class="ms">${fmtP(pensioneLordaMens)}/mese</div></div>
       <div class="mcard"><div class="ml">IRPEF stimata annua</div><div class="mv" style="color:var(--red)">${fmtP(irpefAnn)}</div><div class="ms">Scaglioni 2025 + detrazione</div></div>
       <div class="mcard"><div class="ml">Pensione netta mensile</div><div class="mv" style="color:var(--blue)">${fmtP(pensioneNettaMens)}</div><div class="ms">× 13 mensilità INPS</div></div>
