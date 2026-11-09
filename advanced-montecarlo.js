@@ -947,9 +947,12 @@ function runAdvancedMC() {
             // Correzione Ito per t-Student: Var[t(nu)] = nu/(nu-2) ≠ 1
             // mu_arith deve usare la varianza effettiva: 0.5*vol²*(nu/(nu-2))
             // così E[CAGR] = mu_geo = PORT.normal → P50 converge alla linea Base
-            const varFactor = nu > 2 ? nu / (nu - 2) : 10;  // nu/(nu-2); fallback per nu≤2
-            const mu_arith = muY + 0.5 * vol * vol * varFactor;
-            r = mu_arith + vol * randn_t(nu);
+            // FIX: rumore t riscalato a varianza 1 con sqrt((nu-2)/nu): la volatilita resta quella del
+            // portafoglio e cambiano solo le code. Prima la varianza era nu/(nu-2) volte piu alta (x2 con
+            // nu=4, volatilita +41%) e qualche anno estremo superava il -100%, con capitali finali negativi.
+            const tScale = nu > 2 ? Math.sqrt((nu - 2) / nu) : 0.3;
+            const mu_arith = muY + 0.5 * vol * vol;  // varianza effettiva = vol^2 dopo la riscalatura
+            r = Math.max(-0.95, mu_arith + vol * tScale * randn_t(nu)); // non si perde piu del capitale
           } else if (model === 'garch') {
             // Simula 12 mesi GARCH e aggrega; usa stati carry-forward tra anni
             const eqP = GARCH_EQ, obP = GARCH_OB;
@@ -1279,7 +1282,8 @@ function renderAdvMCComparison() {
         if (model==='gaussian') r = mu + 0.5*vol*vol + vol*randn_bm();
         else if (model==='student') {
           const nu_c = advMCState.nu||4; const vf = nu_c>2 ? nu_c/(nu_c-2) : 10;
-          r = mu + 0.5*vol*vol*vf + vol*randn_t(nu_c);
+          // FIX: come nel modello principale, rumore t riscalato a varianza 1 e perdita annua limitata
+          r = Math.max(-0.95, mu + 0.5*vol*vol + vol*Math.sqrt(nu_c > 2 ? (nu_c - 2) / nu_c : 0.09)*randn_t(nu_c));
         }
         else if (model==='garch') {
           // Ancoraggio identico al runner principale: shock scalati alla σ target

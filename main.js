@@ -5968,7 +5968,7 @@ async function generatePDF() {
       const sigEU    = ld.signal_eq_eu  ? ({ cheap:'Sottovalutato', fair:'Fair value', expensive:'Caro', very_expensive:'Molto caro' }[ld.signal_eq_eu] || ld.signal_eq_eu) : 'n/d';
       const sigBond  = ld.signal_bond   ? ({ attractive:'Attraente', fair:'Fair value', poor:'Scarso', very_poor:'Molto scarso' }[ld.signal_bond] || ld.signal_bond) : 'n/d';
       const fetchTS  = ld.fetchedAt ? new Date(ld.fetchedAt).toLocaleString('it-IT') : 'sconosciuto';
-      const euSrc    = ld.cape_eu_source === 'live' ? 'live' : 'stimato (regressione 0.68xUSA+3.8)';
+      const euSrc    = ld.cape_eu_source === 'live' ? 'live' : 'stimato (0,55 x CAPE USA + 2,5, corretto per tassi e inflazione)';
 
       // Percentile CAPE
       const CAPE_Q = [[10,10],[13,25],[17,50],[23,75],[29,90],[33,95],[40,99]];

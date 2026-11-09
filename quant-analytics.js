@@ -594,7 +594,10 @@ function computeVaRCVaR(mu, vol, horizon, initialValue, ter) {
   const z99 = 2.3263;
   const z999= 3.0902;
   // VaR: usa μ geometrico (μ - σ²/2) per coerenza con GBM log-normale (correzione Itô)
-  const muGeo = muNet - vol*vol/2; // drift geometrico
+  // Il rendimento atteso del simulatore e' gia' COMPOSTO (CAGR, come lo scenario base e il Monte Carlo):
+  // drift logaritmico = ln(1+mu). Prima si sottraeva sigma^2/2 come se fosse aritmetico, e la mediana
+  // implicita del VaR risultava piu' bassa dello scenario base (correzione di Ito contata due volte).
+  const muGeo = Math.log(1 + muNet);
   results.param = {
     var95:  clampLoss(V * (1 - Math.exp(muGeo*h - z95  * volH))),
     var99:  clampLoss(V * (1 - Math.exp(muGeo*h - z99  * volH))),
@@ -602,17 +605,19 @@ function computeVaRCVaR(mu, vol, horizon, initialValue, ter) {
     // CVaR parametrico log-normale: E[loss | loss > VaR]
     // Formula: V*(1 - exp(μNet·h)*N(-z - σ√h)/(1-α))
     // Nota: muH + volH² = (μ-σ²/2)h + σ²h = μNet·h (momento primo log-normale)
-    cvar95:  clampLoss(V * (1 - Math.exp(muNet*h) * _normCDF(-z95  - volH) / 0.05)),
-    cvar99:  clampLoss(V * (1 - Math.exp(muNet*h) * _normCDF(-z99  - volH) / 0.01)),
-    cvar999: clampLoss(V * (1 - Math.exp(muNet*h) * _normCDF(-z999 - volH) / 0.001)),
+    cvar95:  clampLoss(V * (1 - Math.exp((muGeo + vol*vol/2)*h) * _normCDF(-z95  - volH) / 0.05)),
+    cvar99:  clampLoss(V * (1 - Math.exp((muGeo + vol*vol/2)*h) * _normCDF(-z99  - volH) / 0.01)),
+    cvar999: clampLoss(V * (1 - Math.exp((muGeo + vol*vol/2)*h) * _normCDF(-z999 - volH) / 0.001)),
   };
 
   // ── Metodo 2: Monte Carlo (10.000 simulazioni) ────────────────────────────
-  const N_MC = 10000;
+  // seme fisso: stesso portafoglio e orizzonte -> stesso VaR Monte Carlo a ogni apertura della scheda
+  const N_MC = 20000;
+  const _rv = _mulberry32(_hashSeed([mu, vol, h, V, ter].join('|')));
   const returns = [];
   for (let i=0;i<N_MC;i++) {
-    const z = _boxMuller();
-    const r = Math.exp((muNet - volH*volH/2/h)*h + volH*z) - 1;
+    const u1 = _rv() || 1e-12, u2 = _rv(); const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    const r = Math.exp(muGeo*h + volH*z) - 1;
     returns.push(r);
   }
   returns.sort((a,b)=>a-b);
@@ -682,9 +687,18 @@ function _mean(arr) {
   return arr.reduce((a,b)=>a+b,0)/arr.length;
 }
 function _tQuantile(p, df) {
-  // Approssimazione Cornish-Fisher per t-Student
-  const z = _normInv(p);
-  return z + (z*z*z+z)/(4*df) + (5*z*z*z*z*z+16*z*z*z+3*z)/(96*df*df);
+  // Quantile ESATTO della t di Student: bisezione sulla funzione di ripartizione (integrale di Simpson
+  // della densita'). Prima era l'approssimazione di Cornish-Fisher: con pochi gradi di liberta'
+  // sottostimava le code (-11% al 99,9% con df=4) e il CVaR che la usa risultava gonfiato fino al 39%.
+  if (!(df > 0) || !isFinite(df)) return _normInv(p);
+  if (p === 0.5) return 0;
+  if (p < 0.5) return -_tQuantile(1 - p, df);
+  const c = Math.exp(_lgamma((df + 1) / 2) - _lgamma(df / 2) - 0.5 * Math.log(df * Math.PI));
+  const pdf = x => c * Math.pow(1 + x * x / df, -(df + 1) / 2);
+  const cdf = x => { const n = 1200, hs = x / n; let t = pdf(0) + pdf(x); for (let k = 1; k < n; k++) t += (k % 2 ? 4 : 2) * pdf(k * hs); return 0.5 + t * hs / 3; };
+  let lo = 0, hi = 8; while (cdf(hi) < p && hi < 1e4) hi *= 2;
+  for (let k = 0; k < 55; k++) { const m = (lo + hi) / 2; if (cdf(m) < p) lo = m; else hi = m; }
+  return (lo + hi) / 2;
 }
 function _tCVaR(p, df) {
   // CVaR normalizzato (diviso per vol) per t-Student: E[Z | Z > q_p]
@@ -1318,6 +1332,9 @@ const FACTOR_LOADINGS = {
   commodities:     { MKT: 0.10, SMB: 0, HML: 0, RMW: 0, CMA: 0, MOM: 0 },
   cash:            { MKT: 0.00, SMB: 0, HML: 0, RMW: 0, CMA: 0, MOM: 0 },
 };
+// Obbligazioni EU ultra-lunghe: stessi carichi delle lunghe (prima mancavano e risultavano a zero)
+if (!FACTOR_LOADINGS.ob_eu_ult && FACTOR_LOADINGS.ob_eu_lt) FACTOR_LOADINGS.ob_eu_ult = { ...FACTOR_LOADINGS.ob_eu_lt };
+
 
 // Metadati fattori per UI
 const FACTOR_META = {
@@ -1338,11 +1355,16 @@ const FACTOR_META = {
 // ── Calcola esposizione fattoriale ponderata del portafoglio ───────────────
 function computeFactorExposure(weights, acKeys) {
   const exposure = { MKT: 0, SMB: 0, HML: 0, RMW: 0, CMA: 0, MOM: 0 };
-  for (let i = 0; i < acKeys.length; i++) {
-    const ld = FACTOR_LOADINGS[acKeys[i]];
-    if (!ld) continue;
-    for (const f in exposure) exposure[f] += weights[i] * (ld[f] || 0);
-  }
+  // I compositi con leva (Efficient Core) non hanno carichi propri: si espandono nei sottostanti con i
+  // loro pesi nozionali (es. 90% azioni + 60% obbligazioni). Prima risultavano a esposizione zero.
+  const add = (key, w) => {
+    const ac = ASSET_CLASSES[key];
+    if (ac && ac.isComposite && Array.isArray(ac.composite)) { ac.composite.forEach(c => add(c.ac, w * c.w)); return; }
+    const ld = FACTOR_LOADINGS[key];
+    if (!ld) return;
+    for (const f in exposure) exposure[f] += w * (ld[f] || 0);
+  };
+  for (let i = 0; i < acKeys.length; i++) add(acKeys[i], weights[i]);
   return exposure;
 }
 
