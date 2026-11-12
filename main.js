@@ -2018,7 +2018,7 @@ function render() {
 
   const te = document.getElementById('terDragContent');
   if (ter === 0) te.innerHTML = `<span style="color:var(--green);font-weight:600">TER = 0%</span> — nessun costo fondo.`;
-  else { const tp = (terDrag / dNT[years].value * 100).toFixed(1); te.innerHTML = `Con TER <strong>${ter.toFixed(2)}%</strong> su ${years} anni: costo stimato <strong style="color:var(--orange)">${fmt(terDrag)}</strong> vs TER 0% (${tp}% del montante — compounding dell'erosione annua)`; }
+  else { const tp = dNT[years].value > 0 ? (terDrag / dNT[years].value * 100).toFixed(1) : '0.0'; /* niente NaN con capitale finale nullo */ te.innerHTML = `Con TER <strong>${ter.toFixed(2)}%</strong> su ${years} anni: costo stimato <strong style="color:var(--orange)">${fmt(terDrag)}</strong> vs TER 0% (${tp}% del montante — compounding dell'erosione annua)`; }
 
   const tI = dN[years].invested, txF = blendedTaxRate(endAge);
   const nB = calcNetNom(vN[years], tI, txF), nP = calcNetNom(vW[years], tI, txF), nO = calcNetNom(vB[years], tI, txF);

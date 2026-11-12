@@ -982,3 +982,10 @@ tbody tr:hover{background:var(--bg2)}
 
 .corr-roll-btn{font-size:11px;padding:5px 10px;cursor:pointer}
 .corr-roll-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* Composizione del portafoglio su telefono: due colonne invece di una. Con 18 pulsanti in
+   colonna il riquadro di configurazione finiva molto in basso. Altezza dei pulsanti invariata. */
+@media (max-width: 480px) {
+  #allocBtns.btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #allocBtns.btn-group .gbtn { width: auto; min-width: 0; padding: 12px 8px; overflow-wrap: anywhere; }
+}

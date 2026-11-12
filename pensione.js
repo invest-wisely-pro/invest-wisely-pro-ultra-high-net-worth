@@ -1475,7 +1475,7 @@ function renderPenAccTable(r) {
   const tfrOn = !!penState.tfrSi; // colonna TFR solo se il TFR va al fondo
   const stp = Math.max(1, Math.floor(accData.length / 12));
   const header = `<thead><tr style="background:var(--bg2)">
-    <th>Età</th><th>Anno</th><th>RAL</th><th>Contrib. INPS</th><th>Montante INPS</th><th>Cap. FP</th><th>Vers. FP</th>
+    <th title="Ogni riga è un anno di lavoro, indicato con l'età a fine anno: una variazione di RAL 'dai 42 anni' compare nella riga 43">Età a fine anno</th><th>Anno</th><th>RAL</th><th>Contrib. INPS</th><th>Montante INPS</th><th>Cap. FP</th><th>Vers. FP</th>
     ${tfrOn ? '<th title="TFR conferito al fondo pensione nell\'anno (RAL / 13,5)">Di cui TFR</th>' : ''}${isNeg ? '<th>Di cui datoriale</th>' : ''}${isNeg ? '<th title="Contributo del lavoratore previsto dal contratto (CCNL), deducibile">Di cui lavoratore</th>' : ''}
     <th>Risp. IRPEF</th>
   </tr></thead>`;
