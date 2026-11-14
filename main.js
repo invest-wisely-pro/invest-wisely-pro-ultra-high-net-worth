@@ -27,37 +27,37 @@ if (window.Chart) {
 //        Returns Yearbook, Dalio/Browne per PP/GB
 // ══════════════════════════════════════════════════════════════
 const PORT = {
-  eq100: {
+  eq100: { // FIX 2026-11-14: rendimento allineato alle classi di attivo (-0.50 punti; best/worst/reale spostati di pari passo)
     label: '100% Azioni',
     desc: 'Portafoglio interamente azionario Massimo rendimento atteso, massima volatilità. Adatto a orizzonti ≥15 anni con alta tolleranza alle perdite temporanee.',
-    best: .102, normal: .070, worst: .007, vol: .160,
+    best: 0.097, normal: 0.065, worst: 0.002, vol: .160,
     eq: 1.0, ob: 0.0, gold: 0.0, cash: 0.0,
-    realRet: .050, inflBeta: 0.3, fxExp: 0.85,  // ~85% non-EUR (MSCI World: 65% USA + altri)
+    realRet: 0.045, inflBeta: 0.3, fxExp: 0.85,  // ~85% non-EUR (MSCI World: 65% USA + altri)
   },
-  eq80: {
+  eq80: { // FIX 2026-11-14: rendimento allineato alle classi di attivo (-0.70 punti; best/worst/reale spostati di pari passo)
     label: '80/20 Az/Ob', desc: '80% azioni, 20% obbligazioni. Portafoglio aggressivo con lieve ammortizzatore obbligazionario.',
-    best: .091, normal: .065, worst: .013, vol: .130,
-    eq: .8, ob: .2, gold: 0, cash: 0, realRet: .045, inflBeta: 0.2, fxExp: 0.70,
+    best: 0.084, normal: 0.058, worst: 0.006, vol: .130,
+    eq: .8, ob: .2, gold: 0, cash: 0, realRet: 0.038, inflBeta: 0.2, fxExp: 0.70,
   },
-  eq60: {
+  eq60: { // FIX 2026-11-14: rendimento allineato alle classi di attivo (-0.40 punti; best/worst/reale spostati di pari passo)
     label: '60/40 Az/Ob', desc: '60/40 classico — il portafoglio bilanciato per eccellenza. Riduce la volatilità rispetto al 100% azioni mantenendo rendimenti solidi nel lungo periodo.',
-    best: .074, normal: .055, worst: .016, vol: .095,
-    eq: .6, ob: .4, gold: 0, cash: 0, realRet: .037, inflBeta: 0.05, fxExp: 0.55,
+    best: 0.07, normal: 0.051, worst: 0.012, vol: .095,
+    eq: .6, ob: .4, gold: 0, cash: 0, realRet: 0.033, inflBeta: 0.05, fxExp: 0.55,
   },
-  eq50: {
+  eq50: { // FIX 2026-11-14: rendimento allineato alle classi di attivo (-0.25 punti; best/worst/reale spostati di pari passo)
     label: '50/50 Az/Ob', desc: 'Portafoglio equilibrato. Più difensivo del 60/40, adatto a chi ha orizzonte medio e tolleranza moderata al rischio.',
-    best: .066, normal: .050, worst: .020, vol: .080,
-    eq: .5, ob: .5, gold: 0, cash: 0, realRet: .032, inflBeta: -0.05, fxExp: 0.47,
+    best: 0.0635, normal: 0.0475, worst: 0.0175, vol: .080,
+    eq: .5, ob: .5, gold: 0, cash: 0, realRet: 0.0295, inflBeta: -0.05, fxExp: 0.47,
   },
-  eq40: {
+  eq40: { // FIX 2026-11-14: rendimento allineato alle classi di attivo (-0.10 punti; best/worst/reale spostati di pari passo)
     label: '40/60 Az/Ob', desc: 'Prevalenza obbligazionaria. Bassa volatilità, rendimento contenuto. Adatto a chi si avvicina alla pensione.',
-    best: .058, normal: .045, worst: .020, vol: .065,
-    eq: .4, ob: .6, gold: 0, cash: 0, realRet: .025, inflBeta: -0.15, fxExp: 0.38,
+    best: 0.057, normal: 0.044, worst: 0.019, vol: .065,
+    eq: .4, ob: .6, gold: 0, cash: 0, realRet: 0.024, inflBeta: -0.15, fxExp: 0.38,
   },
-  eq20: {
+  eq20: { // FIX 2026-11-14: rendimento allineato alle classi di attivo (+0.20 punti; best/worst/reale spostati di pari passo)
     label: '20/80 Az/Ob', desc: 'Portafoglio molto conservativo. Minima esposizione azionaria, massima stabilità. Rendimento reale spesso prossimo a zero in contesti di alta inflazione.',
-    best: .044, normal: .035, worst: .018, vol: .045,
-    eq: .2, ob: .8, gold: 0, cash: 0, realRet: .015, inflBeta: -0.25, fxExp: 0.19,
+    best: 0.046, normal: 0.037, worst: 0.02, vol: .045,
+    eq: .2, ob: .8, gold: 0, cash: 0, realRet: 0.017, inflBeta: -0.25, fxExp: 0.19,
   },
   ob100: {
     label: '100% Obbligaz.', desc: 'Portafoglio interamente obbligazionario. Protezione del capitale nominale, ma soffre molto in periodi di alta inflazione e rialzo tassi. Volatilità effettiva ~4% (includendo duration risk su scadenze medie 5-7a).',
@@ -130,12 +130,12 @@ const PORT = {
       'Ob. Breve/Medio Termine': '70%',
     }
   },
-  global_market: {
+  global_market: { // FIX 2026-11-14: rendimento allineato alle classi di attivo (-0.37 punti; best/worst/reale spostati di pari passo)
     label: '🗺️ Global Market Portfolio',
     desc: 'Portafoglio che replica la capitalizzazione del mercato mondiale: ~55% azioni globali sviluppati, ~45% obbligazioni globali aggregate. È il portafoglio "neutro" per definizione — rappresenta la quota detenuta dall\'investitore medio mondiale. Rendimento storico ~6%/a, vol ~9%. Ottimo benchmark passivo.',
-    best: .071, normal: .053, worst: .020, vol: .088,
+    best: 0.0673, normal: 0.0493, worst: 0.0163, vol: .088,
     eq: .55, ob: .45, gold: 0, cash: 0,
-    realRet: .033, inflBeta: 0.02, fxExp: 0.49, // 55%eq*0.85 + 45%ob*0.05
+    realRet: 0.0293, inflBeta: 0.02, fxExp: 0.49, // 55%eq*0.85 + 45%ob*0.05
     breakdown: {
       'Azioni Globali Sviluppati': '55%',
       'Obbligaz. Globali (Agg.)': '45%',
@@ -153,12 +153,12 @@ const PORT = {
       '(Cassa collaterale)': '10%',
     }
   },
-  ec_glob_9060: {
+  ec_glob_9060: { // FIX 2026-11-14: rendimento allineato alle classi di attivo (-1.02 punti; best/worst/reale spostati di pari passo)
     label: '⚡ Efficient Core 90/60 Globale',
     desc: 'Versione globale della strategia capital-efficient (efficient core 90/60 globale): 90% azioni globali sviluppati + 60% futures su titoli di stato globali (USA, UK, Germania, Giappone), esposizione notional 150%. Più diversificata della versione USA sia sul lato azionario sia obbligazionario. Costo di finanziamento della leva già dedotto. Volatilità ~14%/a. Disponibile come ETF UCITS. Adatta come "core" di un portafoglio per liberare spazio ad asset diversificanti senza ridurre l\'esposizione azionaria.',
-    best: .099, normal: .073, worst: .021, vol: .142,
+    best: 0.0888, normal: 0.0628, worst: 0.0108, vol: .142,
     eq: .90, ob: .60, gold: 0, cash: 0, leverage: 1.5,
-    realRet: .053, inflBeta: -0.04, fxExp: 0.70,
+    realRet: 0.0428, inflBeta: -0.04, fxExp: 0.70,
     breakdown: {
       'Az. Globali Sviluppati': '90%',
       'Futures Gov. Globali': '60%',
@@ -403,13 +403,17 @@ const ASSET_CLASSES = {
   // ══════════════════════════════════════════════════════════════
   ob_glob_gov: {
     label: 'Gov. Globale Intermedio (hedged EUR)', emoji: '🌐', cat: 'ob_glob',
-    mu: 0.042, vol: 0.048, inflBeta: -0.12, ter: 0.1, fxExp: 0.0,
+    // FIX 2026-11-14: rendimento atteso allineato ai titoli in euro (cambio coperto = rendimento locale
+    // meno il differenziale dei tassi). Prima 4,2%, derivato dallo storico 1985-2024 a tassi calanti.
+    mu: 0.028, vol: 0.048, inflBeta: -0.12, ter: 0.1, fxExp: 0.0,
     histCAGR: 0.054, histPeriod: '1985-2024', src: 'Gov globale hedged EUR reale (curvo.eu, dal 1985)',
-    desc: 'Paniere di titoli di stato dei principali paesi sviluppati (USA ~40%, Europa ~30%, Giappone ~15%, UK ~5%, altri) con duration ~6 anni e copertura valutaria in EUR. Diversifica il rischio di singola curva dei tassi. Rendimento mediano tra USA (~4.1%) ed Euro (~3.1%).',
+    desc: 'Paniere di titoli di stato dei principali paesi sviluppati (USA ~40%, Europa ~30%, Giappone ~15%, UK ~5%, altri) con duration ~6 anni e copertura valutaria in EUR. Diversifica il rischio di singola curva dei tassi. Con la copertura del cambio il rendimento atteso è vicino a quello dei titoli di Stato in euro.',
   },
   ob_glob_agg: {
     label: 'Aggregato Obbligazionario Globale (hedged EUR)', emoji: '🌐', cat: 'ob_glob',
-    mu: 0.047, vol: 0.055, inflBeta: -0.08, ter: 0.1, fxExp: 0.0,
+    // FIX 2026-11-14: stessa base dei portafogli predefiniti (obbligazionario in euro 3,0%, poi agganciato
+    // ai dati di mercato). Prima 4,7%: un 20/80 costruito da Custom o Glide rendeva 1,6 punti piu' del pulsante 20/80.
+    mu: 0.030, vol: 0.055, inflBeta: -0.08, ter: 0.1, fxExp: 0.0,
     histCAGR: 0.060, histPeriod: '1990-2024', src: 'Global Agg hedged reale dal 2018 (curvo.eu), aggregato EUR prima',
     desc: 'Universo obbligazionario globale aggregato: titoli di stato (~50%), corporate investment grade (~35%), cartolarizzati ABS/MBS (~15%), con copertura valutaria in EUR. Duration ~6.5 anni. Il riferimento per portafogli multi-asset a livello globale.',
   },
