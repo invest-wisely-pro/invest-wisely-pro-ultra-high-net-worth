@@ -415,7 +415,17 @@ function suitePensione() {
   if (!SRC.pens) { warn('pensione.js non presente in questa build — suite saltata'); return; }
   eval(grab(SRC.pens, /let penState = \{[\s\S]*?\n\};/).replace('let ', 'global.'));
   loadConst(SRC.pens, /const COEFF_TRASF = \{[\s\S]*?\n\};/);
-  ['getCoeffTrasf','calcIRPEF','calcAliqMargIRPEF','sanitizeRalChanges','penRalPath','calcPensione'].forEach(fn => loadFn(SRC.pens, fn));
+  loadConst(SRC.pens, /const PEN_CATEGORIE = \{[\s\S]*?\n\};/);
+  ['penCat','penMadre','penMadreScelta','getCoeffTrasf','calcIRPEF','calcAliqMargIRPEF','sanitizeRalChanges','penRalPath','calcPensione'].forEach(fn => loadFn(SRC.pens, fn));
+
+  // 6.0 Categoria lavorativa (2026-11-13): aliquote 33/33/25/24% e default RGS 1,5%
+  if (global.PEN_CATEGORIE) {
+    const C = global.PEN_CATEGORIE;
+    ok(C.priv.aliq === 0.33 && C.pub.aliq === 0.33 && C.gs.aliq === 0.25 && C.artcom.aliq === 0.24, 'Aliquote pensionistiche per categoria (33/33/25/24%)');
+    ok(!C.gs.dip && !C.artcom.dip && C.priv.dip && C.pub.dip, 'TFR e datore solo per i dipendenti');
+    ok(global.penState.ralGrowth === 0.010 && global.penState.pil === 0.006 && global.penState.categoria === 'priv', 'Default tarati RGS: crescita RAL 1,0%, PIL 0,6%, dipendente privato');
+    ok(C.priv.ralG === 0.010 && C.pub.ralG === 0.005 && C.gs.ralG === 0.010 && C.artcom.ralG === 0.010, 'Crescita RAL predefinita per categoria (1,0% / 0,5% pubblici)');
+  } else warn('PEN_CATEGORIE non trovata');
 
   // 6.a Coefficienti di trasformazione ufficiali (DM 436/2024)
   if (global.getCoeffTrasf) {
@@ -437,6 +447,7 @@ function suitePensione() {
     if (r) {
       ok(isFinite(r.pensioneLordaAnn) && r.pensioneLordaAnn > 0, 'Pensione lorda annua finita e positiva', Math.round(r.pensioneLordaAnn));
       ok(r.pensioneNettaMens < r.pensioneLordaMens, 'Pensione netta < lorda (tasse applicate)');
+      ok(Math.abs(r.addizAnn - r.pensioneLordaAnn * 0.02) <= 1 && Math.abs(r.pensioneNettaAnn - (r.pensioneLordaAnn - r.irpefAnn - r.addizAnn)) <= 2, 'Addizionali 2% incluse: netto = lordo - IRPEF - addizionali', r.addizAnn);
       ok(r.tassoSost > 0.3 && r.tassoSost < 0.95, 'Tasso sostituzione plausibile (30-95%)', (r.tassoSost*100).toFixed(0)+'%');
       ok(isFinite(r.rendFPMens) && r.rendFPMens >= 0, 'Rendita fondo pensione finita');
       // 6.d REGRESSIONE: l'ETF nel grafico annuale deve riflettere il prelievo SWR pieno,
@@ -640,7 +651,7 @@ function suiteFactors() {
     ok(/anniRetrib\s*=.*2012 - annoInizioContrib/.test(penSrc2), 'Regimi: retributivo con taglio Fornero 31/12/2011');
     ok(/cumMontantePost \* coeffTrasf/.test(penSrc2) && /annoTaglio = regime === 'misto' \? 1996/.test(penSrc2), 'Regimi: misto senza doppio conteggio (montante post-1995)');
     ok(/for \(let k = contYears - 1; k >= 0; k--\)/.test(penSrc2), 'Regimi: capitalizzazione montante dal contributo più vecchio');
-    ok(/MASSIMALE_2025 = 120607/.test(penSrc2) && /regime === 'contributivo'[\s\S]{0,120}Math\.min\(curRal, MASSIMALE_2025/.test(penSrc2), 'Regimi: massimale contributivo solo per il puro');
+    ok(/MASSIMALE_2026 = 122295/.test(penSrc2) && /regime === 'contributivo'[\s\S]{0,120}Math\.min\(curRal, MASSIMALE_2026/.test(penSrc2), 'Regimi: massimale contributivo solo per il puro');
     ok(/almeno 18 anni/.test(penSrc2) === false || true, 'Regimi: descrizioni');
     ok(/meno di 18 anni<\/strong>/.test(penSrc2) && /31\/12\/2011/.test(penSrc2), 'Regimi: descrizioni allineate alla norma');
   } catch(e){ warn('Regimi: non verificabili — ' + e.message.slice(0,40)); }

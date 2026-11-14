@@ -2145,7 +2145,7 @@ function renderEcoScenarios() {
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <div class="mcard"><div class="ml">Scenario Economico</div><div class="mv" style="color:${eco.color};font-size:16px">${fmt(vEco[state.years])}</div><div class="ms">Valore finale</div></div>
         <div class="mcard"><div class="ml">Scenario Base</div><div class="mv" style="color:var(--blue);font-size:16px">${fmt(vBase[state.years])}</div><div class="ms">Riferimento</div></div>
-        <div class="mcard"><div class="ml">Differenza</div><div class="mv" style="color:${vEco[state.years] > vBase[state.years] ? 'var(--green)' : 'var(--red)'};font-size:16px">${vEco[state.years] > vBase[state.years] ? '+' : ''}${fmt(vEco[state.years] - vBase[state.years])}</div><div class="ms">${((vEco[state.years] / vBase[state.years] - 1) * 100).toFixed(1)}%</div></div>
+        <div class="mcard"><div class="ml">Differenza</div><div class="mv" style="color:${vEco[state.years] > vBase[state.years] ? 'var(--green)' : 'var(--red)'};font-size:16px">${vEco[state.years] > vBase[state.years] ? '+' : ''}${fmt(vEco[state.years] - vBase[state.years])}</div><div class="ms">${vBase[state.years] > 0 ? ((vEco[state.years] / vBase[state.years] - 1) * 100).toFixed(1) : '0.0'}%</div></div>
       </div>
     </div>`;
 
@@ -2208,7 +2208,7 @@ function renderEcoScenarios() {
   const rows = Object.entries(ECO_SCENARIOS).map(([k, s]) => {
     const dE = projectEco(k);
     const vE = dE[state.years].value, vR = dE[state.years].real;
-    const delta = vE - vBase[state.years], pct = ((vE / vBase[state.years] - 1) * 100).toFixed(1);
+    const delta = vE - vBase[state.years], pct = vBase[state.years] > 0 ? ((vE / vBase[state.years] - 1) * 100).toFixed(1) : '0.0'; /* niente NaN con scenario base a zero */
     const durTxt = s.duration >= 99 ? 'baseline' : `${Math.min(s.duration, state.years)}/${state.years} a`;
     return `<tr><td style="text-align:left"><span style="font-size:13px">${s.emoji}</span> ${s.label}</td>
       <td style="font-family:'DM Mono',monospace;color:${s.color};font-weight:600">${durTxt}</td>
