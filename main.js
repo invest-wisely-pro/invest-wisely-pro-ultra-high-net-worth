@@ -764,9 +764,13 @@ let state = {
       { ac: 'ob_glob_agg',   pct: 40 },
     ]
   },
-  fxHedge: false,        // se true, copertura cambio attiva (costo ~0.3%/a)
+  fxHedge: false,        // se true, copertura cambio attiva (costo ~1,2%/a, vedi fxHedgeCost)
   fxVol: 0.085,          // volatilità storica EUR/USD ~8.5%/a (1999-2024)
-  fxHedgeCost: 0.003,    // costo annuo della copertura valutaria ~0.3%
+  fxHedgeCost: 0.012,    // FIX 2026-11-15: costo annuo della copertura ~ differenza tra tassi a breve USD ed EUR
+                         // (parita' coperta dei tassi) + costi operativi. Con il cambio senza tendenza attesa
+                         // (ipotesi del simulatore) coprire costa il differenziale: nov 2026 Fed 3,75-4% vs BCE
+                         // 2,50% = ~1,4 punti, media di lungo periodo piu' bassa. Con 1,2% un Treasury USA coperto
+                         // rende quanto un governativo euro di pari durata (prima 0,3%: +0,9 punti senza rischio).
   capeAdj: true,         // se true: baseline + scostamento da CAPE/yield live (metodo delta coerente)
 };
 let stateB = { portfolio: 'eq50', ter: .20, pac: -1 };
@@ -3844,7 +3848,7 @@ function normalizeCustom(){ const s=state.customPortfolio.slots.filter(sl=>sl.ac
 // ── Toggle copertura cambio EUR/USD ────────────────────────────────
 // Modella l'effetto valutario per investitore EUR:
 // - Unhedged: aggiunge vol da EUR/USD (~8.5%/a) proporzionalmente all'esposizione
-// - Hedged: costo annuo ~0.3% (forward FX), elimina la vol valutaria
+// - Hedged: costo annuo ~1,2% (differenziale dei tassi USD-EUR + costi), elimina la vol valutaria
 // Fonte: differenziale tassi EUR/USD storico, costi hedging ETF UCITS
 function toggleFxHedge() {
   state.fxHedge = !state.fxHedge;
@@ -4342,7 +4346,7 @@ function loadStateFromLS() {
     state.activeEcoScenario = snap.activeEcoScenario || 'normal_growth';
     state.ecoTiming     = snap.ecoTiming || 'early';
     state.fxHedge       = !!snap.fxHedge;
-    state.fxVol         = n(snap.fxVol, 0.085);    state.fxHedgeCost   = n(snap.fxHedgeCost, 0.003);
+    state.fxVol         = n(snap.fxVol, 0.085);    state.fxHedgeCost   = (snap.fxHedgeCost == null || snap.fxHedgeCost === 0.003) ? 0.012 : n(snap.fxHedgeCost, 0.012); // vecchio default 0,3% -> 1,2%
     state.capeAdj       = snap.capeAdj !== false; // default true se non presente
     if (snap.seq) {
       state.seq.on       = !!snap.seq.on;

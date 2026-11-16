@@ -72,7 +72,7 @@ function _applySnapshot(snap) {
   state.ecoTiming     = snap.ecoTiming || 'early';
   state.fxHedge       = !!snap.fxHedge;
   state.fxVol         = n(snap.fxVol, 0.085);
-  state.fxHedgeCost   = n(snap.fxHedgeCost, 0.003);
+  state.fxHedgeCost   = (snap.fxHedgeCost == null || snap.fxHedgeCost === 0.003) ? 0.012 : n(snap.fxHedgeCost, 0.012); // vecchio default 0,3% -> 1,2%
 
   if (snap.seq) {
     state.seq.on       = !!snap.seq.on;
