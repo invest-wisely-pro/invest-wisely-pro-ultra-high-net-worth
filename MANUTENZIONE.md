@@ -78,3 +78,19 @@ senza aggiornare i suoi test; anni parziali; deflazionare serie EUR/DEM con infl
 - Asset class e parametri: main.js (ASSET_CLASSES, _BSM, PORT).
 - Coefficienti INPS/IRPEF: pensione.js. CAPE live: live-data.js.
 - Test: test.js (suite 7.x = test sui dati). Storico fattori: STATO-FATTORI-REALI.md.
+
+## CAPE S&P 500 aggiornato ogni giorno (dal 19/11/2026)
+
+La barra "Dati live" legge il CAPE da `data/cape.json`, aggiornato da GitHub Actions
+(`.github/workflows/aggiorna-cape.yml`, script `.github/scripts/aggiorna_cape.py`) ogni giorno
+lavorativo alle 22:17 UTC, dalla pagina multpl.com/shiller-pe.
+
+Attivazione (una volta per repository):
+1. Caricare anche la cartella `.github` (è nascosta: su GitHub va caricata con il resto dei file).
+2. Settings → Actions → General → Workflow permissions → "Read and write permissions" → Save.
+3. Scheda Actions → "Aggiorna CAPE" → "Run workflow" per il primo aggiornamento.
+
+Se la fonte non risponde o dà un valore non plausibile, il file resta invariato.
+Ordine usato dal sito: file aggiornato (fino a 120 giorni, con la data mostrata se ha più di 7 giorni)
+→ dataset Shiller se l'ultimo dato ha meno di un anno → valore di riferimento manuale in live-data.js
+(oggi 41,5 di giugno 2026, da aggiornare a mano solo se l'aggiornamento automatico non funziona).

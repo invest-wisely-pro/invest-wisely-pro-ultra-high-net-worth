@@ -206,6 +206,17 @@ async function fetchWithTimeout(url, ms = 6000) {
 //   CAPE_now ≈ PE10_last × (P_now / P_last) / 1.06^(anni di gap)
 // Ritorna { value, asOf, extrapolated } oppure null.
 async function fetchCAPE() {
+  // 0) CAPE aggiornato ogni giorno lavorativo da GitHub Actions (data/cape.json, stessa origine del sito:
+  //    nessun blocco CORS). Vedi .github/workflows/aggiorna-cape.yml. Valido se ha meno di 120 giorni.
+  try {
+    const rj = await fetchWithTimeout('data/cape.json?t=' + Date.now(), 5000);
+    if (rj.ok) {
+      const j = await rj.json();
+      const v = +j.value, age = (Date.now() - new Date(j.asOf).getTime()) / 864e5;
+      if (v > 5 && v < 80 && age > -2 && age <= 120)
+        return { value: Math.round(v * 10) / 10, asOf: String(j.asOf).slice(0, 10), extrapolated: false, source: 'auto', ageDays: Math.max(0, Math.round(age)), srcName: j.source || 'multpl.com' };
+    }
+  } catch (e) { /* file assente o non valido: si passa alle altre fonti */ }
   try {
     const r = await fetchWithTimeout(
       'https://raw.githubusercontent.com/datasets/s-and-p-500/main/data/data.csv', 8000
@@ -236,6 +247,9 @@ async function fetchCAPE() {
     if (yGap <= 0.05) {
       return { value: lastValid.pe10, asOf: lastValid.date, extrapolated: false };
     }
+    // Oltre un anno di distanza l'estrapolazione non e' affidabile (l'ipotesi di crescita degli utili
+    // pesa troppo): meglio il valore di riferimento manuale, dichiarato come tale.
+    if (yGap > 1) { console.warn('[LiveData] ultimo PE10 del dataset vecchio di ' + yGap.toFixed(1) + ' anni: estrapolazione scartata'); return null; }
     // Estrapolazione: scala prezzo, deflaziona la crescita E10 (~6%/a)
     const raw = lastValid.pe10 * (lastPrice.price / lastValid.price) / Math.pow(1.06, yGap);
     const value = Math.max(10, Math.min(50, raw));
@@ -566,9 +580,13 @@ function renderLiveDataBanner() {
   const chips = [];
 
   if (d.cape_sp500) {
-    const usaSrcLabel = d._capeIsFallback ? 'rif. manuale'
-      : d._capeExtrapolated ? 'stima' : '';
-    const usaSrcTitle = d._capeIsFallback
+    const _dm = s => { const p = String(s || '').split('-'); return p.length >= 2 ? (p[2] ? p[2] + '/' : '') + p[1] + '/' + p[0].slice(2) : ''; };
+    const usaSrcLabel = d._capeIsFallback ? 'rif. manuale ' + _dm(d._capeAsOf)
+      : d._capeExtrapolated ? 'stima'
+      : d._capeAuto && d._capeAgeDays > 7 ? 'al ' + _dm(d._capeAsOf) : '';
+    const usaSrcTitle = d._capeAuto
+      ? `CAPE Shiller S&P 500 da multpl.com, aggiornato automaticamente ogni giorno lavorativo (dati al ${d._capeAsOf}).`
+      : d._capeIsFallback
       ? 'CAPE live non disponibile: valore di riferimento aggiornato manualmente da multpl.com/shiller-pe. Non è un dato in tempo reale.'
       : d._capeExtrapolated
         ? `CAPE stimato: ultimo PE10 Shiller (dataset datahub${d._capeAsOf ? ', dati al ' + d._capeAsOf : ''}) riscalato al prezzo S&P500 corrente con deflatore crescita utili decennali ~6%/a.`
@@ -666,6 +684,8 @@ window.fetchLiveMarketData = async function fetchLiveMarketData() {
     d.cape_sp500    = capeRes ? capeRes.value : null;
     d._capeAsOf     = capeRes ? capeRes.asOf : null;
     d._capeExtrapolated = capeRes ? !!capeRes.extrapolated : false;
+    d._capeAuto     = !!(capeRes && capeRes.source === 'auto');
+    d._capeAgeDays  = capeRes && capeRes.ageDays != null ? capeRes.ageDays : null;
     d.yield_eur_10y = (yieldEUR.status === 'fulfilled' ? yieldEUR.value : null) ?? null;
     d.yield_usa_10y = (yieldUSA.status === 'fulfilled' ? yieldUSA.value : null) ?? null;
     d.hicp_eu       = (hicp.status === 'fulfilled' ? hicp.value : null)     ?? null;
@@ -678,6 +698,7 @@ window.fetchLiveMarketData = async function fetchLiveMarketData() {
       // CAPE S&P500 fallback hardcoded — aggiornare mensilmente.
       // Fonte: https://www.multpl.com/shiller-pe (controlla il valore "Current")
       // Ultimo aggiornamento manuale: giugno 2026 → valore 41.5
+      d._capeAsOf = '2026-06';
       // (multpl 41.54 · GuruFocus 39.9 — metodologie leggermente diverse;
       //  secondo livello più alto di sempre dopo il picco dot-com 44.2 del 1999)
       d.cape_sp500 = 41.5;
